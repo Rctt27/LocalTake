@@ -39,6 +39,8 @@ public partial class SettingsWindow : Window
         HotkeyLastRegionBox.Text = settings.HotkeyLastRegion;
         HotkeyVideoRegionBox.Text = settings.HotkeyVideoRegion;
         HotkeyVideoFullScreenBox.Text = settings.HotkeyVideoFullScreen;
+        HotkeyVideoStartBox.Text = settings.HotkeyVideoStart;
+        HotkeyVideoStopBox.Text = settings.HotkeyVideoStop;
         foreach (var box in HotkeyBoxes())
         {
             box.PreviewKeyDown += HotkeyBox_PreviewKeyDown;
@@ -51,6 +53,7 @@ public partial class SettingsWindow : Window
         FfmpegBox.Text = settings.FfmpegPath;
         FrameRateBox.ItemsSource = FrameRates;
         FrameRateBox.SelectedItem = FrameRates.OrderBy(f => Math.Abs(f - settings.VideoFrameRate)).First();
+        RecordMicrophoneBox.IsChecked = settings.RecordMicrophone;
         SystemAudioBox.IsChecked = settings.RecordSystemAudio;
         FfmpegBox.TextChanged += (_, _) => UpdateFfmpegStatus();
         Loaded += (_, _) => LoadAudioDevices();
@@ -98,11 +101,11 @@ public partial class SettingsWindow : Window
             return;
 
         MicrophoneBox.Items.Clear();
-        MicrophoneBox.Items.Add(new ComboBoxItem { Content = "Aucun", Tag = "" });
+        MicrophoneBox.Items.Add(new ComboBoxItem { Content = "Premier micro détecté", Tag = "" });
         MicrophoneBox.SelectedIndex = 0;
 
         // A chosen microphone stays selectable even if it is unplugged right now.
-        var microphones = devices.Where(d => d != Ffmpeg.SystemAudioDevice).ToList();
+        var microphones = Ffmpeg.Microphones(devices).ToList();
         if (!string.IsNullOrEmpty(selected) && !microphones.Contains(selected))
             microphones.Add(selected);
         foreach (var name in microphones)
@@ -131,7 +134,7 @@ public partial class SettingsWindow : Window
 
     private TextBox[] HotkeyBoxes() => new[]
     {
-        HotkeyRegionBox, HotkeyWindowBox, HotkeyFullScreenBox, HotkeyLastRegionBox, HotkeyVideoRegionBox, HotkeyVideoFullScreenBox
+        HotkeyRegionBox, HotkeyWindowBox, HotkeyFullScreenBox, HotkeyLastRegionBox, HotkeyVideoRegionBox, HotkeyVideoFullScreenBox, HotkeyVideoStartBox, HotkeyVideoStopBox
     };
 
     private void HotkeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -170,6 +173,8 @@ public partial class SettingsWindow : Window
         HotkeyLastRegionBox.Text = defaults.HotkeyLastRegion;
         HotkeyVideoRegionBox.Text = defaults.HotkeyVideoRegion;
         HotkeyVideoFullScreenBox.Text = defaults.HotkeyVideoFullScreen;
+        HotkeyVideoStartBox.Text = defaults.HotkeyVideoStart;
+        HotkeyVideoStopBox.Text = defaults.HotkeyVideoStop;
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -265,8 +270,11 @@ public partial class SettingsWindow : Window
         _settings.HotkeyLastRegion = HotkeyLastRegionBox.Text.Trim();
         _settings.HotkeyVideoRegion = HotkeyVideoRegionBox.Text.Trim();
         _settings.HotkeyVideoFullScreen = HotkeyVideoFullScreenBox.Text.Trim();
+        _settings.HotkeyVideoStart = HotkeyVideoStartBox.Text.Trim();
+        _settings.HotkeyVideoStop = HotkeyVideoStopBox.Text.Trim();
         _settings.FfmpegPath = ffmpegPath;
         _settings.Microphone = (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone;
+        _settings.RecordMicrophone = RecordMicrophoneBox.IsChecked == true;
         _settings.RecordSystemAudio = SystemAudioBox.IsChecked == true;
         _settings.VideoFrameRate = (int)FrameRateBox.SelectedItem;
         try

@@ -56,8 +56,10 @@ Flow: `App` → `TrayController` owns the `NotifyIcon`, the `HotkeyManager` and 
 - ffmpeg `gdigrab` takes the same physical virtual-desktop coordinates as the rest of the app. Width and height are rounded down to even values for H.264/yuv420p.
 - Stop sends `q` on ffmpeg's stdin, which writes the MP4 index. Killing the process leaves an unplayable file, so kill is only for cancel and failure, and the file is then deleted.
 - `RecordingFrame` (WinForms, click-through) and `RecordingBar` (WPF) use `WDA_EXCLUDEFROMCAPTURE`: they are on screen but absent from the video, even in full screen.
-- `VideoController` is a state machine (Idle, Selecting, Countdown, Recording, Finishing). The same shortcut starts and stops; image captures are refused while it is busy, since the overlay or editor would be recorded.
+- `VideoController` is a state machine (Idle, Selecting, Ready, Countdown, Recording, Finishing). After the selection, the bar waits in Ready, as in TinyTake: the countdown only starts from its Start button or the Start shortcut. Image captures are refused while it is busy, since the overlay or editor would be recorded.
+- The Start and Stop shortcuts (`Ctrl+R`, `Ctrl+D`) are registered on a separate `HotkeyManager` only from Ready until the session ends, so they do not steal those keys from other applications the rest of the time. Stop during the countdown returns to Ready.
 - Audio uses DirectShow devices. "Computer sound" relies on `virtual-audio-capturer`, the driver installed by TinyTake Filter; with a microphone too, the two are mixed with `amix`.
+- The bar's two toggles write `RecordMicrophone` and `RecordSystemAudio` directly to the settings, so the last choice is remembered. An empty `Microphone` means the first one ffmpeg lists. Devices are listed while the bar is shown; the toggles lock once the countdown starts.
 
 ### Settings and file names
 

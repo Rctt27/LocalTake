@@ -102,8 +102,14 @@
                 <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Micro" Margin="0,10,10,0"/>
                 <ComboBox x:Name="MicrophoneBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,10,0,0"/>
 
-                <CheckBox x:Name="SystemAudioBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,10,0,0"
-                          Content="Enregistrer aussi le son de l'ordinateur"/>
+                <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox x:Name="RecordMicrophoneBox" Content="Enregistrer le micro" Margin="0,0,20,0"/>
+                        <CheckBox x:Name="SystemAudioBox" Content="Enregistrer le son de l'ordinateur"/>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
+                               Text="Les deux se changent aussi sur la barre d'enregistrement, avant de démarrer : le dernier choix est retenu."/>
+                </StackPanel>
 
                 <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="Images/seconde" Margin="0,10,10,0"/>
                 <ComboBox x:Name="FrameRateBox" Grid.Row="4" Grid.Column="1" Width="80" HorizontalAlignment="Left" Margin="0,10,0,0"/>
@@ -124,6 +130,8 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Style="{StaticResource Label}" Text="Capturer une zone"/>
                     <TextBox x:Name="HotkeyRegionBox" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
@@ -136,12 +144,16 @@
                     <TextBlock Grid.Row="4" Style="{StaticResource Label}" Text="Vidéo d'une zone"/>
                     <TextBox x:Name="HotkeyVideoRegionBox" Grid.Row="4" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
                     <TextBlock Grid.Row="5" Style="{StaticResource Label}" Text="Vidéo de tout l'écran"/>
-                    <TextBox x:Name="HotkeyVideoFullScreenBox" Grid.Row="5" Grid.Column="1" Style="{StaticResource HotkeyBox}"/>
+                    <TextBox x:Name="HotkeyVideoFullScreenBox" Grid.Row="5" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
+                    <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="Démarrer l'enregistrement"/>
+                    <TextBox x:Name="HotkeyVideoStartBox" Grid.Row="6" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
+                    <TextBlock Grid.Row="7" Style="{StaticResource Label}" Text="Arrêter l'enregistrement"/>
+                    <TextBox x:Name="HotkeyVideoStopBox" Grid.Row="7" Grid.Column="1" Style="{StaticResource HotkeyBox}"/>
                 </Grid>
                 <DockPanel Margin="0,8,0,0">
                     <Button DockPanel.Dock="Right" Content="Raccourcis de TinyTake" Padding="10,3" Click="DefaultHotkeys_Click"/>
                     <TextBlock Style="{StaticResource Hint}" Margin="0,0,10,0"
-                               Text="Cliquez dans un champ puis appuyez sur la combinaison. Retour arrière : aucun raccourci. Le raccourci d'une vidéo l'arrête aussi."/>
+                               Text="Cliquez dans un champ puis appuyez sur la combinaison. Retour arrière : aucun raccourci. Démarrer et Arrêter ne sont actifs que pendant une vidéo."/>
                 </DockPanel>
             </StackPanel>
         </GroupBox>

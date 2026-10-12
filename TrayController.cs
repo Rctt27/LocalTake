@@ -45,7 +45,8 @@ internal sealed class TrayController : IDisposable
         menu.Items.Add(new Forms.ToolStripSeparator());
         _videoRegionItem = AddItem(menu, "Enregistrer une vidéo (zone)", () => ToggleVideo(fullScreen: false, fromMenu: true));
         _videoFullScreenItem = AddItem(menu, "Enregistrer une vidéo (tout l'écran)", () => ToggleVideo(fullScreen: true, fromMenu: true));
-        _stopVideoItem = AddItem(menu, "Arrêter l'enregistrement", () => _ = _video.StopAsync());
+        // "Démarrer" while the bar waits, "Arrêter" during the countdown or the recording.
+        _stopVideoItem = AddItem(menu, "Arrêter l'enregistrement", () => _video.Toggle(fullScreen: false, fromMenu: true));
         _stopVideoItem.Font = new Font(_stopVideoItem.Font, System.Drawing.FontStyle.Bold);
         _stopVideoItem.Visible = false;
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -253,7 +254,8 @@ internal sealed class TrayController : IDisposable
 
     private void UpdateVideoState()
     {
-        _stopVideoItem.Visible = _video.IsRecording;
+        _stopVideoItem.Visible = _video.IsReady || _video.IsRecording;
+        _stopVideoItem.Text = _video.IsReady ? "Démarrer l'enregistrement" : "Arrêter l'enregistrement";
         _videoRegionItem.Enabled = _videoFullScreenItem.Enabled = !_video.IsBusy;
         _tray.Text = _video.IsRecording ? "LocalTake — enregistrement en cours" : "LocalTake";
     }
@@ -332,9 +334,9 @@ internal sealed class TrayController : IDisposable
                 return;
             if (answer == MessageBoxResult.Yes)
                 await _video.StopAsync();
-            else
-                _video.Cancel();
         }
+        // A recording prepared but not started, or a countdown, has nothing to keep.
+        _video.Cancel();
         // A stop already under way (from the recording bar, for instance) is awaited rather than ignored.
         await _video.StopAsync();
         if (_video.IsBusy)

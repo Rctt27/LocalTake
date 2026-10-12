@@ -50,12 +50,18 @@ public sealed class AppSettings
     public string HotkeyVideoRegion { get; set; } = "Ctrl+Shift+PrintScreen";
     public string HotkeyVideoFullScreen { get; set; } = "";
 
+    /// <summary>Only registered while a recording is being prepared or under way, as in TinyTake.</summary>
+    public string HotkeyVideoStart { get; set; } = "Ctrl+R";
+    public string HotkeyVideoStop { get; set; } = "Ctrl+D";
+
     /// <summary>Empty: ffmpeg.exe next to LocalTake, then on the PATH.</summary>
     public string FfmpegPath { get; set; } = "";
 
-    /// <summary>DirectShow audio device name; empty for no microphone.</summary>
+    /// <summary>DirectShow audio device name; empty for the first microphone found.</summary>
     public string Microphone { get; set; } = "";
 
+    /// <summary>The two audio toggles of the recording bar, remembered from one video to the next.</summary>
+    public bool RecordMicrophone { get; set; } = true;
     public bool RecordSystemAudio { get; set; }
 
     public int VideoFrameRate { get; set; } = 30;

@@ -98,6 +98,33 @@ internal static class Ffmpeg
         }
         return devices.Distinct().ToList();
     }
+
+    /// <summary>Same as <see cref="ListAudioDevices"/>, but an empty list when ffmpeg cannot be run.</summary>
+    public static async Task<List<string>> ListAudioDevicesAsync(string ffmpegPath)
+    {
+        try
+        {
+            return await Task.Run(() => ListAudioDevices(ffmpegPath));
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
+        {
+            return new List<string>();
+        }
+    }
+
+    public static IEnumerable<string> Microphones(IEnumerable<string> devices) => devices.Where(d => d != SystemAudioDevice);
+
+    /// <summary>
+    /// The chosen microphone when it is plugged in, otherwise the first one found. With an empty list (ffmpeg could
+    /// not list the devices), the chosen one is tried anyway.
+    /// </summary>
+    public static string? PickMicrophone(IReadOnlyCollection<string> devices, string preferred)
+    {
+        if (devices.Count == 0)
+            return string.IsNullOrWhiteSpace(preferred) ? null : preferred;
+        var microphones = Microphones(devices).ToList();
+        return microphones.Contains(preferred) ? preferred : microphones.FirstOrDefault();
+    }
 }
 
 internal sealed record VideoOptions(int FrameRate, string? Microphone, bool SystemAudio);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
@@ -7,14 +8,18 @@ using System.Windows;
 namespace LocalTake;
 
 /// <summary>
-/// One screen recording at a time: area selection, 3-second countdown, ffmpeg, then the MP4 in the output folder.
+/// One screen recording at a time: area selection, then a bar to choose the audio and start, a 3-second
+/// countdown, ffmpeg, and the MP4 in the output folder.
 /// </summary>
 internal sealed class VideoController : IDisposable
 {
-    private enum State { Idle, Selecting, Countdown, Recording, Finishing }
+    private enum State { Idle, Selecting, Ready, Countdown, Recording, Finishing }
 
     private readonly AppSettings _settings;
     private readonly Action<string> _onSaved;
+
+    /// <summary>Start and Stop shortcuts, registered only while a recording is prepared or under way.</summary>
+    private readonly HotkeyManager _sessionHotkeys = new();
 
     private State _state = State.Idle;
     private RecordingFrame? _frame;
@@ -22,7 +27,13 @@ internal sealed class VideoController : IDisposable
     private VideoRecorder? _recorder;
     private Task _stopping = Task.CompletedTask;
 
-    /// <summary>Incremented on cancel, so that a countdown still awaiting does not start the recording.</summary>
+    private string _ffmpeg = "";
+    private Rectangle _target;
+    private Task<List<string>> _audioDevices = Task.FromResult(new List<string>());
+    private string? _startShortcut;
+    private string? _stopShortcut;
+
+    /// <summary>Incremented when a countdown is abandoned, so that its pending loop does not start the recording.</summary>
     private int _session;
 
     /// <summary>The %NUM% value taken by the current video, given back if nothing is kept.</summary>
@@ -37,15 +48,21 @@ internal sealed class VideoController : IDisposable
     /// <summary>From selection to the end of finalization; image captures wait meanwhile.</summary>
     public bool IsBusy => _state != State.Idle;
 
+    /// <summary>The area is chosen and the bar waits for Start.</summary>
+    public bool IsReady => _state == State.Ready;
+
     public bool IsRecording => _state is State.Countdown or State.Recording;
 
     public event Action? StateChanged;
 
-    /// <summary>The same shortcut starts and stops a recording.</summary>
+    /// <summary>The video shortcut chooses the area, then starts the countdown, then stops the recording.</summary>
     public async void Toggle(bool fullScreen, bool fromMenu)
     {
         switch (_state)
         {
+            case State.Ready:
+                StartCountdown();
+                return;
             case State.Countdown or State.Recording:
                 await StopAsync();
                 return;
@@ -88,36 +105,77 @@ internal sealed class VideoController : IDisposable
             return;
 
         // H.264 in yuv420p needs even dimensions.
-        var target = new Rectangle(chosen.X, chosen.Y, Math.Max(2, chosen.Width & ~1), Math.Max(2, chosen.Height & ~1));
-        var session = ++_session;
+        _target = new Rectangle(chosen.X, chosen.Y, Math.Max(2, chosen.Width & ~1), Math.Max(2, chosen.Height & ~1));
+        _ffmpeg = ffmpeg;
+        // Listed while the user looks at the bar: the toggles then show what this computer can record.
+        _audioDevices = Ffmpeg.ListAudioDevicesAsync(ffmpeg);
 
         if (!fullScreen)
         {
-            _frame = new RecordingFrame(target);
+            _frame = new RecordingFrame(_target);
             _frame.Show();
         }
-        _bar = new RecordingBar();
-        _bar.StopRequested += async () => await StopAsync();
-        _bar.CancelRequested += Cancel;
-        _bar.ShowNear(target);
-        SetState(State.Countdown);
+        var bar = _bar = new RecordingBar(_settings);
+        bar.StartRequested += StartCountdown;
+        bar.StopRequested += async () => await StopAsync();
+        bar.CancelRequested += Cancel;
+        RegisterSessionHotkeys();
+        bar.ShowReady(_startShortcut, _stopShortcut);
+        bar.ShowNear(_target);
+        SetState(State.Ready);
 
+        var devices = await _audioDevices;
+        if (_bar == bar)
+            bar.SetAudioDevices(devices);
+    }
+
+    /// <summary>Keeps the shortcuts Windows accepted, to show them on the bar.</summary>
+    private void RegisterSessionHotkeys()
+    {
+        string? Bind(string text, Action action) =>
+            Hotkey.TryParse(text, out var hotkey) && _sessionHotkeys.Register(hotkey, action) ? hotkey.ToString() : null;
+
+        _startShortcut = Bind(_settings.HotkeyVideoStart, () =>
+        {
+            if (_state == State.Ready)
+                StartCountdown();
+        });
+        _stopShortcut = Bind(_settings.HotkeyVideoStop, () =>
+        {
+            if (_state is State.Countdown or State.Recording)
+                _ = StopAsync();
+        });
+    }
+
+    /// <summary>Start button or shortcut: 3, 2, 1, then ffmpeg starts.</summary>
+    private async void StartCountdown()
+    {
+        if (_state != State.Ready || _bar is not { } bar)
+            return;
+        var session = ++_session;
+        SetState(State.Countdown);
+        bar.ShowCountdown(3);
+
+        // Usually listed long ago; at worst ffmpeg's own timeout applies.
+        var devices = await _audioDevices;
         for (var seconds = 3; seconds > 0; seconds--)
         {
-            _bar.ShowCountdown(seconds);
-            await Task.Delay(1000);
             if (session != _session || _state != State.Countdown)
                 return;
+            bar.ShowCountdown(seconds);
+            await Task.Delay(1000);
         }
+        if (session != _session || _state != State.Countdown)
+            return;
 
         try
         {
-            var options = new VideoOptions(Math.Clamp(_settings.VideoFrameRate, 5, 60),
-                string.IsNullOrWhiteSpace(_settings.Microphone) ? null : _settings.Microphone,
-                _settings.RecordSystemAudio);
+            var microphone = _settings.RecordMicrophone ? Ffmpeg.PickMicrophone(devices, _settings.Microphone) : null;
+            var systemAudio = _settings.RecordSystemAudio && (devices.Count == 0 || devices.Contains(Ffmpeg.SystemAudioDevice));
+            var options = new VideoOptions(Math.Clamp(_settings.VideoFrameRate, 5, 60), microphone, systemAudio);
             var path = ImageExporter.NextOutputPath(_settings, ".mp4");
             ReserveNumber();
-            _recorder = VideoRecorder.Start(ffmpeg, target, path, options,
+            _recorder = VideoRecorder.Start(_ffmpeg, _target, path, options,
                 recorder => Application.Current.Dispatcher.BeginInvoke(() => OnUnexpectedExit(recorder)));
         }
         catch (Exception ex)
@@ -129,20 +187,22 @@ internal sealed class VideoController : IDisposable
             return;
         }
 
-        _bar.ShowRecording();
+        bar.ShowRecording();
         SetState(State.Recording);
     }
 
     /// <summary>
-    /// Ends the recording and keeps the video. During the countdown nothing is recorded yet, so this gives up.
-    /// While a stop is already in progress, returns that one.
+    /// Ends the recording and keeps the video. During the countdown nothing is recorded yet: the bar goes back to
+    /// waiting for Start. While a stop is already in progress, returns that one.
     /// </summary>
     public Task StopAsync()
     {
         switch (_state)
         {
-            case State.Countdown:
-                Cancel();
+            case State.Countdown when _bar is { } bar:
+                _session++;
+                bar.ShowReady(_startShortcut, _stopShortcut);
+                SetState(State.Ready);
                 return Task.CompletedTask;
             case State.Finishing:
                 return _stopping;
@@ -205,10 +265,10 @@ internal sealed class VideoController : IDisposable
         _onSaved(recorder.OutputPath);
     }
 
-    /// <summary>Abandons the countdown or the recording; nothing is kept.</summary>
+    /// <summary>Abandons the prepared recording, the countdown or the recording; nothing is kept.</summary>
     public void Cancel()
     {
-        if (_state is not (State.Countdown or State.Recording))
+        if (_state is not (State.Ready or State.Countdown or State.Recording))
             return;
         _session++;
         DiscardRecorder();
@@ -221,13 +281,15 @@ internal sealed class VideoController : IDisposable
         if (_recorder != recorder)
             return;
         var log = recorder.ErrorTail;
+        var withAudio = _settings.RecordMicrophone || _settings.RecordSystemAudio;
         DiscardRecorder();
         CloseUi();
         SetState(State.Idle);
 
-        var hint = string.IsNullOrWhiteSpace(_settings.Microphone) && !_settings.RecordSystemAudio
-            ? ""
-            : "\n\nSi le message parle d'un périphérique audio, vérifiez le micro choisi dans les réglages.";
+        var hint = withAudio
+            ? "\n\nSi le message parle d'un périphérique audio, coupez le micro ou le son du PC sur la barre d'enregistrement, " +
+              "ou choisissez un autre micro dans les réglages."
+            : "";
         MessageBox.Show("L'enregistrement s'est arrêté :\n\n" + (log.Length > 0 ? log : "ffmpeg s'est arrêté sans explication.") + hint,
             "LocalTake", MessageBoxButton.OK, MessageBoxImage.Error);
     }
@@ -267,6 +329,7 @@ internal sealed class VideoController : IDisposable
 
     private void CloseUi()
     {
+        _sessionHotkeys.UnregisterAll();
         _frame?.Close();
         _frame = null;
         _bar?.Close();
@@ -295,5 +358,6 @@ internal sealed class VideoController : IDisposable
     {
         DiscardRecorder();
         CloseUi();
+        _sessionHotkeys.Dispose();
     }
 }
