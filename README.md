@@ -1,0 +1,34 @@
+# LocalTake
+
+Outil de capture d'écran pour Windows, inspiré de TinyTake, sans compte ni cloud : les captures restent sur l'ordinateur.
+
+## Raccourcis par défaut
+
+| Raccourci | Action |
+| --- | --- |
+| `Impr. écran` | Capturer une zone (un simple clic prend la fenêtre sous le curseur) |
+| `Alt+Impr. écran` | Capturer une fenêtre |
+| `Ctrl+Impr. écran` | Capturer tout l'écran |
+
+Ils se modifient dans les réglages, depuis l'icône de la zone de notification. On peut aussi y attribuer un raccourci à la capture de la dernière zone.
+
+Si Windows refuse un raccourci, c'est qu'un autre outil l'utilise déjà (TinyTake, l'Outil Capture d'écran…).
+
+## Éditeur
+
+Outils : flèche, ligne, rectangle, ellipse, crayon, surligneur, texte, numéros, flou, recadrage, sélection pour déplacer ou supprimer. Chaque outil a sa touche (indiquée dans l'infobulle). `Maj` contraint les formes et les angles.
+
+`Ctrl+S` enregistre dans le dossier des captures, `Ctrl+Maj+S` enregistre sous, `Ctrl+C` copie l'image, `Ctrl+Z` / `Ctrl+Y` annulent et rétablissent.
+
+## Fichiers
+
+- Dossier des captures : `Images\LocalTake`, ou `%USERPROFILE%\Captures LocalTake` si le dossier Images est synchronisé par OneDrive.
+- Réglages : `%APPDATA%\LocalTake\settings.json`.
+
+## Compiler
+
+Nécessite le SDK .NET 8.
+
+```
+dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+```
