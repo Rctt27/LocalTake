@@ -12,14 +12,7 @@ internal static class ImageExporter
     /// <summary>Saves into the output folder under the configured name pattern; returns the full path.</summary>
     public static string SaveToOutputFolder(BitmapSource image, AppSettings settings)
     {
-        Directory.CreateDirectory(settings.OutputFolder);
-        var extension = settings.Format == "jpg" ? ".jpg" : ".png";
-        var baseName = ExpandPattern(settings.FileNamePattern, settings.Counter, DateTime.Now);
-
-        var path = Path.Combine(settings.OutputFolder, baseName + extension);
-        for (var i = 2; File.Exists(path); i++)
-            path = Path.Combine(settings.OutputFolder, $"{baseName} ({i}){extension}");
-
+        var path = NextOutputPath(settings, settings.Format == "jpg" ? ".jpg" : ".png");
         Save(image, path, settings.JpegQuality);
         ConsumeCounter(settings);
         if (settings.CopyPathAfterSave)
@@ -86,7 +79,21 @@ internal static class ImageExporter
         return string.IsNullOrWhiteSpace(name) ? "Capture" : name;
     }
 
-    private static void ConsumeCounter(AppSettings settings)
+    /// <summary>
+    /// A free path in the output folder under the name pattern. Does not consume %NUM%: call
+    /// <see cref="ConsumeCounter"/> once the file is written.
+    /// </summary>
+    public static string NextOutputPath(AppSettings settings, string extension)
+    {
+        Directory.CreateDirectory(settings.OutputFolder);
+        var baseName = ExpandPattern(settings.FileNamePattern, settings.Counter, DateTime.Now);
+        var path = Path.Combine(settings.OutputFolder, baseName + extension);
+        for (var i = 2; File.Exists(path); i++)
+            path = Path.Combine(settings.OutputFolder, $"{baseName} ({i}){extension}");
+        return path;
+    }
+
+    public static void ConsumeCounter(AppSettings settings)
     {
         if (!settings.FileNamePattern.Contains("%NUM%"))
             return;

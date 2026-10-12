@@ -47,6 +47,18 @@ public sealed class AppSettings
     public string HotkeyWindow { get; set; } = "Alt+PrintScreen";
     public string HotkeyFullScreen { get; set; } = "Ctrl+PrintScreen";
     public string HotkeyLastRegion { get; set; } = "";
+    public string HotkeyVideoRegion { get; set; } = "Ctrl+Shift+PrintScreen";
+    public string HotkeyVideoFullScreen { get; set; } = "";
+
+    /// <summary>Empty: ffmpeg.exe next to LocalTake, then on the PATH.</summary>
+    public string FfmpegPath { get; set; } = "";
+
+    /// <summary>DirectShow audio device name; empty for no microphone.</summary>
+    public string Microphone { get; set; } = "";
+
+    public bool RecordSystemAudio { get; set; }
+
+    public int VideoFrameRate { get; set; } = 30;
 
     public RegionRect? LastRegion { get; set; }
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-LocalTake is a Windows tray screen-capture tool modelled on TinyTake, with every remote feature removed. **Captures must never leave the machine**: no network calls, no upload, no telemetry. This is also why the default output folder avoids a OneDrive-synced Pictures folder (`AppSettings.DefaultOutputFolder`).
+LocalTake is a Windows tray screen-capture and screen-recording tool modelled on TinyTake, with every remote feature removed. **Captures must never leave the machine**: no network calls, no upload, no telemetry. This is also why the default output folder avoids a OneDrive-synced Pictures folder (`AppSettings.DefaultOutputFolder`).
 
 UI strings are French; code and comments are English.
 
@@ -20,7 +20,7 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 
 Only one instance can run (named mutex): kill `LocalTake.exe` before rebuilding or running again, otherwise the build cannot overwrite the exe and a new launch exits immediately. Global shortcuts also fail to register while TinyTake or another capture tool holds them.
 
-Verification is manual: launch the app and exercise captures through the shortcuts and the tray menu. Settings live in `%APPDATA%\LocalTake\settings.json`; deleting it restores defaults.
+Verification is manual: launch the app and exercise captures through the shortcuts and the tray menu. To check a recording, `ffmpeg -i file.mp4` lists its streams and `-af volumedetect -f null -` measures its audio. Settings live in `%APPDATA%\LocalTake\settings.json`; deleting it restores defaults.
 
 ## Architecture
 
@@ -50,7 +50,16 @@ Flow: `App` → `TrayController` owns the `NotifyIcon`, the `HotkeyManager` and 
 - `Hotkey` parses and formats strings like `Ctrl+Alt+PrintScreen`. A key without modifiers is only allowed for Print Screen and the F keys, since a plain key registered system-wide would break it in every other application.
 - Hotkeys are unregistered while the settings window is open, so pressing one reaches the input box. Print Screen only produces a key-up event, which the box handles separately.
 
+### Video (`VideoController`, `Ffmpeg.cs`)
+
+- Recording shells out to an external ffmpeg (setting, then next to the exe, then PATH). LocalTake never downloads it: that would be a network call.
+- ffmpeg `gdigrab` takes the same physical virtual-desktop coordinates as the rest of the app. Width and height are rounded down to even values for H.264/yuv420p.
+- Stop sends `q` on ffmpeg's stdin, which writes the MP4 index. Killing the process leaves an unplayable file, so kill is only for cancel and failure, and the file is then deleted.
+- `RecordingFrame` (WinForms, click-through) and `RecordingBar` (WPF) use `WDA_EXCLUDEFROMCAPTURE`: they are on screen but absent from the video, even in full screen.
+- `VideoController` is a state machine (Idle, Selecting, Countdown, Recording, Finishing). The same shortcut starts and stops; image captures are refused while it is busy, since the overlay or editor would be recorded.
+- Audio uses DirectShow devices. "Computer sound" relies on `virtual-audio-capturer`, the driver installed by TinyTake Filter; with a microphone too, the two are mixed with `amix`.
+
 ### Settings and file names
 
 - `AppSettings.Save()` throws; `TrySave()` swallows IO errors and is used for incidental state (last region, counter, editor preferences) so a locked file never interrupts a capture.
-- File names come from `ImageExporter.ExpandPattern`, which is side-effect free and shared with the settings preview. The `%NUM%` counter only advances after a successful save.
+- File names come from `ImageExporter.ExpandPattern`, which is side-effect free and shared with the settings preview; videos use the same pattern via `NextOutputPath`. The `%NUM%` counter only advances after a successful save.

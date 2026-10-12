@@ -17,6 +17,16 @@ internal static class Native
 
     public const int GWL_EXSTYLE = -20;
     public const int WS_EX_TRANSPARENT = 0x20;
+    public const int WS_EX_TOOLWINDOW = 0x80;
+    public const int WS_EX_LAYERED = 0x80000;
+    public const int WS_EX_NOACTIVATE = 0x8000000;
+
+    /// <summary>The window stays visible on screen but is left out of screenshots and recordings (Windows 10 2004+).</summary>
+    public const uint WDA_EXCLUDEFROMCAPTURE = 0x11;
+
+    public const uint SWP_NOSIZE = 0x1;
+    public const uint SWP_NOZORDER = 0x4;
+    public const uint SWP_NOACTIVATE = 0x10;
 
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
     public const int DWMWA_CLOAKED = 14;
@@ -61,6 +71,12 @@ internal static class Native
 
     [DllImport("user32.dll")]
     public static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
 
     [DllImport("dwmapi.dll")]
     public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out RECT value, int size);

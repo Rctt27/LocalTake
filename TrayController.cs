@@ -22,6 +22,11 @@ internal sealed class TrayController : IDisposable
     private readonly Forms.ToolStripMenuItem _windowItem;
     private readonly Forms.ToolStripMenuItem _fullScreenItem;
     private readonly Forms.ToolStripMenuItem _lastRegionItem;
+    private readonly Forms.ToolStripMenuItem _videoRegionItem;
+    private readonly Forms.ToolStripMenuItem _videoFullScreenItem;
+    private readonly Forms.ToolStripMenuItem _stopVideoItem;
+
+    private readonly VideoController _video;
 
     private SettingsWindow? _settingsWindow;
     private bool _capturing;
@@ -30,12 +35,19 @@ internal sealed class TrayController : IDisposable
     public TrayController(AppSettings settings)
     {
         _settings = settings;
+        _video = new VideoController(settings, path => NotifySaved(path, "Vidéo enregistrée"));
 
         var menu = new Forms.ContextMenuStrip();
         _regionItem = AddItem(menu, "Capturer une zone", () => CaptureInteractive(windowMode: false, fromMenu: true));
         _windowItem = AddItem(menu, "Capturer une fenêtre", () => CaptureInteractive(windowMode: true, fromMenu: true));
         _fullScreenItem = AddItem(menu, "Capturer tout l'écran", () => CaptureFullScreen(fromMenu: true));
         _lastRegionItem = AddItem(menu, "Capturer la dernière zone", () => CaptureLastRegion(fromMenu: true));
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        _videoRegionItem = AddItem(menu, "Enregistrer une vidéo (zone)", () => ToggleVideo(fullScreen: false, fromMenu: true));
+        _videoFullScreenItem = AddItem(menu, "Enregistrer une vidéo (tout l'écran)", () => ToggleVideo(fullScreen: true, fromMenu: true));
+        _stopVideoItem = AddItem(menu, "Arrêter l'enregistrement", () => _ = _video.StopAsync());
+        _stopVideoItem.Font = new Font(_stopVideoItem.Font, System.Drawing.FontStyle.Bold);
+        _stopVideoItem.Visible = false;
         menu.Items.Add(new Forms.ToolStripSeparator());
         AddItem(menu, "Ouvrir une image…", OpenImageFile);
         AddItem(menu, "Coller depuis le presse-papier", PasteFromClipboard);
@@ -61,6 +73,7 @@ internal sealed class TrayController : IDisposable
                     ?.Invoke(_tray, null);
         };
         _tray.BalloonTipClicked += (_, _) => RevealLastSaved();
+        _video.StateChanged += UpdateVideoState;
 
         var failures = RegisterHotkeys();
         if (failures.Count > 0)
@@ -95,6 +108,8 @@ internal sealed class TrayController : IDisposable
         Bind(_settings.HotkeyWindow, _windowItem, () => CaptureInteractive(windowMode: true, fromMenu: false));
         Bind(_settings.HotkeyFullScreen, _fullScreenItem, () => CaptureFullScreen(fromMenu: false));
         Bind(_settings.HotkeyLastRegion, _lastRegionItem, () => CaptureLastRegion(fromMenu: false));
+        Bind(_settings.HotkeyVideoRegion, _videoRegionItem, () => ToggleVideo(fullScreen: false, fromMenu: false));
+        Bind(_settings.HotkeyVideoFullScreen, _videoFullScreenItem, () => ToggleVideo(fullScreen: true, fromMenu: false));
         return failures;
     }
 
@@ -115,20 +130,13 @@ internal sealed class TrayController : IDisposable
     {
         await RunCapture(fromMenu, () =>
         {
-            var virtualScreen = ScreenCapture.VirtualScreen;
-            using var screen = ScreenCapture.Capture(virtualScreen);
-            var windows = ScreenCapture.VisibleWindows();
-
-            using var overlay = new SelectionOverlay(screen, virtualScreen, windows, windowMode);
-            if (overlay.ShowDialog() != Forms.DialogResult.OK || overlay.Result is not { } area)
+            using var selection = SelectionOverlay.SelectArea(windowMode, out var area);
+            if (selection is null)
                 return null;
 
             _settings.LastRegion = new RegionRect(area.X, area.Y, area.Width, area.Height);
             _settings.TrySave();
-
-            area.Offset(-virtualScreen.X, -virtualScreen.Y);
-            using var cropped = screen.Clone(area, screen.PixelFormat);
-            return ScreenCapture.ToBitmapSource(cropped);
+            return ScreenCapture.ToBitmapSource(selection);
         });
     }
 
@@ -162,7 +170,8 @@ internal sealed class TrayController : IDisposable
 
     private async Task RunCapture(bool fromMenu, Func<BitmapSource?> capture)
     {
-        if (_capturing)
+        // The selection overlay or the editor would end up in the video.
+        if (_capturing || _video.IsBusy)
             return;
         _capturing = true;
         try
@@ -220,16 +229,33 @@ internal sealed class TrayController : IDisposable
         _tray.ShowBalloonTip(2000, title, text, Forms.ToolTipIcon.None);
     }
 
-    private void NotifySaved(string path)
+    private void NotifySaved(string path) => NotifySaved(path, "Capture enregistrée");
+
+    private void NotifySaved(string path, string title)
     {
         _lastSavedPath = path;
-        _tray.ShowBalloonTip(3000, "Capture enregistrée", path + "\nCliquez pour l'afficher dans l'Explorateur.", Forms.ToolTipIcon.None);
+        _tray.ShowBalloonTip(3000, title, path + "\nCliquez pour l'afficher dans l'Explorateur.", Forms.ToolTipIcon.None);
     }
 
     private void RevealLastSaved()
     {
         if (_lastSavedPath is not null && File.Exists(_lastSavedPath))
             Process.Start("explorer.exe", $"/select,\"{_lastSavedPath}\"");
+    }
+
+    // ---- Video ----------------------------------------------------------------------------------------------
+
+    private void ToggleVideo(bool fullScreen, bool fromMenu)
+    {
+        if (!_capturing)
+            _video.Toggle(fullScreen, fromMenu);
+    }
+
+    private void UpdateVideoState()
+    {
+        _stopVideoItem.Visible = _video.IsRecording;
+        _videoRegionItem.Enabled = _videoFullScreenItem.Enabled = !_video.IsBusy;
+        _tray.Text = _video.IsRecording ? "LocalTake — enregistrement en cours" : "LocalTake";
     }
 
     // ---- Other menu entries ---------------------------------------------------------------------------------
@@ -296,8 +322,28 @@ internal sealed class TrayController : IDisposable
     /// Closes the editors one by one first: during Application.Shutdown, cancelling the "save before closing?"
     /// prompt would be ignored and the capture lost.
     /// </summary>
-    private void Quit()
+    private async void Quit()
     {
+        if (_video.IsRecording)
+        {
+            var answer = MessageBox.Show("Un enregistrement vidéo est en cours.\n\nL'arrêter et garder la vidéo avant de quitter ?",
+                "LocalTake", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (answer == MessageBoxResult.Cancel)
+                return;
+            if (answer == MessageBoxResult.Yes)
+                await _video.StopAsync();
+            else
+                _video.Cancel();
+        }
+        // A stop already under way (from the recording bar, for instance) is awaited rather than ignored.
+        await _video.StopAsync();
+        if (_video.IsBusy)
+        {
+            MessageBox.Show("Terminez d'abord la sélection de la zone à filmer.", "LocalTake",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         foreach (var window in Application.Current.Windows.OfType<Window>().ToList())
         {
             var closed = false;
@@ -333,6 +379,7 @@ internal sealed class TrayController : IDisposable
 
     public void Dispose()
     {
+        _video.Dispose();
         _hotkeys.Dispose();
         _tray.Visible = false;
         _tray.Dispose();

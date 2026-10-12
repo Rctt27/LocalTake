@@ -35,6 +35,25 @@ internal sealed class SelectionOverlay : Form
     /// <summary>Selected area in virtual-screen coordinates (physical pixels).</summary>
     public Rectangle? Result { get; private set; }
 
+    /// <summary>
+    /// Freezes the screen and lets the user pick an area. Shared by image captures and videos.
+    /// </summary>
+    /// <param name="area">The chosen area in virtual-screen coordinates (physical pixels).</param>
+    /// <returns>The frozen pixels of that area, or null when the user cancelled.</returns>
+    public static Bitmap? SelectArea(bool windowMode, out Rectangle area)
+    {
+        area = Rectangle.Empty;
+        var virtualScreen = ScreenCapture.VirtualScreen;
+        using var screen = ScreenCapture.Capture(virtualScreen);
+        using var overlay = new SelectionOverlay(screen, virtualScreen, ScreenCapture.VisibleWindows(), windowMode);
+        if (overlay.ShowDialog() != DialogResult.OK || overlay.Result is not { } selected)
+            return null;
+
+        area = selected;
+        selected.Offset(-virtualScreen.X, -virtualScreen.Y);
+        return screen.Clone(selected, screen.PixelFormat);
+    }
+
     public SelectionOverlay(Bitmap screen, Rectangle virtualScreen, IEnumerable<Rectangle> windows, bool windowMode)
     {
         // A premultiplied copy draws several times faster, which keeps the overlay fluid on large screens.

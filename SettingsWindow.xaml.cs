@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -35,6 +37,8 @@ public partial class SettingsWindow : Window
         HotkeyWindowBox.Text = settings.HotkeyWindow;
         HotkeyFullScreenBox.Text = settings.HotkeyFullScreen;
         HotkeyLastRegionBox.Text = settings.HotkeyLastRegion;
+        HotkeyVideoRegionBox.Text = settings.HotkeyVideoRegion;
+        HotkeyVideoFullScreenBox.Text = settings.HotkeyVideoFullScreen;
         foreach (var box in HotkeyBoxes())
         {
             box.PreviewKeyDown += HotkeyBox_PreviewKeyDown;
@@ -43,9 +47,92 @@ public partial class SettingsWindow : Window
 
         StartupBox.IsChecked = IsStartupEnabled();
         UpdateQualityState();
+
+        FfmpegBox.Text = settings.FfmpegPath;
+        FrameRateBox.ItemsSource = FrameRates;
+        FrameRateBox.SelectedItem = FrameRates.OrderBy(f => Math.Abs(f - settings.VideoFrameRate)).First();
+        SystemAudioBox.IsChecked = settings.RecordSystemAudio;
+        FfmpegBox.TextChanged += (_, _) => UpdateFfmpegStatus();
+        Loaded += (_, _) => LoadAudioDevices();
+
+        MaxHeight = SystemParameters.WorkArea.Height * 0.95;
     }
 
-    private TextBox[] HotkeyBoxes() => new[] { HotkeyRegionBox, HotkeyWindowBox, HotkeyFullScreenBox, HotkeyLastRegionBox };
+    private static readonly int[] FrameRates = { 15, 24, 30, 60 };
+
+    private int _audioLoadGeneration;
+
+    private string? UpdateFfmpegStatus()
+    {
+        var path = Ffmpeg.Find(FfmpegBox.Text.Trim());
+        FfmpegStatus.Text = path is not null
+            ? (string.IsNullOrWhiteSpace(FfmpegBox.Text) ? "Détecté : " + path : "ffmpeg trouvé.")
+            : "ffmpeg introuvable : les vidéos ne pourront pas être enregistrées. " + Ffmpeg.InstallHint;
+        FfmpegStatus.Foreground = path is not null ? System.Windows.Media.Brushes.DimGray : System.Windows.Media.Brushes.Firebrick;
+        return path;
+    }
+
+    /// <summary>Asks ffmpeg for the audio inputs; the computer sound needs TinyTake's driver.</summary>
+    private async void LoadAudioDevices()
+    {
+        // A newer load (Browse clicked while ffmpeg was still listing) wins; the older one must not fill the list too.
+        var generation = ++_audioLoadGeneration;
+        // Keep the choice being edited, not only the saved one.
+        var selected = (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone;
+
+        var ffmpeg = UpdateFfmpegStatus();
+        var devices = new List<string>();
+        if (ffmpeg is not null)
+        {
+            try
+            {
+                devices = await Task.Run(() => Ffmpeg.ListAudioDevices(ffmpeg));
+            }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
+            {
+                FfmpegStatus.Text = "ffmpeg n'a pas pu lister les périphériques audio : " + ex.Message;
+            }
+        }
+
+        if (generation != _audioLoadGeneration)
+            return;
+
+        MicrophoneBox.Items.Clear();
+        MicrophoneBox.Items.Add(new ComboBoxItem { Content = "Aucun", Tag = "" });
+        MicrophoneBox.SelectedIndex = 0;
+
+        // A chosen microphone stays selectable even if it is unplugged right now.
+        var microphones = devices.Where(d => d != Ffmpeg.SystemAudioDevice).ToList();
+        if (!string.IsNullOrEmpty(selected) && !microphones.Contains(selected))
+            microphones.Add(selected);
+        foreach (var name in microphones)
+        {
+            var item = new ComboBoxItem { Content = name, Tag = name };
+            MicrophoneBox.Items.Add(item);
+            if (name == selected)
+                MicrophoneBox.SelectedItem = item;
+        }
+
+        var hasSystemAudio = devices.Contains(Ffmpeg.SystemAudioDevice);
+        SystemAudioBox.IsEnabled = hasSystemAudio || SystemAudioBox.IsChecked == true;
+        SystemAudioBox.ToolTip = hasSystemAudio
+            ? "Utilise le pilote « virtual-audio-capturer » installé avec TinyTake (TinyTake Filter)."
+            : "Nécessite le pilote « virtual-audio-capturer », installé avec TinyTake (TinyTake Filter) : introuvable sur cet ordinateur.";
+    }
+
+    private void BrowseFfmpeg_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Filter = "ffmpeg.exe|ffmpeg.exe|Programmes|*.exe", FileName = "ffmpeg.exe" };
+        if (dialog.ShowDialog(this) != true)
+            return;
+        FfmpegBox.Text = dialog.FileName;
+        LoadAudioDevices();
+    }
+
+    private TextBox[] HotkeyBoxes() => new[]
+    {
+        HotkeyRegionBox, HotkeyWindowBox, HotkeyFullScreenBox, HotkeyLastRegionBox, HotkeyVideoRegionBox, HotkeyVideoFullScreenBox
+    };
 
     private void HotkeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -81,6 +168,8 @@ public partial class SettingsWindow : Window
         HotkeyWindowBox.Text = defaults.HotkeyWindow;
         HotkeyFullScreenBox.Text = defaults.HotkeyFullScreen;
         HotkeyLastRegionBox.Text = defaults.HotkeyLastRegion;
+        HotkeyVideoRegionBox.Text = defaults.HotkeyVideoRegion;
+        HotkeyVideoFullScreenBox.Text = defaults.HotkeyVideoFullScreen;
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -136,6 +225,14 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        var ffmpegPath = FfmpegBox.Text.Trim();
+        if (ffmpegPath.Length > 0 && !File.Exists(ffmpegPath))
+        {
+            MessageBox.Show(this, "Le fichier ffmpeg indiqué n'existe pas. Laissez le champ vide pour une détection automatique.",
+                "LocalTake", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         // A relative path would depend on the working directory, which is System32 when Windows starts the app.
         var folder = FolderBox.Text.Trim();
         if (!Path.IsPathFullyQualified(folder))
@@ -166,6 +263,12 @@ public partial class SettingsWindow : Window
         _settings.HotkeyWindow = HotkeyWindowBox.Text.Trim();
         _settings.HotkeyFullScreen = HotkeyFullScreenBox.Text.Trim();
         _settings.HotkeyLastRegion = HotkeyLastRegionBox.Text.Trim();
+        _settings.HotkeyVideoRegion = HotkeyVideoRegionBox.Text.Trim();
+        _settings.HotkeyVideoFullScreen = HotkeyVideoFullScreenBox.Text.Trim();
+        _settings.FfmpegPath = ffmpegPath;
+        _settings.Microphone = (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone;
+        _settings.RecordSystemAudio = SystemAudioBox.IsChecked == true;
+        _settings.VideoFrameRate = (int)FrameRateBox.SelectedItem;
         try
         {
             _settings.Save();
