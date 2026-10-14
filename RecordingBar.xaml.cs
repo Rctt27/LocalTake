@@ -19,7 +19,7 @@ namespace LocalTake;
 public partial class RecordingBar : Window
 {
     private readonly AppSettings _settings;
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly Stopwatch _elapsed = new();
     private bool _hasMicrophone = true;
     private bool _hasSystemAudio = true;
@@ -45,8 +45,10 @@ public partial class RecordingBar : Window
         };
         _timer.Tick += (_, _) =>
         {
-            StatusText.Text = $"Enregistrement  {_elapsed.Elapsed:mm\\:ss}";
-            Dot.Opacity = Dot.Opacity < 1 ? 1 : 0.35;
+            var elapsed = _elapsed.Elapsed;
+            StatusText.Text = $"Enregistrement  {elapsed:mm\\:ss\\.f}";
+            // The timer ticks for the tenths; the dot keeps blinking every half second.
+            Dot.Opacity = (long)elapsed.TotalMilliseconds / 500 % 2 == 0 ? 1 : 0.35;
         };
         Closed += (_, _) => _timer.Stop();
         UpdateAudioToggles();
@@ -117,13 +119,24 @@ public partial class RecordingBar : Window
         UpdateAudioToggles();
     }
 
+    /// <summary>ffmpeg is launched but not capturing yet: Stop already works, the counter waits.</summary>
+    public void ShowStarting()
+    {
+        StatusText.Text = "Démarrage…";
+        StartButton.Visibility = Visibility.Collapsed;
+        StopButton.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Capture has begun: what is said from now on is in the video.</summary>
     public void ShowRecording()
     {
         Dot.Opacity = 1;
-        StartButton.Visibility = Visibility.Collapsed;
-        StopButton.Visibility = Visibility.Visible;
         _elapsed.Start();
-        StatusText.Text = "Enregistrement  00:00";
+        StatusText.Text = "Enregistrement  00:00.0";
+        // The bar sizes to its content: a counter a pixel wider or narrower would resize it every tenth and
+        // clip the last digit while it redraws.
+        StatusText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        StatusText.MinWidth = Math.Ceiling(StatusText.DesiredSize.Width) + 4;
         _timer.Start();
     }
 

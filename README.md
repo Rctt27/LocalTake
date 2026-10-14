@@ -26,6 +26,8 @@ Outils : flèche, ligne, rectangle, ellipse, crayon, surligneur, texte, numéros
 
 Enregistrement en MP4 d'une zone ou de tout l'écran. Une fois la zone choisie, une barre permet d'activer ou couper le micro et le son de l'ordinateur, puis **Démarrer** (ou `Ctrl+R`) lance un compte à rebours de 3 secondes. **Arrêter** (ou `Ctrl+D`) enregistre la vidéo. Le cadre rouge et la barre restent invisibles dans la vidéo.
 
+La vidéo s'ouvre ensuite dans un aperçu qui la lit aussitôt : `Espace` lecture/pause, `←` / `→` 10 secondes, survol de la barre pour voir l'image. On peut l'afficher dans l'Explorateur, l'envoyer à la Corbeille, ou **Refaire** : la vidéo part à la Corbeille et un nouvel enregistrement commence, de tout l'écran ou d'une zone à sélectionner de nouveau.
+
 Nécessite ffmpeg, que LocalTake ne télécharge pas : `winget install Gyan.FFmpeg`, ou indiquer son emplacement dans les réglages. Le micro utilisé se choisit dans les réglages ; le son de l'ordinateur utilise le pilote `virtual-audio-capturer` installé avec TinyTake (TinyTake Filter).
 
 ## Fichiers

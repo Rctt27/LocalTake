@@ -132,14 +132,24 @@ internal sealed record VideoOptions(int FrameRate, string? Microphone, bool Syst
 /// <summary>One ffmpeg process recording a screen area to an MP4 file.</summary>
 internal sealed class VideoRecorder : IDisposable
 {
+    /// <summary>ffmpeg prints this, at the info level, once every input is open and capturing.</summary>
+    private const string CapturingLine = "Press [q] to stop";
+
     private readonly Process _process;
     private readonly ConcurrentQueue<string> _log = new();
     private readonly Action<VideoRecorder> _onUnexpectedExit;
+    private readonly TaskCompletionSource<bool> _capturing = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private volatile bool _stopping;
 
     public string OutputPath { get; }
 
     public string ErrorTail => string.Join("\n", _log.ToArray().TakeLast(6));
+
+    /// <summary>
+    /// True once the microphone and the screen are actually being recorded, about 0.3 s after the start; false if
+    /// ffmpeg exited before. Until then, anything said would be missing from the video.
+    /// </summary>
+    public Task<bool> Capturing => _capturing.Task;
 
     private VideoRecorder(Process process, string outputPath, Action<VideoRecorder> onUnexpectedExit)
     {
@@ -173,12 +183,18 @@ internal sealed class VideoRecorder : IDisposable
         {
             if (string.IsNullOrWhiteSpace(e.Data))
                 return;
-            recorder._log.Enqueue(e.Data);
+            if (e.Data.Contains(CapturingLine))
+                recorder._capturing.TrySetResult(true);
+            // The info level is only read for that line; the log keeps warnings and errors, as before.
+            if (Regex.IsMatch(e.Data, @"\[(info|verbose|debug|trace)\] "))
+                return;
+            recorder._log.Enqueue(Regex.Replace(e.Data, @"\[(warning|error|fatal|panic)\] ", ""));
             while (recorder._log.Count > 50)
                 recorder._log.TryDequeue(out string? _);
         };
         process.Exited += (_, _) =>
         {
+            recorder._capturing.TrySetResult(false);
             if (recorder._stopping)
                 return;
             // Exited can come before the last stderr lines, which usually hold the reason; this waits for them.
@@ -193,7 +209,8 @@ internal sealed class VideoRecorder : IDisposable
 
     private static List<string> BuildArguments(Rectangle area, string outputPath, VideoOptions options)
     {
-        var args = new List<string> { "-hide_banner", "-loglevel", "warning", "-y" };
+        // Each line tagged with its level: the info level announces when capture starts (CapturingLine).
+        var args = new List<string> { "-hide_banner", "-loglevel", "level+info", "-nostats", "-y" };
 
         // Audio inputs first, so that the screen is always the last input.
         var audioInputs = new List<string>();
@@ -229,7 +246,9 @@ internal sealed class VideoRecorder : IDisposable
         }
 
         // ultrafast keeps up in real time even on a large screen; yuv420p is what every player expects.
-        args.AddRange(new[] { "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-pix_fmt", "yuv420p" });
+        // zerolatency: with frame threads, x264 holds about 0.35 s of frames, ffmpeg reads the audio that much
+        // behind, and "q" discarded that audio: the last words were cut.
+        args.AddRange(new[] { "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-crf", "23", "-pix_fmt", "yuv420p" });
         if (audioInputs.Count > 0)
             args.AddRange(new[] { "-c:a", "aac", "-b:a", "160k" });
         args.AddRange(new[] { "-movflags", "+faststart", outputPath });

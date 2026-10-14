@@ -35,7 +35,7 @@ internal sealed class TrayController : IDisposable
     public TrayController(AppSettings settings)
     {
         _settings = settings;
-        _video = new VideoController(settings, path => NotifySaved(path, "Vidéo enregistrée"));
+        _video = new VideoController(settings, OpenVideoPreview);
 
         var menu = new Forms.ContextMenuStrip();
         _regionItem = AddItem(menu, "Capturer une zone", () => CaptureInteractive(windowMode: false, fromMenu: true));
@@ -230,12 +230,11 @@ internal sealed class TrayController : IDisposable
         _tray.ShowBalloonTip(2000, title, text, Forms.ToolTipIcon.None);
     }
 
-    private void NotifySaved(string path) => NotifySaved(path, "Capture enregistrée");
-
-    private void NotifySaved(string path, string title)
+    private void NotifySaved(string path)
     {
         _lastSavedPath = path;
-        _tray.ShowBalloonTip(3000, title, path + "\nCliquez pour l'afficher dans l'Explorateur.", Forms.ToolTipIcon.None);
+        _tray.ShowBalloonTip(3000, "Capture enregistrée", path + "\nCliquez pour l'afficher dans l'Explorateur.",
+            Forms.ToolTipIcon.None);
     }
 
     private void RevealLastSaved()
@@ -252,8 +251,38 @@ internal sealed class TrayController : IDisposable
             _video.Toggle(fullScreen, fromMenu);
     }
 
+    /// <summary>As in TinyTake, a saved video opens in a player rather than in a notification.</summary>
+    private void OpenVideoPreview(string path, bool fullScreen)
+    {
+        var preview = new VideoPreviewWindow(path, fullScreen);
+        preview.RetakeRequested += () => Retake(preview, fullScreen);
+        preview.Show();
+        preview.Activate();
+    }
+
+    /// <summary>"Refaire": discards the video, then records the same way again; an area is selected anew.</summary>
+    private async void Retake(VideoPreviewWindow preview, bool fullScreen)
+    {
+        // Toggle would act on the session under way instead: start its countdown, or stop it.
+        if (_capturing || _video.IsBusy)
+        {
+            MessageBox.Show(preview, "Un enregistrement est déjà en préparation ou en cours.", "LocalTake",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (!await preview.DiscardAsync() || _capturing || _video.IsBusy)
+            return;
+        // As from the menu: the closed preview fades out before the screen is frozen for the selection.
+        ToggleVideo(fullScreen, fromMenu: true);
+    }
+
     private void UpdateVideoState()
     {
+        // From the area selection on, a preview still playing would end up in the new video's sound.
+        if (_video.IsBusy)
+            foreach (var preview in Application.Current.Windows.OfType<VideoPreviewWindow>())
+                preview.PauseIfPlaying();
+
         _stopVideoItem.Visible = _video.IsReady || _video.IsRecording;
         _stopVideoItem.Text = _video.IsReady ? "Démarrer l'enregistrement" : "Arrêter l'enregistrement";
         _videoRegionItem.Enabled = _videoFullScreenItem.Enabled = !_video.IsBusy;

@@ -16,7 +16,8 @@ internal sealed class VideoController : IDisposable
     private enum State { Idle, Selecting, Ready, Countdown, Recording, Finishing }
 
     private readonly AppSettings _settings;
-    private readonly Action<string> _onSaved;
+    /// <summary>The saved video, and whether it was full screen rather than an area.</summary>
+    private readonly Action<string, bool> _onSaved;
 
     /// <summary>Start and Stop shortcuts, registered only while a recording is prepared or under way.</summary>
     private readonly HotkeyManager _sessionHotkeys = new();
@@ -29,6 +30,7 @@ internal sealed class VideoController : IDisposable
 
     private string _ffmpeg = "";
     private Rectangle _target;
+    private bool _fullScreen;
     private Task<List<string>> _audioDevices = Task.FromResult(new List<string>());
     private string? _startShortcut;
     private string? _stopShortcut;
@@ -39,7 +41,7 @@ internal sealed class VideoController : IDisposable
     /// <summary>The %NUM% value taken by the current video, given back if nothing is kept.</summary>
     private int? _reservedNumber;
 
-    public VideoController(AppSettings settings, Action<string> onSaved)
+    public VideoController(AppSettings settings, Action<string, bool> onSaved)
     {
         _settings = settings;
         _onSaved = onSaved;
@@ -106,6 +108,7 @@ internal sealed class VideoController : IDisposable
 
         // H.264 in yuv420p needs even dimensions.
         _target = new Rectangle(chosen.X, chosen.Y, Math.Max(2, chosen.Width & ~1), Math.Max(2, chosen.Height & ~1));
+        _fullScreen = fullScreen;
         _ffmpeg = ffmpeg;
         // Listed while the user looks at the bar: the toggles then show what this computer can record.
         _audioDevices = Ffmpeg.ListAudioDevicesAsync(ffmpeg);
@@ -168,6 +171,7 @@ internal sealed class VideoController : IDisposable
         if (session != _session || _state != State.Countdown)
             return;
 
+        VideoRecorder started;
         try
         {
             var microphone = _settings.RecordMicrophone ? Ffmpeg.PickMicrophone(devices, _settings.Microphone) : null;
@@ -175,7 +179,7 @@ internal sealed class VideoController : IDisposable
             var options = new VideoOptions(Math.Clamp(_settings.VideoFrameRate, 5, 60), microphone, systemAudio);
             var path = ImageExporter.NextOutputPath(_settings, ".mp4");
             ReserveNumber();
-            _recorder = VideoRecorder.Start(_ffmpeg, _target, path, options,
+            _recorder = started = VideoRecorder.Start(_ffmpeg, _target, path, options,
                 recorder => Application.Current.Dispatcher.BeginInvoke(() => OnUnexpectedExit(recorder)));
         }
         catch (Exception ex)
@@ -187,8 +191,14 @@ internal sealed class VideoController : IDisposable
             return;
         }
 
-        bar.ShowRecording();
+        // Recording from now on, so that Stop finishes the file; but the devices take about 0.3 s to open, and the
+        // counter only starts once they capture, so that the first words are not lost.
+        // Should ffmpeg never announce it, the counter starts anyway rather than leave the bar waiting.
+        bar.ShowStarting();
         SetState(State.Recording);
+        await Task.WhenAny(started.Capturing, Task.Delay(TimeSpan.FromSeconds(5)));
+        if (_recorder == started && _bar == bar && _state == State.Recording)
+            bar.ShowRecording();
     }
 
     /// <summary>
@@ -262,7 +272,7 @@ internal sealed class VideoController : IDisposable
                 // The video is saved; a busy clipboard is not worth an error.
             }
         }
-        _onSaved(recorder.OutputPath);
+        _onSaved(recorder.OutputPath, _fullScreen);
     }
 
     /// <summary>Abandons the prepared recording, the countdown or the recording; nothing is kept.</summary>
