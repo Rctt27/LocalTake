@@ -9,11 +9,16 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>LocalTake.ico</ApplicationIcon>
     <!-- WFAC010 targets WinForms-only apps; a WPF app declares its DPI awareness in the manifest. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <AssemblyName>LocalTake</AssemblyName>
     <RootNamespace>LocalTake</RootNamespace>
     <Version>1.0.0</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="LocalTake.ico" />
+  </ItemGroup>
 
 </Project>

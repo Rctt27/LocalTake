@@ -70,9 +70,6 @@ internal static class Native
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
-    public static extern bool DestroyIcon(IntPtr hIcon);
-
-    [DllImport("user32.dll")]
     public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
 
     [DllImport("user32.dll")]
