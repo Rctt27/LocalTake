@@ -22,6 +22,14 @@ Only one instance can run (named mutex): kill `LocalTake.exe` before rebuilding 
 
 Verification is manual: launch the app and exercise captures through the shortcuts and the tray menu. To check a recording, `ffmpeg -i file.mp4` lists its streams and `-af volumedetect -f null -` measures its audio. Settings live in `%APPDATA%\LocalTake\settings.json`; deleting it restores defaults.
 
+## Versioning and releases
+
+[Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`. The only source of the version is `<Version>` in `LocalTake.csproj`.
+
+- While the major version is 0 (initial development), MINOR is for new features and behaviour changes, including breaking ones; PATCH is for fixes only. 1.0.0 is decided by the user.
+- What counts as the public interface: the shortcuts, the settings in `settings.json` (an older file must keep loading) and the file names produced.
+- To release: bump `<Version>`, commit `Release vX.Y.Z`, tag `vX.Y.Z` on `main`, push the commit and the tag, run the publish command, then `gh release create vX.Y.Z publish/LocalTake.exe` with short notes.
+
 ## Architecture
 
 WPF app (`ShutdownMode=OnExplicitShutdown`, no main window) that also uses WinForms for the tray icon, the selection overlay and the folder picker. `ImplicitUsings` is disabled because the two frameworks share type names; WinForms types are referenced through a `Forms` alias.
