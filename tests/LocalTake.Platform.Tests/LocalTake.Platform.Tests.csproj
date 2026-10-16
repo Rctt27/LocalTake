@@ -3,6 +3,7 @@
   <!-- Each platform's adapters, run on that platform only (the others are skipped). -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\LocalTake.Platform.Windows\LocalTake.Platform.Windows.csproj" />
+    <ProjectReference Include="..\..\src\LocalTake.Platform.MacOS\LocalTake.Platform.MacOS.csproj" />
   </ItemGroup>
 
 </Project>

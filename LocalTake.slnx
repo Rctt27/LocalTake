@@ -3,6 +3,7 @@
     <Project Path="src/LocalTake.App/LocalTake.App.csproj" />
     <Project Path="src/LocalTake.Core/LocalTake.Core.csproj" />
     <Project Path="src/LocalTake.Infrastructure/LocalTake.Infrastructure.csproj" />
+    <Project Path="src/LocalTake.Platform.MacOS/LocalTake.Platform.MacOS.csproj" />
     <Project Path="src/LocalTake.Platform.Windows/LocalTake.Platform.Windows.csproj" />
     <Project Path="src/LocalTake.Wpf/LocalTake.Wpf.csproj" />
   </Folder>

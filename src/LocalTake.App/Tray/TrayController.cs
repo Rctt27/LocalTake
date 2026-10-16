@@ -111,12 +111,13 @@ internal sealed class TrayController : IDisposable
 
         void Bind(string text, NativeMenuItem item, Action action)
         {
-            // The shortcut is shown after the title: a native menu would treat a gesture as its own accelerator.
+            // The shortcut is shown after the title (a native menu would treat a gesture as its own accelerator).
+            // Windows aligns it after a tab; the macOS menu bar shows the tab literally, so a dash separates it.
             item.Header = _titles[item];
             if (!Hotkey.TryParse(text, out var hotkey))
                 return;
             var shown = hotkey.Format(_naming);
-            item.Header = $"{_titles[item]}\t{shown}";
+            item.Header = _naming == HotkeyNaming.MacOS ? $"{_titles[item]}  —  {shown}" : $"{_titles[item]}\t{shown}";
             if (!_hotkeys.Register(hotkey, action))
                 failures.Add($"{shown}  ({_titles[item]})");
         }

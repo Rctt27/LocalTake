@@ -16,6 +16,7 @@ using LocalTake.Infrastructure.Logging;
 using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
 using LocalTake.Infrastructure.Settings;
+using LocalTake.Platform.MacOS;
 using LocalTake.Platform.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,11 @@ internal static class Composition
         {
             AddApplication(services, HotkeyNaming.Windows);
             AddWindows(services, paths);
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            AddApplication(services, HotkeyNaming.MacOS);
+            AddMacOS(services, paths);
         }
         else
         {
@@ -105,5 +111,28 @@ internal static class Composition
         // The Start and Stop shortcuts of a recording live on their own window, registered only during a session.
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(
             sp, new WindowsHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.Windows));
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("macos")]
+    private static void AddMacOS(ServiceCollection services, AppPaths paths)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        services.AddSingleton(SettingsDefaults.ForMacOS(paths.DefaultOutputFolder));
+        // AVFoundation numbers the displays from the main one, as "Capture screen 0", 1…
+        services.AddSingleton<IFfmpegPlatform>(sp =>
+        {
+            var monitors = sp.GetRequiredService<Monitors>();
+            return new AvFoundation(() => [.. monitors.All.OrderByDescending(s => s.IsPrimary).Select(s => s.Bounds.ToCore())]);
+        });
+        services.AddSingleton<IScreenGrabber, MacScreenGrabber>();
+        services.AddSingleton<INativeWindows, MacNativeWindows>();
+        services.AddSingleton<INativeClipboard, MacClipboard>();
+        services.AddSingleton<IShell, MacShell>();
+        services.AddSingleton<IFileTrash, MacFileTrash>();
+        services.AddSingleton<IStartupRegistration>(new MacStartupRegistration(
+            Path.Combine(home, "Library", "LaunchAgents"), Environment.ProcessPath ?? "LocalTake"));
+        services.AddSingleton<IGlobalHotkeys>(sp => new MacHotkeys(sp.GetRequiredService<IUiThread>()));
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(
+            sp, new MacHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.MacOS));
     }
 }

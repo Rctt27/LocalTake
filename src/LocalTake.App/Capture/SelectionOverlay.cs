@@ -108,7 +108,7 @@ internal sealed class SelectionOverlay : IDisposable
             {
                 // The scaling is the monitor's only once the window is on it.
                 FitToScreen(RenderScaling);
-                if (TryGetPlatformHandle()?.Handle is { } handle)
+                if (NativeHandles.Of(this) is { } handle)
                     nativeWindows.RaiseAboveEverything(handle);
             };
             ScalingChanged += (_, _) => FitToScreen(RenderScaling);

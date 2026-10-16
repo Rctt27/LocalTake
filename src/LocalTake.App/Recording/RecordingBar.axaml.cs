@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
+using LocalTake.App.Adapters;
 using LocalTake.App.Capture;
 
 using LocalTake.Core.Ports;
@@ -42,7 +43,7 @@ public partial class RecordingBar : Window
 
         Opened += (_, _) =>
         {
-            if (TryGetPlatformHandle()?.Handle is { } handle)
+            if (NativeHandles.Of(this) is { } handle)
                 nativeWindows.ExcludeFromCapture(handle);
         };
         DragArea.PointerPressed += (_, e) => BeginMoveDrag(e);
@@ -231,7 +232,7 @@ internal sealed class RecordingFrame : IDisposable
                 window.Width = strip.Width / window.RenderScaling;
                 window.Height = strip.Height / window.RenderScaling;
                 window.Position = new Avalonia.PixelPoint(strip.X, strip.Y);
-                if (window.TryGetPlatformHandle()?.Handle is { } handle)
+                if (NativeHandles.Of(window) is { } handle)
                     nativeWindows.ExcludeFromCapture(handle);
             };
             window.Width = strip.Width;

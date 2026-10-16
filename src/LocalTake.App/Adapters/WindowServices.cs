@@ -49,3 +49,14 @@ internal sealed class EditorLauncher(EditorContext context) : IEditorLauncher
         editor.Activate();
     }
 }
+
+/// <summary>The handle the platform adapters expect: the HWND on Windows, the NSWindow on macOS.</summary>
+internal static class NativeHandles
+{
+    public static nint? Of(TopLevel window) => window.TryGetPlatformHandle() switch
+    {
+        IMacOSTopLevelPlatformHandle mac => mac.NSWindow,
+        { } handle => handle.Handle,
+        null => null
+    };
+}

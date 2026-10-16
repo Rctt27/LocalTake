@@ -10,6 +10,9 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Contains("--diagnostics"))
+            return Diagnostics.RunAsync(Console.Out).GetAwaiter().GetResult();
+
         using var singleInstance = new Mutex(true, SingleInstanceName, out var isFirst);
         if (!isFirst)
         {

@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\LocalTake.Core\LocalTake.Core.csproj" />
     <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" />
+    <ProjectReference Include="..\LocalTake.Platform.MacOS\LocalTake.Platform.MacOS.csproj" />
     <ProjectReference Include="..\LocalTake.Platform.Windows\LocalTake.Platform.Windows.csproj" />
   </ItemGroup>
 
