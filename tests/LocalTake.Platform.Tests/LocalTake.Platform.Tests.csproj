@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Each platform's adapters, run on that platform only (the others are skipped). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LocalTake.Platform.Windows\LocalTake.Platform.Windows.csproj" />
+  </ItemGroup>
+
+</Project>
