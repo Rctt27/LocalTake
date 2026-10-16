@@ -61,3 +61,5 @@ dotnet_diagnostic.CA1848.severity = none
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA2007.severity = none
+# Test classes own fakes and the class under test; xUnit creates one instance per test.
+dotnet_diagnostic.CA1001.severity = none
