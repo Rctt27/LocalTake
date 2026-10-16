@@ -186,14 +186,32 @@ internal sealed class TrayController : IDisposable
 
     private async Task OpenImageFileAsync()
     {
-        var owner = Owner();
-        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        // A tray app has no window of its own: the system dialog gets an invisible one as its parent.
+        var owner = new Window
         {
-            Title = "Ouvrir une image",
-            AllowMultiple = false,
-            FileTypeFilter = [FilePickerFileTypes.ImageAll, FilePickerFileTypes.All],
-            SuggestedStartLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(_settings.OutputFolder)
-        });
+            Width = 1,
+            Height = 1,
+            Opacity = 0,
+            SystemDecorations = SystemDecorations.None,
+            ShowInTaskbar = false,
+            Position = new PixelPoint(-32000, -32000)
+        };
+        owner.Show();
+        IReadOnlyList<IStorageFile> files;
+        try
+        {
+            files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Ouvrir une image",
+                AllowMultiple = false,
+                FileTypeFilter = [FilePickerFileTypes.ImageAll, FilePickerFileTypes.All],
+                SuggestedStartLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(_settings.OutputFolder)
+            });
+        }
+        finally
+        {
+            owner.Close();
+        }
         if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path)
             return;
         if (SkiaImageCodec.Load(path) is { } image)
@@ -296,12 +314,6 @@ internal sealed class TrayController : IDisposable
         _settingsWindow.Show();
         _settingsWindow.Activate();
     }
-
-    /// <summary>A window for the file dialogs, which need one.</summary>
-    private static Window Owner() =>
-        Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { Windows.Count: > 0 } desktop
-            ? desktop.Windows[0]
-            : new Window();
 
     public void Dispose()
     {

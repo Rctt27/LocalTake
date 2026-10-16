@@ -10,6 +10,8 @@ public static class TestAppBuilder
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<TestApplication>()
             .UseSkia()
+            // A bundled font, so that text renders alike on every CI runner.
+            .WithInterFont()
             .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
 }
 

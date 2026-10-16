@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,7 +30,7 @@ jobs:
       - name: Test
         run: dotnet test --solution LocalTake.slnx -c Release --no-build
 
-  # The core and the portable infrastructure, where the macOS version will run.
+  # Everything but the WPF app, on the systems where the portable code and the macOS version run.
   portable:
     strategy:
       fail-fast: false
@@ -50,3 +51,40 @@ jobs:
         run: python3 build/check-coverage.py TestResults/core.cobertura.xml 90
       - name: Integration tests
         run: dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c Release
+      - name: Platform tests
+        run: dotnet test --project tests/LocalTake.Platform.Tests -c Release
+      - name: UI tests (headless)
+        run: dotnet test --project tests/LocalTake.App.Tests -c Release
+
+  # Builds to try out: the Mac one is for testing by hand on a real Mac.
+  package-macos:
+    needs: portable
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build LocalTake.app
+        run: |
+          build/package-macos.sh osx-arm64 dist
+          build/package-macos.sh osx-x64 dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalTake-macos
+          path: dist/*.zip
+
+  package-windows:
+    needs: windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Publish LocalTake.exe
+        run: dotnet publish src/LocalTake.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalTake-windows
+          path: dist/LocalTake.exe
