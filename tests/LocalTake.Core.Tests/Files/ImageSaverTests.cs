@@ -66,38 +66,38 @@ public sealed class ImageSaverTests
     }
 
     [Fact]
-    public void SaveAs_suggests_the_next_name_in_the_output_folder()
+    public async Task SaveAs_suggests_the_next_name_in_the_output_folder()
     {
-        _saver.SaveAs(_image, _dialog);
-        _dialog.Received(1).Ask("Shot_000003", false, Out);
+        await _saver.SaveAsAsync(_image, _dialog);
+        await _dialog.Received(1).AskAsync("Shot_000003", false, Out);
     }
 
     [Fact]
-    public void SaveAs_opens_where_the_last_Save_As_went_when_that_folder_still_exists()
+    public async Task SaveAs_opens_where_the_last_Save_As_went_when_that_folder_still_exists()
     {
         _fs.AddDirectory(Elsewhere);
         _settings.LastSaveAsFolder = Elsewhere;
         _settings.Format = "jpg";
-        _saver.SaveAs(_image, _dialog);
-        _dialog.Received(1).Ask("Shot_000003", true, Elsewhere);
+        await _saver.SaveAsAsync(_image, _dialog);
+        await _dialog.Received(1).AskAsync("Shot_000003", true, Elsewhere);
     }
 
     [Fact]
-    public void SaveAs_cancelled_saves_nothing()
+    public async Task SaveAs_cancelled_saves_nothing()
     {
-        _dialog.Ask(default!, default, default!).ReturnsForAnyArgs((string?)null);
-        _saver.SaveAs(_image, _dialog).ShouldBeNull();
+        _dialog.AskAsync(default!, default, default!).ReturnsForAnyArgs((string?)null);
+        (await _saver.SaveAsAsync(_image, _dialog)).ShouldBeNull();
         _codec.DidNotReceiveWithAnyArgs().Save(default!, default!, default);
         _settings.Counter.ShouldBe(3);
     }
 
     [Fact]
-    public void SaveAs_with_the_suggested_name_uses_up_the_number_and_remembers_the_folder()
+    public async Task SaveAs_with_the_suggested_name_uses_up_the_number_and_remembers_the_folder()
     {
         var chosen = Path.Combine(Elsewhere, "shot_000003.jpg");
-        _dialog.Ask(default!, default, default!).ReturnsForAnyArgs(chosen);
+        _dialog.AskAsync(default!, default, default!).ReturnsForAnyArgs(chosen);
 
-        _saver.SaveAs(_image, _dialog).ShouldBe(chosen);
+        (await _saver.SaveAsAsync(_image, _dialog)).ShouldBe(chosen);
 
         _codec.Received(1).Save(_image, chosen, 90);
         _settings.Counter.ShouldBe(4);
@@ -106,20 +106,20 @@ public sealed class ImageSaverTests
     }
 
     [Fact]
-    public void SaveAs_with_another_name_keeps_the_number()
+    public async Task SaveAs_with_another_name_keeps_the_number()
     {
-        _dialog.Ask(default!, default, default!).ReturnsForAnyArgs(Path.Combine(Elsewhere, "mine.png"));
-        _saver.SaveAs(_image, _dialog);
+        _dialog.AskAsync(default!, default, default!).ReturnsForAnyArgs(Path.Combine(Elsewhere, "mine.png"));
+        await _saver.SaveAsAsync(_image, _dialog);
         _settings.Counter.ShouldBe(3);
     }
 
     [Fact]
-    public void SaveAs_copies_the_path_when_asked()
+    public async Task SaveAs_copies_the_path_when_asked()
     {
         _settings.CopyPathAfterSave = true;
         var chosen = Path.Combine(Elsewhere, "mine.png");
-        _dialog.Ask(default!, default, default!).ReturnsForAnyArgs(chosen);
-        _saver.SaveAs(_image, _dialog);
+        _dialog.AskAsync(default!, default, default!).ReturnsForAnyArgs(chosen);
+        await _saver.SaveAsAsync(_image, _dialog);
         _clipboard.Received(1).SetText(chosen);
     }
 }

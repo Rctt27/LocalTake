@@ -235,7 +235,7 @@ internal sealed class TrayController : IDisposable
     {
         if (_video.IsRecording)
         {
-            var answer = _dialogs.AskYesNoCancel("Un enregistrement vidéo est en cours.\n\nL'arrêter et garder la vidéo avant de quitter ?");
+            var answer = await _dialogs.AskYesNoCancelAsync("Un enregistrement vidéo est en cours.\n\nL'arrêter et garder la vidéo avant de quitter ?");
             if (answer == DialogAnswer.Cancel)
                 return;
             if (answer == DialogAnswer.Yes)

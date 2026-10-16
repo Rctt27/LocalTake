@@ -720,11 +720,11 @@ public partial class EditorWindow : Window
         }
     }
 
-    private void SaveAs()
+    private async void SaveAs()
     {
         try
         {
-            if (_context.Saver.SaveAs(new WpfImage(RenderImage()), new WpfSaveFileDialog(this)) is { } path)
+            if (await _context.Saver.SaveAsAsync(new WpfImage(RenderImage()), new WpfSaveFileDialog(this)) is { } path)
                 ShowSaved(path);
         }
         catch (Exception ex)

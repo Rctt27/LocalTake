@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -57,7 +58,10 @@ internal sealed class WpfClipboard : IClipboard
 
 internal sealed class WpfSaveFileDialog(Window? owner) : ISaveFileDialog
 {
-    public string? Ask(string suggestedName, bool jpeg, string initialDirectory)
+    public Task<string?> AskAsync(string suggestedName, bool jpeg, string initialDirectory) =>
+        Task.FromResult(Ask(suggestedName, jpeg, initialDirectory));
+
+    private string? Ask(string suggestedName, bool jpeg, string initialDirectory)
     {
         var dialog = new SaveFileDialog
         {
@@ -80,13 +84,13 @@ internal sealed class WpfDialogs : IUserDialogs
 
     public void ShowInfo(string message) => MessageBox.Show(message, Title, MessageBoxButton.OK, MessageBoxImage.Information);
 
-    public DialogAnswer AskYesNoCancel(string message) =>
+    public Task<DialogAnswer> AskYesNoCancelAsync(string message) => Task.FromResult(
         MessageBox.Show(message, Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question) switch
         {
             MessageBoxResult.Yes => DialogAnswer.Yes,
             MessageBoxResult.No => DialogAnswer.No,
             _ => DialogAnswer.Cancel
-        };
+        });
 }
 
 internal sealed class DispatcherUiThread(Dispatcher dispatcher) : IUiThread

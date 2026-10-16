@@ -22,12 +22,12 @@ public sealed class ImageSaver(
     }
 
     /// <returns>The path written, or null when the dialog was cancelled.</returns>
-    public string? SaveAs(IImage image, ISaveFileDialog dialog)
+    public async Task<string?> SaveAsAsync(IImage image, ISaveFileDialog dialog)
     {
         ArgumentNullException.ThrowIfNull(dialog);
         var suggestedName = paths.SuggestedName(settings.FileNamePattern, settings.Counter);
         var initialDirectory = settings.LastSaveAsFolder is { } last && fileSystem.Directory.Exists(last) ? last : settings.OutputFolder;
-        if (dialog.Ask(suggestedName, settings.Format == "jpg", initialDirectory) is not { } path)
+        if (await dialog.AskAsync(suggestedName, settings.Format == "jpg", initialDirectory) is not { } path)
             return null;
 
         codec.Save(image, path, settings.JpegQuality);

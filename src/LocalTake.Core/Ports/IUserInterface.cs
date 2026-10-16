@@ -13,7 +13,7 @@ public interface IUserDialogs
     void ShowError(string message);
     void ShowWarning(string message);
     void ShowInfo(string message);
-    DialogAnswer AskYesNoCancel(string message);
+    Task<DialogAnswer> AskYesNoCancelAsync(string message);
 }
 
 /// <summary>Short notices that do not interrupt, such as the tray balloon.</summary>
@@ -58,5 +58,5 @@ public interface ISaveFileDialog
     /// <param name="jpeg">Whether JPEG is the format offered first.</param>
     /// <param name="initialDirectory">The folder the dialog opens in.</param>
     /// <returns>The chosen path, or null when cancelled.</returns>
-    string? Ask(string suggestedName, bool jpeg, string initialDirectory);
+    Task<string?> AskAsync(string suggestedName, bool jpeg, string initialDirectory);
 }
