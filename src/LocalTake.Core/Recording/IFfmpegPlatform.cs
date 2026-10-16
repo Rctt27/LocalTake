@@ -8,6 +8,9 @@ public interface IFfmpegPlatform
     /// <summary>The audio input that records what the computer plays.</summary>
     string SystemAudioDevice { get; }
 
+    /// <summary>What recording the computer's sound needs, for the toggles' tooltips.</summary>
+    string SystemAudioRequirement { get; }
+
     /// <summary>How to install ffmpeg, shown when it cannot be found.</summary>
     string InstallHint { get; }
 

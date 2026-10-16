@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LocalTake.App.Editor.EditorWindow"
+        Title="LocalTake" Background="#1E1E1E" MinWidth="820" MinHeight="420" Width="1000" Height="700">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#2B2B2B" Padding="6,4" BorderBrush="#111" BorderThickness="0,0,0,1">
+            <WrapPanel x:Name="Toolbar" VerticalAlignment="Center">
+                <ToggleButton Classes="tool" Tag="Select" ToolTip.Tip="Sélection : déplacer, Suppr pour effacer (V)">↖</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Arrow" ToolTip.Tip="Flèche (A)">➚</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Line" ToolTip.Tip="Ligne (L)">╱</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Rectangle" ToolTip.Tip="Rectangle (R)">▭</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Ellipse" ToolTip.Tip="Ellipse (E)">◯</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Pen" ToolTip.Tip="Crayon (P)">✎</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Highlighter" ToolTip.Tip="Surligneur (H)">▌</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Text" ToolTip.Tip="Texte (T)" FontWeight="Bold">T</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Number" ToolTip.Tip="Numérotation (N)">①</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Blur" ToolTip.Tip="Flouter / pixeliser (B)">▦</ToggleButton>
+                <ToggleButton Classes="tool" Tag="Crop" ToolTip.Tip="Recadrer (C)">⛶</ToggleButton>
+
+                <Rectangle Width="1" Height="22" Fill="#555" Margin="8,0" />
+                <StackPanel x:Name="ColorPanel" Orientation="Horizontal" VerticalAlignment="Center" />
+
+                <Rectangle Width="1" Height="22" Fill="#555" Margin="8,0" />
+                <TextBlock Text="Épaisseur" Foreground="#AAA" VerticalAlignment="Center" Margin="0,0,4,0" />
+                <ComboBox x:Name="ThicknessBox" MinWidth="64" VerticalAlignment="Center" />
+                <TextBlock Text="Texte" Foreground="#AAA" VerticalAlignment="Center" Margin="8,0,4,0" />
+                <ComboBox x:Name="FontSizeBox" MinWidth="64" VerticalAlignment="Center" />
+
+                <Rectangle Width="1" Height="22" Fill="#555" Margin="8,0" />
+                <Button x:Name="UndoButton" Classes="action" Content="↶" />
+                <Button x:Name="RedoButton" Classes="action" Content="↷" />
+
+                <Rectangle Width="1" Height="22" Fill="#555" Margin="8,0" />
+                <Button x:Name="CopyButton" Classes="action" Content="Copier" />
+                <Button x:Name="SaveAsButton" Classes="action" Content="Enregistrer sous…" />
+                <Button x:Name="SaveButton" Classes="primary" Content="Enregistrer" />
+            </WrapPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Background="#2B2B2B" Padding="10,4" BorderBrush="#111" BorderThickness="0,1,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2">
+                    <TextBlock x:Name="SizeText" Foreground="#AAA" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <Button x:Name="ZoomOutButton" Classes="action" Content="−" ToolTip.Tip="Zoom arrière (Ctrl+molette)" />
+                    <TextBlock x:Name="ZoomText" Foreground="#AAA" VerticalAlignment="Center" Width="48" TextAlignment="Center" />
+                    <Button x:Name="ZoomInButton" Classes="action" Content="+" ToolTip.Tip="Zoom avant (Ctrl+molette)" />
+                    <Button x:Name="ZoomActualButton" Classes="action" Content="1:1" />
+                    <Button x:Name="ZoomFitButton" Classes="action" Content="Ajuster" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock x:Name="StatusText" Foreground="#CCC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button x:Name="RevealButton" Classes="action" IsVisible="False" Foreground="#6CB6FF" Background="Transparent" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#1E1E1E">
+            <LayoutTransformControl x:Name="ZoomHost" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Canvas x:Name="Surface" ClipToBounds="True" Background="White" Cursor="Cross">
+                        <Image x:Name="BaseImage" />
+                    </Canvas>
+                    <!-- Selection frames live outside the surface, so that they never reach the exported image. -->
+                    <Canvas x:Name="SelectionLayer" IsHitTestVisible="False" />
+                </Grid>
+            </LayoutTransformControl>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

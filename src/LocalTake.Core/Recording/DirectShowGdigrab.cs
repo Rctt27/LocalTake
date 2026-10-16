@@ -10,6 +10,8 @@ public sealed partial class DirectShowGdigrab : IFfmpegPlatform
     /// <summary>Audio driver installed with TinyTake ("TinyTake Filter"): it records what the computer plays.</summary>
     public string SystemAudioDevice => "virtual-audio-capturer";
 
+    public string SystemAudioRequirement => "le pilote « virtual-audio-capturer », installé avec TinyTake (TinyTake Filter)";
+
     public string InstallHint => "Installez-le avec la commande « winget install Gyan.FFmpeg », " +
                                  "ou indiquez l'emplacement de ffmpeg.exe dans les réglages.";
 

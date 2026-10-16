@@ -150,6 +150,7 @@ public sealed class FfmpegRecorderTests : IDisposable
         public PixelRect? Area { get; private set; }
         public string ListedOutput { get; private set; } = "";
         public string SystemAudioDevice => "none";
+        public string SystemAudioRequirement => "";
         public string InstallHint => "";
         public IReadOnlyList<string> ListDevicesArguments { get; } = ["-version"];
 

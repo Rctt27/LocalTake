@@ -102,8 +102,13 @@ public sealed unsafe class WindowsScreenGrabber : IScreenGrabber
     }
 }
 
-/// <summary>WDA_EXCLUDEFROMCAPTURE: visible on screen, absent from screenshots and from ffmpeg's gdigrab.</summary>
-public sealed class WindowsCaptureExclusion : ICaptureExclusion
+/// <summary>Window styles: WDA_EXCLUDEFROMCAPTURE keeps a window visible but out of screenshots and of gdigrab.</summary>
+public sealed class WindowsNativeWindows : INativeWindows
 {
-    public bool Exclude(nint nativeWindow) => Win32.SetWindowDisplayAffinity(nativeWindow, Win32.WDA_EXCLUDEFROMCAPTURE);
+    public bool ExcludeFromCapture(nint nativeWindow) => Win32.SetWindowDisplayAffinity(nativeWindow, Win32.WDA_EXCLUDEFROMCAPTURE);
+
+    /// <summary>A topmost window already covers the taskbar on Windows.</summary>
+    public void RaiseAboveEverything(nint nativeWindow)
+    {
+    }
 }
