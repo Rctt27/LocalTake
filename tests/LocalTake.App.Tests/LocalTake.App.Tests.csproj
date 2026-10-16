@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Avalonia windows without a screen: Avalonia.Headless with the real Skia renderer. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LocalTake.App\LocalTake.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" />
+  </ItemGroup>
+
+</Project>

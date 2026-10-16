@@ -1,13 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/LocalTake.App/LocalTake.App.csproj" />
-    <Project Path="src/LocalTake.App/LocalTake.App.csproj" />
     <Project Path="src/LocalTake.Core/LocalTake.Core.csproj" />
     <Project Path="src/LocalTake.Infrastructure/LocalTake.Infrastructure.csproj" />
     <Project Path="src/LocalTake.Platform.Windows/LocalTake.Platform.Windows.csproj" />
     <Project Path="src/LocalTake.Wpf/LocalTake.Wpf.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/LocalTake.App.Tests/LocalTake.App.Tests.csproj" />
     <Project Path="tests/LocalTake.Core.Tests/LocalTake.Core.Tests.csproj" />
     <Project Path="tests/LocalTake.Infrastructure.IntegrationTests/LocalTake.Infrastructure.IntegrationTests.csproj" />
     <Project Path="tests/LocalTake.Platform.Tests/LocalTake.Platform.Tests.csproj" />

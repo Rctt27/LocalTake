@@ -33,12 +33,12 @@ internal sealed class SkiaImageCodec : IImageCodec
     /// <returns>Null when the file is not an image Skia can read.</returns>
     public static PixelBuffer? Load(string path)
     {
-        using var bitmap = SKBitmap.Decode(path);
-        if (bitmap is null)
+        using var codec = SKCodec.Create(path);
+        if (codec is null)
             return null;
-        using var converted = new SKBitmap(new SKImageInfo(bitmap.Width, bitmap.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-        if (!bitmap.CopyTo(converted, SKColorType.Bgra8888))
-            return null;
-        return new PixelBuffer(converted.Width, converted.Height, converted.Bytes);
+        // Straight alpha, as PixelBuffer holds it: Skia would otherwise premultiply a transparent PNG.
+        var info = codec.Info.WithColorType(SKColorType.Bgra8888).WithAlphaType(SKAlphaType.Unpremul);
+        using var bitmap = SKBitmap.Decode(codec, info);
+        return bitmap is null ? null : new PixelBuffer(bitmap.Width, bitmap.Height, bitmap.Bytes);
     }
 }

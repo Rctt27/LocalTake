@@ -7,9 +7,9 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using LocalTake.App.Adapters;
 using LocalTake.Core.Capture;
-using CorePoint = LocalTake.Core.Geometry.PixelPoint;
 using LocalTake.Core.Ports;
 using CorePixelRect = LocalTake.Core.Geometry.PixelRect;
+using CorePoint = LocalTake.Core.Geometry.PixelPoint;
 
 namespace LocalTake.App.Capture;
 
