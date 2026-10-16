@@ -1,0 +1,51 @@
+[
+  {
+    "devices": [],
+    "preferred": "",
+    "result": null
+  },
+  {
+    "devices": [],
+    "preferred": "My mic",
+    "result": "My mic"
+  },
+  {
+    "devices": [
+      "Mic A",
+      "Mic B"
+    ],
+    "preferred": "Mic B",
+    "result": "Mic B"
+  },
+  {
+    "devices": [
+      "Mic A",
+      "Mic B"
+    ],
+    "preferred": "Unplugged",
+    "result": "Mic A"
+  },
+  {
+    "devices": [
+      "Mic A",
+      "Mic B"
+    ],
+    "preferred": "",
+    "result": "Mic A"
+  },
+  {
+    "devices": [
+      "virtual-audio-capturer"
+    ],
+    "preferred": "",
+    "result": null
+  },
+  {
+    "devices": [
+      "virtual-audio-capturer",
+      "Mic A"
+    ],
+    "preferred": "virtual-audio-capturer",
+    "result": "Mic A"
+  }
+]
