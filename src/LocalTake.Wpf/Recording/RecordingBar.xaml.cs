@@ -7,7 +7,10 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
-using Drawing = System.Drawing;
+using LocalTake.Adapters;
+using LocalTake.Core.Geometry;
+using LocalTake.Core.Recording;
+using LocalTake.Core.Settings;
 using Forms = System.Windows.Forms;
 
 namespace LocalTake;
@@ -19,6 +22,8 @@ namespace LocalTake;
 public partial class RecordingBar : Window
 {
     private readonly AppSettings _settings;
+    private readonly ISettingsStore _store;
+    private readonly IFfmpegPlatform _platform;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly Stopwatch _elapsed = new();
     private bool _hasMicrophone = true;
@@ -32,10 +37,12 @@ public partial class RecordingBar : Window
     public event Action? StopRequested;
     public event Action? CancelRequested;
 
-    internal RecordingBar(AppSettings settings)
+    internal RecordingBar(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform)
     {
         InitializeComponent();
         _settings = settings;
+        _store = store;
+        _platform = platform;
         SourceInitialized += (_, _) =>
             Native.SetWindowDisplayAffinity(new WindowInteropHelper(this).Handle, Native.WDA_EXCLUDEFROMCAPTURE);
         MouseLeftButtonDown += (_, e) =>
@@ -56,25 +63,14 @@ public partial class RecordingBar : Window
 
     /// <summary>Below the recorded area when there is room, otherwise above it, otherwise inside it.</summary>
     /// <param name="area">Physical screen pixels.</param>
-    public void ShowNear(Drawing.Rectangle area)
+    public void ShowNear(PixelRect area)
     {
         Show();
         var hwnd = new WindowInteropHelper(this).Handle;
         Native.GetWindowRect(hwnd, out var r);
-        int width = r.Right - r.Left, height = r.Bottom - r.Top;
-        var screen = Forms.Screen.FromRectangle(area).WorkingArea;
-        const int gap = 10;
-
-        var x = Math.Clamp(area.X + (area.Width - width) / 2, screen.Left, Math.Max(screen.Left, screen.Right - width));
-        int y;
-        if (area.Bottom + gap + height <= screen.Bottom)
-            y = area.Bottom + gap;
-        else if (area.Top - gap - height >= screen.Top)
-            y = area.Top - gap - height;
-        else
-            y = screen.Bottom - height - gap;
-
-        Native.SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE);
+        var workArea = Forms.Screen.FromRectangle(area.ToRectangle()).WorkingArea.ToPixelRect();
+        var position = RecordingBarPlacement.Place(area, new PixelSize(r.Right - r.Left, r.Bottom - r.Top), workArea);
+        Native.SetWindowPos(hwnd, IntPtr.Zero, position.X, position.Y, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE);
     }
 
     /// <param name="startShortcut">Shown on the Start button, or null when it could not be registered.</param>
@@ -99,14 +95,14 @@ public partial class RecordingBar : Window
         if (devices.Count == 0)
             return;
 
-        var microphones = Ffmpeg.Microphones(devices).ToList();
+        var microphones = AudioDevices.Microphones(devices, _platform.SystemAudioDevice).ToList();
         _hasMicrophone = microphones.Count > 0;
-        _hasSystemAudio = devices.Contains(Ffmpeg.SystemAudioDevice);
+        _hasSystemAudio = devices.Contains(_platform.SystemAudioDevice);
 
         // A list only when there is a choice to make, as in TinyTake.
         MicrophoneBox.SelectionChanged -= MicrophoneBox_SelectionChanged;
         MicrophoneBox.ItemsSource = microphones;
-        MicrophoneBox.SelectedItem = Ffmpeg.PickMicrophone(devices, _settings.Microphone);
+        MicrophoneBox.SelectedItem = AudioDevices.PickMicrophone(devices, _settings.Microphone, _platform.SystemAudioDevice);
         MicrophoneBox.SelectionChanged += MicrophoneBox_SelectionChanged;
         UpdateAudioToggles();
     }
@@ -192,7 +188,7 @@ public partial class RecordingBar : Window
         if (_updatingToggles)
             return;
         _settings.RecordMicrophone = MicrophoneToggle.IsChecked == true;
-        _settings.TrySave();
+        _store.TrySave(_settings);
         UpdateAudioToggles();
     }
 
@@ -201,7 +197,7 @@ public partial class RecordingBar : Window
         if (_updatingToggles)
             return;
         _settings.RecordSystemAudio = SystemAudioToggle.IsChecked == true;
-        _settings.TrySave();
+        _store.TrySave(_settings);
         UpdateAudioToggles();
     }
 
@@ -210,7 +206,7 @@ public partial class RecordingBar : Window
         if (MicrophoneBox.SelectedItem is not string microphone)
             return;
         _settings.Microphone = microphone;
-        _settings.TrySave();
+        _store.TrySave(_settings);
     }
 
     private void Start_Click(object sender, RoutedEventArgs e) => StartRequested?.Invoke();

@@ -6,6 +6,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LocalTake.Core.Tests/LocalTake.Core.Tests.csproj" />
+    <Project Path="tests/LocalTake.Infrastructure.IntegrationTests/LocalTake.Infrastructure.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

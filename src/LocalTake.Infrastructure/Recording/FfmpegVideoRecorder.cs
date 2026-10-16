@@ -1,0 +1,143 @@
+using System.Collections.Concurrent;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Text;
+using System.Text.RegularExpressions;
+using LocalTake.Core.Ports;
+using LocalTake.Core.Recording;
+
+namespace LocalTake.Infrastructure.Recording;
+
+/// <summary>One ffmpeg process recording to an MP4 file.</summary>
+public sealed partial class FfmpegVideoRecorder : IVideoRecorder
+{
+    private readonly Process _process;
+    private readonly ConcurrentQueue<string> _log = new();
+    private readonly Action<IVideoRecorder> _onUnexpectedExit;
+    private readonly TaskCompletionSource<bool> _capturing = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private volatile bool _stopping;
+
+    private FfmpegVideoRecorder(Process process, string outputPath, Action<IVideoRecorder> onUnexpectedExit)
+    {
+        _process = process;
+        OutputPath = outputPath;
+        _onUnexpectedExit = onUnexpectedExit;
+    }
+
+    public string OutputPath { get; }
+
+    public string ErrorTail => string.Join("\n", _log.ToArray().TakeLast(6));
+
+    public Task<bool> Capturing => _capturing.Task;
+
+    /// <param name="ffmpegPath">The ffmpeg executable.</param>
+    /// <param name="inputs">The platform's screen and audio inputs.</param>
+    /// <param name="outputPath">The MP4 to write.</param>
+    /// <param name="onUnexpectedExit">ffmpeg stopped on its own; called on a worker thread.</param>
+    public static FfmpegVideoRecorder Start(string ffmpegPath, CaptureInputs inputs, string outputPath, Action<IVideoRecorder> onUnexpectedExit)
+    {
+        var start = new ProcessStartInfo(ffmpegPath)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardError = true,
+            StandardErrorEncoding = Encoding.UTF8
+        };
+        foreach (var arg in RecordingCommand.Build(inputs, outputPath))
+            start.ArgumentList.Add(arg);
+
+        var process = new Process { StartInfo = start, EnableRaisingEvents = true };
+        var recorder = new FfmpegVideoRecorder(process, outputPath, onUnexpectedExit);
+        process.ErrorDataReceived += (_, e) => recorder.OnErrorLine(e.Data);
+        process.Exited += (_, _) => recorder.OnExited();
+
+        try
+        {
+            process.Start();
+        }
+        catch
+        {
+            process.Dispose();
+            throw;
+        }
+        process.BeginErrorReadLine();
+        return recorder;
+    }
+
+    /// <summary>"q" on stdin is ffmpeg's clean stop: it writes the MP4 index, unlike killing the process.</summary>
+    public async Task<bool> StopAsync()
+    {
+        _stopping = true;
+        try
+        {
+            await _process.StandardInput.WriteAsync('q');
+            await _process.StandardInput.FlushAsync();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+            // Already exited.
+        }
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            await _process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Kill();
+            return false;
+        }
+        return _process.ExitCode == 0 && File.Exists(OutputPath) && new FileInfo(OutputPath).Length > 0;
+    }
+
+    public void Kill()
+    {
+        _stopping = true;
+        try
+        {
+            if (!_process.HasExited)
+            {
+                _process.Kill(entireProcessTree: true);
+                _process.WaitForExit(5000);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        {
+            // Already exited.
+        }
+    }
+
+    public void Dispose() => _process.Dispose();
+
+    private void OnErrorLine(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+        if (line.Contains(RecordingCommand.CapturingLine, StringComparison.Ordinal))
+            _capturing.TrySetResult(true);
+        // The info level is only read for that line; the log keeps warnings and errors.
+        if (InfoLevel().IsMatch(line))
+            return;
+        _log.Enqueue(ProblemLevel().Replace(line, ""));
+        while (_log.Count > 50)
+            _log.TryDequeue(out _);
+    }
+
+    private void OnExited()
+    {
+        _capturing.TrySetResult(false);
+        if (_stopping)
+            return;
+        // Exited can come before the last stderr lines, which usually hold the reason; this waits for them.
+        _process.WaitForExit();
+        _onUnexpectedExit(this);
+    }
+
+    [GeneratedRegex(@"\[(info|verbose|debug|trace)\] ")]
+    private static partial Regex InfoLevel();
+
+    [GeneratedRegex(@"\[(warning|error|fatal|panic)\] ")]
+    private static partial Regex ProblemLevel();
+}

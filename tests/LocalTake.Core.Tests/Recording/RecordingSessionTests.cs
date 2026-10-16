@@ -317,6 +317,70 @@ public sealed class RecordingSessionTests
     }
 
     [Fact]
+    public async Task A_stop_that_throws_is_reported_and_LocalTake_accepts_new_captures()
+    {
+        await RecordingAsync();
+        var stop = _session.StopAsync();
+        Recorder.StopResult.SetException(new IOException("pipe closed"));
+        await stop;
+
+        _dialogs.Received(1).ShowError("La vidéo n'a pas pu être finalisée.\n\npipe closed");
+        _session.IsBusy.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_busy_clipboard_does_not_lose_the_saved_video()
+    {
+        _settings.CopyPathAfterSave = true;
+        _clipboard.When(c => c.SetText(Arg.Any<string>())).Do(_ => throw new InvalidOperationException("busy"));
+        await RecordingAsync();
+        var stop = _session.StopAsync();
+        Recorder.StopResult.SetResult(true);
+        await stop;
+        _saved.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Dispose_during_a_recording_kills_ffmpeg_and_releases_the_shortcuts()
+    {
+        await RecordingAsync();
+        _session.Dispose();
+        Recorder.Killed.ShouldBeTrue();
+        _hotkeys.Registered.ShouldBeEmpty();
+        View.Closed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Cancel_when_idle_does_nothing()
+    {
+        var changes = 0;
+        _session.StateChanged += (_, _) => changes++;
+        _session.Cancel();
+        await _session.StopAsync();
+        changes.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Toggle_during_the_selection_is_ignored()
+    {
+        var pending = new TaskCompletionSource<AreaSelection?>();
+        _picker.PickAsync(false).Returns(pending.Task);
+        var first = _session.ToggleAsync(false, false);
+        await _session.ToggleAsync(false, false);
+        pending.SetResult(null);
+        await first;
+        await _picker.Received(1).PickAsync(false);
+    }
+
+    [Fact]
+    public async Task The_stop_shortcut_stops_the_recording()
+    {
+        await RecordingAsync();
+        _hotkeys.Press("Ctrl+D");
+        Recorder.StopRequested.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task StateChanged_follows_each_step()
     {
         var changes = 0;

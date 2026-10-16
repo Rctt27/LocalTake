@@ -20,7 +20,33 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
       - name: Format
         run: dotnet format LocalTake.slnx --verify-no-changes
       - name: Build
         run: dotnet build LocalTake.slnx -c Release
+      - name: Test
+        run: dotnet test --solution LocalTake.slnx -c Release --no-build
+
+  # The core and the portable infrastructure, where the macOS version will run.
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Install ffmpeg
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else sudo apt-get update && sudo apt-get install -y ffmpeg; fi
+      - name: Core tests with coverage
+        run: dotnet test --project tests/LocalTake.Core.Tests -c Release --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
+      - name: Core coverage of at least 90 %
+        run: python3 build/check-coverage.py TestResults/core.cobertura.xml 90
+      - name: Integration tests
+        run: dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c Release

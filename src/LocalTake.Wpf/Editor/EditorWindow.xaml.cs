@@ -13,9 +13,17 @@ using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using LocalTake.Adapters;
+using LocalTake.Core.Editor;
+using LocalTake.Core.Files;
+using LocalTake.Core.Ports;
+using LocalTake.Core.Settings;
 using Path = System.Windows.Shapes.Path;
 
 namespace LocalTake;
+
+/// <summary>What the editor needs from the rest of the app.</summary>
+internal sealed record EditorContext(AppSettings Settings, ISettingsStore Store, ImageSaver Saver, IClipboard Clipboard);
 
 /// <summary>
 /// Annotation editor. The canvas is sized in image pixels (images are 96 DPI), annotations are ordinary WPF
@@ -45,6 +53,7 @@ public partial class EditorWindow : Window
     };
 
     private readonly AppSettings _settings;
+    private readonly EditorContext _context;
     private BitmapSource _base;
     private Tool _tool = Tool.Arrow;
     private Color _color;
@@ -52,8 +61,7 @@ public partial class EditorWindow : Window
     private double _fontSize;
     private double _dpiScale = 1;
 
-    private readonly Stack<(Action Undo, Action Redo)> _undo = new();
-    private readonly Stack<(Action Undo, Action Redo)> _redo = new();
+    private readonly UndoHistory _history = new();
 
     /// <summary>A fresh capture counts as unsaved: closing it would lose it.</summary>
     private bool _dirty = true;
@@ -76,10 +84,12 @@ public partial class EditorWindow : Window
     private double StrokeWidth => _thickness * _dpiScale;
     private double TextSize => _fontSize * _dpiScale;
 
-    public EditorWindow(BitmapSource image, AppSettings settings)
+    internal EditorWindow(BitmapSource image, EditorContext context)
     {
         InitializeComponent();
-        _settings = settings;
+        _context = context;
+        _settings = context.Settings;
+        var settings = _settings;
         _base = image;
         _color = ParseColor(settings.EditorColor);
         _thickness = settings.EditorThickness;
@@ -134,11 +144,11 @@ public partial class EditorWindow : Window
         }
 
         ThicknessBox.ItemsSource = Thicknesses;
-        ThicknessBox.SelectedItem = Thicknesses.OrderBy(t => Math.Abs(t - _thickness)).First();
+        ThicknessBox.SelectedItem = EditorGeometry.Nearest(Thicknesses, _thickness);
         ThicknessBox.SelectionChanged += (_, _) => _thickness = (double)ThicknessBox.SelectedItem;
 
         FontSizeBox.ItemsSource = FontSizes;
-        FontSizeBox.SelectedItem = FontSizes.OrderBy(f => Math.Abs(f - _fontSize)).First();
+        FontSizeBox.SelectedItem = EditorGeometry.Nearest(FontSizes, _fontSize);
         FontSizeBox.SelectionChanged += (_, _) => _fontSize = (double)FontSizeBox.SelectedItem;
     }
 
@@ -165,7 +175,7 @@ public partial class EditorWindow : Window
 
     private void SetZoom(double zoom)
     {
-        zoom = Math.Clamp(zoom, 0.05, 8);
+        zoom = EditorGeometry.ClampZoom(zoom);
         Zoom.ScaleX = Zoom.ScaleY = zoom;
         UpdateZoomText();
     }
@@ -175,10 +185,9 @@ public partial class EditorWindow : Window
 
     private void ZoomToFit(bool allowEnlarge)
     {
-        var width = (Scroller.ViewportWidth > 0 ? Scroller.ViewportWidth : Scroller.ActualWidth) - 40;
-        var height = (Scroller.ViewportHeight > 0 ? Scroller.ViewportHeight : Scroller.ActualHeight) - 40;
-        var fit = Math.Min(width / _base.PixelWidth, height / _base.PixelHeight);
-        SetZoom(allowEnlarge ? fit : Math.Min(fit, 1 / _dpiScale));
+        var width = Scroller.ViewportWidth > 0 ? Scroller.ViewportWidth : Scroller.ActualWidth;
+        var height = Scroller.ViewportHeight > 0 ? Scroller.ViewportHeight : Scroller.ActualHeight;
+        SetZoom(EditorGeometry.FitZoom(width, height, _base.PixelWidth, _base.PixelHeight, _dpiScale, allowEnlarge));
     }
 
     private void ZoomIn_Click(object sender, RoutedEventArgs e) => SetZoom(Zoom.ScaleX * 1.25);
@@ -399,20 +408,14 @@ public partial class EditorWindow : Window
 
     private static Geometry ArrowGeometry(Point from, Point to, double thickness)
     {
-        var direction = to - from;
-        var length = direction.Length;
-        if (length < 1)
+        if (EditorGeometry.Arrow(ToCore(from), ToCore(to), thickness) is not { } arrow)
             return Geometry.Empty;
-        direction /= length;
-        var normal = new Vector(-direction.Y, direction.X);
-        var head = Math.Min(length, Math.Max(12, thickness * 4));
-        var headBase = to - direction * head;
 
-        var shaft = new PathFigure { StartPoint = from, IsFilled = false };
-        shaft.Segments.Add(new LineSegment(headBase + direction * (head * 0.3), true));
-        var tip = new PathFigure { StartPoint = to, IsClosed = true, IsFilled = true };
-        tip.Segments.Add(new LineSegment(headBase + normal * head * 0.55, true));
-        tip.Segments.Add(new LineSegment(headBase - normal * head * 0.55, true));
+        var shaft = new PathFigure { StartPoint = ToWpf(arrow.ShaftStart), IsFilled = false };
+        shaft.Segments.Add(new LineSegment(ToWpf(arrow.ShaftEnd), true));
+        var tip = new PathFigure { StartPoint = ToWpf(arrow.Tip), IsClosed = true, IsFilled = true };
+        tip.Segments.Add(new LineSegment(ToWpf(arrow.HeadLeft), true));
+        tip.Segments.Add(new LineSegment(ToWpf(arrow.HeadRight), true));
 
         var geometry = new PathGeometry();
         geometry.Figures.Add(shaft);
@@ -420,39 +423,32 @@ public partial class EditorWindow : Window
         return geometry;
     }
 
-    private static Point Snap45(Point from, Point to)
-    {
-        var v = to - from;
-        var step = Math.PI / 4;
-        var angle = Math.Round(Math.Atan2(v.Y, v.X) / step) * step;
-        return from + new Vector(Math.Cos(angle), Math.Sin(angle)) * v.Length;
-    }
+    private static PointD ToCore(Point p) => new(p.X, p.Y);
+
+    private static Point ToWpf(PointD p) => new(p.X, p.Y);
+
+    private static Point Snap45(Point from, Point to) => ToWpf(EditorGeometry.Snap45(ToCore(from), ToCore(to)));
 
     private static Rect RectBetween(Point a, Point b, bool square)
     {
-        var w = Math.Abs(b.X - a.X);
-        var h = Math.Abs(b.Y - a.Y);
-        if (square)
-            w = h = Math.Max(w, h);
-        return new Rect(b.X < a.X ? a.X - w : a.X, b.Y < a.Y ? a.Y - h : a.Y, w, h);
+        var r = EditorGeometry.RectBetween(ToCore(a), ToCore(b), square);
+        return new Rect(r.X, r.Y, r.Width, r.Height);
     }
 
     /// <summary>The frame of a blur/crop gesture as whole image pixels, or null when too small.</summary>
     private Int32Rect? ToPixelRect(FrameworkElement frame)
     {
-        var left = Math.Max(0, (int)Math.Floor(Canvas.GetLeft(frame)));
-        var top = Math.Max(0, (int)Math.Floor(Canvas.GetTop(frame)));
-        var right = Math.Min(_base.PixelWidth, (int)Math.Ceiling(Canvas.GetLeft(frame) + frame.Width));
-        var bottom = Math.Min(_base.PixelHeight, (int)Math.Ceiling(Canvas.GetTop(frame) + frame.Height));
-        return right - left >= 4 && bottom - top >= 4 ? new Int32Rect(left, top, right - left, bottom - top) : null;
+        var bounds = new RectD(Canvas.GetLeft(frame), Canvas.GetTop(frame), frame.Width, frame.Height);
+        return EditorGeometry.ToPixelRect(bounds, _base.PixelWidth, _base.PixelHeight) is { } r
+            ? new Int32Rect(r.X, r.Y, r.Width, r.Height)
+            : null;
     }
 
     private FrameworkElement CreatePixelated(Int32Rect area)
     {
-        var block = (int)Math.Clamp(Math.Min(area.Width, area.Height) / 8.0, 6 * _dpiScale, 24 * _dpiScale);
+        var pixels = new Core.Geometry.PixelRect(area.X, area.Y, area.Width, area.Height);
         var cropped = new CroppedBitmap(_base, area);
-        var columns = Math.Max(1, area.Width / block);
-        var rows = Math.Max(1, area.Height / block);
+        var (columns, rows) = EditorGeometry.PixelationGrid(pixels, EditorGeometry.PixelationBlock(pixels, _dpiScale));
         var small = new TransformedBitmap(cropped, new ScaleTransform((double)columns / area.Width, (double)rows / area.Height));
         small.Freeze();
 
@@ -494,17 +490,16 @@ public partial class EditorWindow : Window
     private void AddNumber(Point p)
     {
         // Max + 1 rather than a count: deleting badge 2 of 1-2-3 must not produce a second 3.
-        var number = Surface.Children.OfType<FrameworkElement>().Select(c => c.Tag).OfType<StepNumber>()
-            .Select(n => n.Value).DefaultIfEmpty(0).Max() + 1;
+        var number = EditorGeometry.NextStepNumber(
+            Surface.Children.OfType<FrameworkElement>().Select(c => c.Tag).OfType<StepNumber>().Select(n => n.Value));
         var diameter = Math.Max(24 * _dpiScale, TextSize * 1.25);
-        var luminance = (0.299 * _color.R + 0.587 * _color.G + 0.114 * _color.B) / 255;
 
         var badge = new Grid { Width = diameter, Height = diameter, Tag = new StepNumber(number), Effect = Shadow() };
         badge.Children.Add(new Ellipse { Fill = new SolidColorBrush(_color), Stroke = Brushes.White, StrokeThickness = Math.Max(1.5, diameter / 16) });
         badge.Children.Add(new TextBlock
         {
             Text = number.ToString(CultureInfo.InvariantCulture),
-            Foreground = luminance > 0.6 ? Brushes.Black : Brushes.White,
+            Foreground = EditorGeometry.NeedsDarkText(_color.R, _color.G, _color.B) ? Brushes.Black : Brushes.White,
             FontWeight = FontWeights.Bold,
             FontSize = diameter * 0.5,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -649,8 +644,7 @@ public partial class EditorWindow : Window
 
     private void Push(Action undo, Action redo)
     {
-        _undo.Push((undo, redo));
-        _redo.Clear();
+        _history.Push(undo, redo);
         _dirty = true;
         UpdateUndoButtons();
     }
@@ -659,12 +653,8 @@ public partial class EditorWindow : Window
     {
         CommitText();
         Select(null);
-        if (_undo.Count == 0)
-            return;
-        var step = _undo.Pop();
-        step.Undo();
-        _redo.Push(step);
-        _dirty = true;
+        if (_history.Undo())
+            _dirty = true;
         UpdateUndoButtons();
     }
 
@@ -672,19 +662,15 @@ public partial class EditorWindow : Window
     {
         CommitText();
         Select(null);
-        if (_redo.Count == 0)
-            return;
-        var step = _redo.Pop();
-        step.Redo();
-        _undo.Push(step);
-        _dirty = true;
+        if (_history.Redo())
+            _dirty = true;
         UpdateUndoButtons();
     }
 
     private void UpdateUndoButtons()
     {
-        UndoButton.IsEnabled = _undo.Count > 0;
-        RedoButton.IsEnabled = _redo.Count > 0;
+        UndoButton.IsEnabled = _history.CanUndo;
+        RedoButton.IsEnabled = _history.CanRedo;
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e) => Undo();
@@ -724,7 +710,7 @@ public partial class EditorWindow : Window
     {
         try
         {
-            ShowSaved(ImageExporter.SaveToOutputFolder(RenderImage(), _settings));
+            ShowSaved(_context.Saver.SaveToOutputFolder(new WpfImage(RenderImage())));
             return true;
         }
         catch (Exception ex)
@@ -738,7 +724,7 @@ public partial class EditorWindow : Window
     {
         try
         {
-            if (ImageExporter.SaveWithDialog(RenderImage(), _settings, this) is { } path)
+            if (_context.Saver.SaveAs(new WpfImage(RenderImage()), new WpfSaveFileDialog(this)) is { } path)
                 ShowSaved(path);
         }
         catch (Exception ex)
@@ -751,7 +737,7 @@ public partial class EditorWindow : Window
     {
         try
         {
-            ImageExporter.CopyImage(RenderImage());
+            _context.Clipboard.SetImage(new WpfImage(RenderImage()));
             _dirty = false;
             StatusText.Text = "Image copiée dans le presse-papier.";
         }
@@ -856,7 +842,7 @@ public partial class EditorWindow : Window
         _settings.EditorColor = $"#{_color.R:X2}{_color.G:X2}{_color.B:X2}";
         _settings.EditorThickness = _thickness;
         _settings.EditorFontSize = _fontSize;
-        _settings.TrySave();
+        _context.Store.TrySave(_settings);
     }
 
     private static Color ParseColor(string hex)

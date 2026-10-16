@@ -3,13 +3,17 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Linq;
 using System.Windows.Forms;
+using LocalTake.Adapters;
+using LocalTake.Core.Capture;
+using LocalTake.Core.Geometry;
 
 namespace LocalTake;
 
 /// <summary>
-/// Full-screen overlay over a frozen screenshot: drag to select a region, click to take the window under the
-/// cursor, Space to switch to window mode, Escape or right-click to cancel.
+/// Full-screen overlay over a frozen screenshot. The rules (drag, click on a window, Space, Escape, right-click) are
+/// <see cref="SelectionModel"/>'s; this form draws its state and reports the input.
 /// </summary>
 internal sealed class SelectionOverlay : Form
 {
@@ -17,13 +21,7 @@ internal sealed class SelectionOverlay : Form
 
     private readonly Bitmap _screen;
     private readonly Rectangle _virtualScreen;
-    private readonly List<Rectangle> _windows = new();
-    private bool _windowMode;
-
-    private Point? _dragStart;
-    private Rectangle _selection;
-    private Rectangle? _hoverWindow;
-    private Point _cursor = new(-1, -1);
+    private readonly SelectionModel _model;
 
     private readonly SolidBrush _dimBrush = new(Color.FromArgb(120, 0, 0, 0));
     private readonly Pen _accentPen = new(Accent, 2);
@@ -38,12 +36,13 @@ internal sealed class SelectionOverlay : Form
     /// <summary>
     /// Freezes the screen and lets the user pick an area. Shared by image captures and videos.
     /// </summary>
+    /// <param name="windowMode">Start in window mode rather than area mode.</param>
     /// <param name="area">The chosen area in virtual-screen coordinates (physical pixels).</param>
     /// <returns>The frozen pixels of that area, or null when the user cancelled.</returns>
     public static Bitmap? SelectArea(bool windowMode, out Rectangle area)
     {
         area = Rectangle.Empty;
-        var virtualScreen = ScreenCapture.VirtualScreen;
+        var virtualScreen = SystemInformation.VirtualScreen;
         using var screen = ScreenCapture.Capture(virtualScreen);
         using var overlay = new SelectionOverlay(screen, virtualScreen, ScreenCapture.VisibleWindows(), windowMode);
         if (overlay.ShowDialog() != DialogResult.OK || overlay.Result is not { } selected)
@@ -59,15 +58,7 @@ internal sealed class SelectionOverlay : Form
         // A premultiplied copy draws several times faster, which keeps the overlay fluid on large screens.
         _screen = screen.Clone(new Rectangle(0, 0, screen.Width, screen.Height), PixelFormat.Format32bppPArgb);
         _virtualScreen = virtualScreen;
-        _windowMode = windowMode;
-        foreach (var w in windows)
-        {
-            // Window rectangles converted to overlay (client) coordinates.
-            var local = Rectangle.Intersect(w, virtualScreen);
-            local.Offset(-virtualScreen.X, -virtualScreen.Y);
-            if (local.Width > 1 && local.Height > 1)
-                _windows.Add(local);
-        }
+        _model = new SelectionModel(SelectionModel.ToLocal(windows.Select(w => w.ToPixelRect()), virtualScreen.ToPixelRect()), windowMode);
 
         AutoScaleMode = AutoScaleMode.None;
         FormBorderStyle = FormBorderStyle.None;
@@ -86,8 +77,8 @@ internal sealed class SelectionOverlay : Form
         Bounds = _virtualScreen;
         Activate();
         Native.SetForegroundWindow(Handle);
-        _cursor = PointToClient(Cursor.Position);
-        _hoverWindow = WindowAt(_cursor);
+        var cursor = PointToClient(Cursor.Position);
+        _model.PointerMoved(new PixelPoint(cursor.X, cursor.Y));
         Invalidate();
     }
 
@@ -99,83 +90,52 @@ internal sealed class SelectionOverlay : Form
         base.WndProc(ref m);
     }
 
-    private Rectangle? WindowAt(Point p)
-    {
-        foreach (var w in _windows)
-            if (w.Contains(p))
-                return w;
-        return null;
-    }
-
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.KeyCode == Keys.Escape)
+        SelectionKey? key = e.KeyCode switch
         {
-            DialogResult = DialogResult.Cancel;
-        }
-        else if (e.KeyCode == Keys.Space && _dragStart is null)
-        {
-            _windowMode = !_windowMode;
-            Invalidate();
-        }
-        else if (e.KeyCode == Keys.Enter && _hoverWindow is { } window)
-        {
-            Accept(window);
-        }
+            Keys.Escape => SelectionKey.Escape,
+            Keys.Space => SelectionKey.Space,
+            Keys.Enter => SelectionKey.Enter,
+            _ => null
+        };
+        if (key is { } pressed)
+            Apply(() => _model.KeyPressed(pressed));
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
         if (e.Button == MouseButtons.Right)
-        {
-            if (_dragStart is null)
-                DialogResult = DialogResult.Cancel;
-            _dragStart = null;
-            Invalidate();
-            return;
-        }
-        if (e.Button == MouseButtons.Left)
-        {
-            _dragStart = e.Location;
-            _selection = Rectangle.Empty;
-        }
+            Apply(_model.RightPressed);
+        else if (e.Button == MouseButtons.Left)
+            Apply(() => _model.LeftPressed(new PixelPoint(e.X, e.Y)));
     }
 
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        _cursor = e.Location;
-        if (_dragStart is { } start && !_windowMode)
-        {
-            _selection = Rectangle.FromLTRB(
-                Math.Min(start.X, e.X), Math.Min(start.Y, e.Y),
-                Math.Max(start.X, e.X) + 1, Math.Max(start.Y, e.Y) + 1);
-        }
-        else
-        {
-            _hoverWindow = WindowAt(e.Location);
-        }
-        Invalidate();
-    }
+    protected override void OnMouseMove(MouseEventArgs e) => Apply(() => _model.PointerMoved(new PixelPoint(e.X, e.Y)));
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
-        if (e.Button != MouseButtons.Left || _dragStart is null)
-            return;
-        _dragStart = null;
-
-        if (!_windowMode && _selection.Width >= 3 && _selection.Height >= 3)
-            Accept(_selection);
-        else if (WindowAt(e.Location) is { } window)
-            Accept(window);
-        else
-            Invalidate();
+        if (e.Button == MouseButtons.Left)
+            Apply(() => _model.LeftReleased(new PixelPoint(e.X, e.Y)));
     }
 
-    private void Accept(Rectangle local)
+    /// <summary>Passes the input to the model, then closes or repaints.</summary>
+    private void Apply(Action input)
     {
-        local.Offset(_virtualScreen.X, _virtualScreen.Y);
-        Result = local;
-        DialogResult = DialogResult.OK;
+        input();
+        switch (_model.Outcome)
+        {
+            case SelectionOutcome.Accepted when _model.Result is { } local:
+                Result = local.ToRectangle() with { X = local.X + _virtualScreen.X, Y = local.Y + _virtualScreen.Y };
+                DialogResult = DialogResult.OK;
+                break;
+            case SelectionOutcome.Cancelled:
+                DialogResult = DialogResult.Cancel;
+                break;
+            default:
+                Invalidate();
+                break;
+        }
     }
 
     protected override void OnPaintBackground(PaintEventArgs e)
@@ -190,12 +150,9 @@ internal sealed class SelectionOverlay : Form
         g.DrawImageUnscaled(_screen, 0, 0);
         g.CompositingMode = CompositingMode.SourceOver;
 
-        Rectangle? highlight = _dragStart is not null && !_windowMode && _selection.Width > 0
-            ? _selection
-            : _hoverWindow;
-
-        if (highlight is { } rect)
+        if (_model.Highlight is { } highlight)
         {
+            var rect = highlight.ToRectangle();
             g.SetClip(rect, CombineMode.Exclude);
             g.FillRectangle(_dimBrush, ClientRectangle);
             g.ResetClip();
@@ -207,10 +164,10 @@ internal sealed class SelectionOverlay : Form
             g.FillRectangle(_dimBrush, ClientRectangle);
         }
 
-        if (!_windowMode && _dragStart is null && _cursor.X >= 0)
+        if (_model.ShowCrosshair && _model.Cursor is { } cursor)
         {
-            g.DrawLine(_crosshairPen, _cursor.X, 0, _cursor.X, Height);
-            g.DrawLine(_crosshairPen, 0, _cursor.Y, Width, _cursor.Y);
+            g.DrawLine(_crosshairPen, cursor.X, 0, cursor.X, Height);
+            g.DrawLine(_crosshairPen, 0, cursor.Y, Width, cursor.Y);
         }
 
         DrawHint(g);
@@ -231,12 +188,13 @@ internal sealed class SelectionOverlay : Form
 
     private void DrawHint(Graphics g)
     {
-        var text = _windowMode
+        var text = _model.WindowMode
             ? "Mode fenêtre : cliquez sur une fenêtre   ·   Espace : mode zone   ·   Échap : annuler"
             : "Glissez pour sélectionner une zone   ·   Clic : fenêtre sous le curseur   ·   Espace : mode fenêtre   ·   Échap : annuler";
 
         // Centered at the top of the monitor under the cursor.
-        var screen = Screen.FromPoint(new Point(_cursor.X + _virtualScreen.X, _cursor.Y + _virtualScreen.Y)).Bounds;
+        var cursor = _model.Cursor ?? new PixelPoint(0, 0);
+        var screen = Screen.FromPoint(new Point(cursor.X + _virtualScreen.X, cursor.Y + _virtualScreen.Y)).Bounds;
         screen.Offset(-_virtualScreen.X, -_virtualScreen.Y);
         var size = g.MeasureString(text, _hintFont);
         var box = new RectangleF(screen.X + (screen.Width - size.Width) / 2 - 12, screen.Y + 16, size.Width + 24, size.Height + 12);

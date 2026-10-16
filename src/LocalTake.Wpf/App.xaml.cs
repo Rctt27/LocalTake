@@ -1,12 +1,27 @@
+using System;
+using System.IO.Abstractions;
 using System.Threading;
 using System.Windows;
+using LocalTake.Adapters;
+using LocalTake.Core.Capture;
+using LocalTake.Core.Files;
+using LocalTake.Core.Hotkeys;
+using LocalTake.Core.Ports;
+using LocalTake.Core.Recording;
+using LocalTake.Core.Settings;
+using LocalTake.Infrastructure.Logging;
+using LocalTake.Infrastructure.Platform;
+using LocalTake.Infrastructure.Recording;
+using LocalTake.Infrastructure.Settings;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace LocalTake;
 
 public partial class App : Application
 {
     private Mutex? _singleInstance;
-    private TrayController? _tray;
+    private ServiceProvider? _services;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -21,21 +36,77 @@ public partial class App : Application
             return;
         }
 
+        System.Windows.Forms.Application.EnableVisualStyles();
+        _services = ConfigureServices(Dispatcher).BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+        var log = _services.GetRequiredService<ILogger<App>>();
+        if (log.IsEnabled(LogLevel.Information))
+            log.LogInformation("LocalTake {Version} started", typeof(App).Assembly.GetName().Version);
+
         // One failed action must not take down the tray process and every open editor with it.
         DispatcherUnhandledException += (_, args) =>
         {
+            log.LogError(args.Exception, "Unhandled exception");
             MessageBox.Show("Une erreur inattendue s'est produite : " + args.Exception.Message, "LocalTake",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
 
-        System.Windows.Forms.Application.EnableVisualStyles();
-        _tray = new TrayController(AppSettings.Load());
+        _services.GetRequiredService<TrayController>();
+    }
+
+    /// <summary>The composition root: the core's use cases with the Windows adapters.</summary>
+    private static ServiceCollection ConfigureServices(System.Windows.Threading.Dispatcher dispatcher)
+    {
+        var paths = AppPaths.ForCurrentPlatform();
+        var defaults = SettingsDefaults.ForWindows(paths.DefaultOutputFolder);
+        var services = new ServiceCollection();
+
+        services.AddLogging(logging => logging.AddProvider(new FileLoggerProvider(paths.LogsFolder, TimeProvider.System)));
+        services.AddSingleton<IFileSystem, FileSystem>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IAppPaths>(paths);
+        services.AddSingleton(defaults);
+        services.AddSingleton<ISettingsStore>(sp => new JsonSettingsStore(sp.GetRequiredService<IFileSystem>(), paths.SettingsFile, defaults));
+        services.AddSingleton(sp => sp.GetRequiredService<ISettingsStore>().Load());
+
+        // Core
+        services.AddSingleton<OutputPathAllocator>();
+        services.AddSingleton<FileCounter>();
+        services.AddSingleton<ImageSaver>();
+        services.AddSingleton<CaptureDelivery>();
+        services.AddSingleton<CaptureWorkflow>();
+        services.AddSingleton(sp => AppPaths.CreateFfmpegLocator(sp.GetRequiredService<IFileSystem>()));
+        services.AddSingleton<IFfmpegPlatform, DirectShowGdigrab>();
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp, new HotkeyManager(), HotkeyNaming.Windows));
+        services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
+
+        // Infrastructure
+        services.AddSingleton<IAudioDeviceLister, FfmpegAudioDeviceLister>();
+        services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
+
+        // Windows adapters
+        services.AddSingleton<WpfScreen>();
+        services.AddSingleton<IScreen>(sp => sp.GetRequiredService<WpfScreen>());
+        services.AddSingleton<IAreaPicker>(sp => sp.GetRequiredService<WpfScreen>());
+        services.AddSingleton<IUiThread>(new DispatcherUiThread(dispatcher));
+        services.AddSingleton<IUserDialogs, WpfDialogs>();
+        services.AddSingleton<IClipboard, WpfClipboard>();
+        services.AddSingleton<IImageCodec, WpfImageCodec>();
+        services.AddSingleton<IRecordingViewFactory, WpfRecordingViewFactory>();
+        services.AddSingleton<IGlobalHotkeys, HotkeyManager>();
+        services.AddSingleton<TrayIcon>();
+        services.AddSingleton<INotifications>(sp => sp.GetRequiredService<TrayIcon>());
+        services.AddSingleton<EditorContext>();
+        services.AddSingleton<IEditorLauncher, WpfEditorLauncher>();
+        services.AddSingleton<SettingsContext>();
+        services.AddSingleton<Func<SettingsWindow>>(sp => () => new SettingsWindow(sp.GetRequiredService<SettingsContext>()));
+        services.AddSingleton<TrayController>();
+        return services;
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _tray?.Dispose();
+        _services?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);
     }

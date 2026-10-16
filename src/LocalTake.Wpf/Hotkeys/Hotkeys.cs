@@ -1,86 +1,51 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using LocalTake.Core.Hotkeys;
+using LocalTake.Core.Ports;
 
 namespace LocalTake;
 
-/// <summary>A global shortcut written as "Ctrl+Alt+PrintScreen".</summary>
-public readonly record struct Hotkey(ModifierKeys Modifiers, Key Key)
+/// <summary>WPF keys and the core's framework-neutral key codes.</summary>
+internal static class WpfKeyMap
 {
-    public static bool TryParse(string? text, out Hotkey hotkey)
-    {
-        hotkey = default;
-        if (string.IsNullOrWhiteSpace(text))
-            return false;
-
-        var modifiers = ModifierKeys.None;
-        var parts = text.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        for (var i = 0; i < parts.Length - 1; i++)
+    private static readonly Dictionary<KeyCode, Key> ToWpf = Enum.GetValues<KeyCode>()
+        .Where(code => code != KeyCode.None)
+        .ToDictionary(code => code, code => code switch
         {
-            switch (parts[i].ToUpperInvariant())
-            {
-                case "CTRL" or "CONTROL": modifiers |= ModifierKeys.Control; break;
-                case "ALT": modifiers |= ModifierKeys.Alt; break;
-                case "SHIFT": modifiers |= ModifierKeys.Shift; break;
-                case "WIN" or "WINDOWS": modifiers |= ModifierKeys.Windows; break;
-                default: return false;
-            }
-        }
+            KeyCode.PrintScreen => Key.Snapshot,
+            KeyCode.Backspace => Key.Back,
+            KeyCode.ScrollLock => Key.Scroll,
+            _ => Enum.Parse<Key>(code.ToString())
+        });
 
-        var key = ParseKey(parts[^1]);
-        if (key == Key.None || (modifiers == ModifierKeys.None && !AllowedWithoutModifier(key)))
-            return false;
-        hotkey = new Hotkey(modifiers, key);
-        return true;
-    }
+    private static readonly Dictionary<Key, KeyCode> ToCore = ToWpf.ToDictionary(pair => pair.Value, pair => pair.Key);
 
-    /// <summary>
-    /// A plain letter, Enter or Space registered system-wide would stop working in every other application.
-    /// </summary>
-    public static bool AllowedWithoutModifier(Key key) => key is Key.Snapshot or (>= Key.F1 and <= Key.F24);
+    public static KeyCode ToKeyCode(Key key) => ToCore.GetValueOrDefault(key, KeyCode.None);
 
-    private static Key ParseKey(string name)
-    {
-        switch (name.ToUpperInvariant())
-        {
-            case "PRINTSCREEN" or "PRTSCRN" or "PRTSC" or "SNAPSHOT": return Key.Snapshot;
-        }
-        if (name.Length == 1 && char.IsDigit(name[0]))
-            return Key.D0 + (name[0] - '0');
-        return Enum.TryParse<Key>(name, ignoreCase: true, out var key) ? key : Key.None;
-    }
+    public static uint VirtualKey(KeyCode code) => (uint)KeyInterop.VirtualKeyFromKey(ToWpf[code]);
+
+    public static HotkeyModifiers ToModifiers(ModifierKeys modifiers) =>
+        (modifiers.HasFlag(ModifierKeys.Control) ? HotkeyModifiers.Control : 0) |
+        (modifiers.HasFlag(ModifierKeys.Alt) ? HotkeyModifiers.Alt : 0) |
+        (modifiers.HasFlag(ModifierKeys.Shift) ? HotkeyModifiers.Shift : 0) |
+        (modifiers.HasFlag(ModifierKeys.Windows) ? HotkeyModifiers.Meta : 0);
 
     public static bool IsModifierKey(Key key) => key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
         or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin;
 
-    public uint VirtualKey => (uint)KeyInterop.VirtualKeyFromKey(Key);
-
-    public uint NativeModifiers =>
-        (Modifiers.HasFlag(ModifierKeys.Control) ? Native.MOD_CONTROL : 0) |
-        (Modifiers.HasFlag(ModifierKeys.Alt) ? Native.MOD_ALT : 0) |
-        (Modifiers.HasFlag(ModifierKeys.Shift) ? Native.MOD_SHIFT : 0) |
-        (Modifiers.HasFlag(ModifierKeys.Windows) ? Native.MOD_WIN : 0);
-
-    public override string ToString()
-    {
-        var text = "";
-        if (Modifiers.HasFlag(ModifierKeys.Control)) text += "Ctrl+";
-        if (Modifiers.HasFlag(ModifierKeys.Alt)) text += "Alt+";
-        if (Modifiers.HasFlag(ModifierKeys.Shift)) text += "Shift+";
-        if (Modifiers.HasFlag(ModifierKeys.Windows)) text += "Win+";
-        return text + Key switch
-        {
-            Key.Snapshot => "PrintScreen",
-            >= Key.D0 and <= Key.D9 => ((char)('0' + (Key - Key.D0))).ToString(),
-            _ => Key.ToString()
-        };
-    }
+    public static uint NativeModifiers(HotkeyModifiers modifiers) =>
+        (modifiers.HasFlag(HotkeyModifiers.Control) ? Native.MOD_CONTROL : 0) |
+        (modifiers.HasFlag(HotkeyModifiers.Alt) ? Native.MOD_ALT : 0) |
+        (modifiers.HasFlag(HotkeyModifiers.Shift) ? Native.MOD_SHIFT : 0) |
+        (modifiers.HasFlag(HotkeyModifiers.Meta) ? Native.MOD_WIN : 0);
 }
 
 /// <summary>Registers system-wide shortcuts on a message-only window.</summary>
-internal sealed class HotkeyManager : IDisposable
+internal sealed class HotkeyManager : IGlobalHotkeys
 {
     private static readonly IntPtr HwndMessage = new(-3);
 
@@ -97,7 +62,8 @@ internal sealed class HotkeyManager : IDisposable
     public bool Register(Hotkey hotkey, Action action)
     {
         var id = _nextId++;
-        if (!Native.RegisterHotKey(_source.Handle, id, hotkey.NativeModifiers | Native.MOD_NOREPEAT, hotkey.VirtualKey))
+        var modifiers = WpfKeyMap.NativeModifiers(hotkey.Modifiers) | Native.MOD_NOREPEAT;
+        if (!Native.RegisterHotKey(_source.Handle, id, modifiers, WpfKeyMap.VirtualKey(hotkey.Key)))
             return false;
         _actions[id] = action;
         return true;

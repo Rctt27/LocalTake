@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using LocalTake.Core.Geometry;
 
 namespace LocalTake.Core.Settings;
@@ -84,5 +85,6 @@ public sealed class AppSettings
     public double EditorFontSize { get; set; } = 24;
 
     /// <summary>"png" or "jpg" as a file extension with its dot.</summary>
+    [JsonIgnore]
     public string ImageExtension => Format == "jpg" ? ".jpg" : ".png";
 }

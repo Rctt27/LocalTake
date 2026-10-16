@@ -6,10 +6,20 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using LocalTake.Core.Files;
+using LocalTake.Core.Hotkeys;
+using LocalTake.Core.Ports;
+using LocalTake.Core.Recording;
+using LocalTake.Core.Settings;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 
 namespace LocalTake;
+
+/// <summary>What the settings window needs from the rest of the app.</summary>
+internal sealed record SettingsContext(
+    AppSettings Settings, ISettingsStore Store, SettingsDefaults Defaults, FfmpegLocator Locator, IFfmpegPlatform Platform,
+    IAudioDeviceLister AudioDevices);
 
 public partial class SettingsWindow : Window
 {
@@ -17,11 +27,14 @@ public partial class SettingsWindow : Window
     private const string RunValueName = "LocalTake";
 
     private readonly AppSettings _settings;
+    private readonly SettingsContext _context;
 
-    public SettingsWindow(AppSettings settings)
+    internal SettingsWindow(SettingsContext context)
     {
         InitializeComponent();
-        _settings = settings;
+        _context = context;
+        _settings = context.Settings;
+        var settings = _settings;
         Icon = AppIcon.ImageSource;
 
         FolderBox.Text = settings.OutputFolder;
@@ -67,10 +80,10 @@ public partial class SettingsWindow : Window
 
     private string? UpdateFfmpegStatus()
     {
-        var path = Ffmpeg.Find(FfmpegBox.Text.Trim());
+        var path = _context.Locator.Find(FfmpegBox.Text.Trim());
         FfmpegStatus.Text = path is not null
             ? (string.IsNullOrWhiteSpace(FfmpegBox.Text) ? "Détecté : " + path : "ffmpeg trouvé.")
-            : "ffmpeg introuvable : les vidéos ne pourront pas être enregistrées. " + Ffmpeg.InstallHint;
+            : "ffmpeg introuvable : les vidéos ne pourront pas être enregistrées. " + _context.Platform.InstallHint;
         FfmpegStatus.Foreground = path is not null ? System.Windows.Media.Brushes.DimGray : System.Windows.Media.Brushes.Firebrick;
         return path;
     }
@@ -84,18 +97,9 @@ public partial class SettingsWindow : Window
         var selected = (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone;
 
         var ffmpeg = UpdateFfmpegStatus();
-        var devices = new List<string>();
+        IReadOnlyList<string> devices = [];
         if (ffmpeg is not null)
-        {
-            try
-            {
-                devices = await Task.Run(() => Ffmpeg.ListAudioDevices(ffmpeg));
-            }
-            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
-            {
-                FfmpegStatus.Text = "ffmpeg n'a pas pu lister les périphériques audio : " + ex.Message;
-            }
-        }
+            devices = await _context.AudioDevices.ListAsync(ffmpeg);
 
         if (generation != _audioLoadGeneration)
             return;
@@ -105,7 +109,7 @@ public partial class SettingsWindow : Window
         MicrophoneBox.SelectedIndex = 0;
 
         // A chosen microphone stays selectable even if it is unplugged right now.
-        var microphones = Ffmpeg.Microphones(devices).ToList();
+        var microphones = AudioDevices.Microphones(devices, _context.Platform.SystemAudioDevice).ToList();
         if (!string.IsNullOrEmpty(selected) && !microphones.Contains(selected))
             microphones.Add(selected);
         foreach (var name in microphones)
@@ -116,7 +120,7 @@ public partial class SettingsWindow : Window
                 MicrophoneBox.SelectedItem = item;
         }
 
-        var hasSystemAudio = devices.Contains(Ffmpeg.SystemAudioDevice);
+        var hasSystemAudio = devices.Contains(_context.Platform.SystemAudioDevice);
         SystemAudioBox.IsEnabled = hasSystemAudio || SystemAudioBox.IsChecked == true;
         SystemAudioBox.ToolTip = hasSystemAudio
             ? "Utilise le pilote « virtual-audio-capturer » installé avec TinyTake (TinyTake Filter)."
@@ -150,8 +154,8 @@ public partial class SettingsWindow : Window
         var box = (TextBox)sender;
         if (key is Key.Back or Key.Delete && modifiers == ModifierKeys.None)
             box.Text = "";
-        else if (!Hotkey.IsModifierKey(key) && (modifiers != ModifierKeys.None || Hotkey.AllowedWithoutModifier(key)))
-            box.Text = new Hotkey(modifiers, key).ToString();
+        else if (!WpfKeyMap.IsModifierKey(key) && new Hotkey(WpfKeyMap.ToModifiers(modifiers), WpfKeyMap.ToKeyCode(key)) is { IsValid: true } hotkey)
+            box.Text = hotkey.ToString();
     }
 
     /// <summary>Windows only reports Print Screen when it is released.</summary>
@@ -161,12 +165,12 @@ public partial class SettingsWindow : Window
         if (key != Key.Snapshot)
             return;
         e.Handled = true;
-        ((TextBox)sender).Text = new Hotkey(Keyboard.Modifiers, key).ToString();
+        ((TextBox)sender).Text = new Hotkey(WpfKeyMap.ToModifiers(Keyboard.Modifiers), KeyCode.PrintScreen).ToString();
     }
 
     private void DefaultHotkeys_Click(object sender, RoutedEventArgs e)
     {
-        var defaults = new AppSettings();
+        var defaults = _context.Defaults;
         HotkeyRegionBox.Text = defaults.HotkeyRegion;
         HotkeyWindowBox.Text = defaults.HotkeyWindow;
         HotkeyFullScreenBox.Text = defaults.HotkeyFullScreen;
@@ -191,7 +195,7 @@ public partial class SettingsWindow : Window
 
     private void Pattern_TextChanged(object sender, TextChangedEventArgs e)
     {
-        var example = ImageExporter.ExpandPattern(PatternBox.Text.Trim(), _settings.Counter, DateTime.Now);
+        var example = FileNamePattern.Expand(PatternBox.Text.Trim(), _settings.Counter, DateTime.Now);
         PatternPreview.Text = $"Exemple : {example}.{SelectedFormat()}   ·   Variables : %YYYY% %MM% %DD% %hh% %mm% %ss% %NUM%";
     }
 
@@ -279,7 +283,7 @@ public partial class SettingsWindow : Window
         _settings.VideoFrameRate = (int)FrameRateBox.SelectedItem;
         try
         {
-            _settings.Save();
+            _context.Store.Save(_settings);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
