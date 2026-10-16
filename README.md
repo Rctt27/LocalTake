@@ -37,8 +37,8 @@ Nécessite ffmpeg, que LocalTake ne télécharge pas : `winget install Gyan.FFmp
 
 ## Compiler
 
-Nécessite le SDK .NET 8.
+Nécessite le SDK .NET 10.
 
 ```
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+dotnet publish src/LocalTake.Wpf -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ```

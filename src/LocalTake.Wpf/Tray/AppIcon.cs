@@ -11,7 +11,7 @@ namespace LocalTake;
 /// </summary>
 internal static class AppIcon
 {
-    private static readonly Uri Uri = new("pack://application:,,,/LocalTake.ico");
+    private static readonly Uri Uri = new("pack://application:,,,/Assets/LocalTake.ico");
 
     private static Icon? _icon;
     private static ImageSource? _imageSource;

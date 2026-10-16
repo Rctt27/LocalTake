@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -66,13 +67,13 @@ internal static class ImageExporter
     public static string ExpandPattern(string pattern, int counter, DateTime now)
     {
         var name = pattern
-            .Replace("%YYYY%", now.ToString("yyyy"))
-            .Replace("%MM%", now.ToString("MM"))
-            .Replace("%DD%", now.ToString("dd"))
-            .Replace("%hh%", now.ToString("HH"))
-            .Replace("%mm%", now.ToString("mm"))
-            .Replace("%ss%", now.ToString("ss"))
-            .Replace("%NUM%", counter.ToString("D6"));
+            .Replace("%YYYY%", now.ToString("yyyy", CultureInfo.InvariantCulture))
+            .Replace("%MM%", now.ToString("MM", CultureInfo.InvariantCulture))
+            .Replace("%DD%", now.ToString("dd", CultureInfo.InvariantCulture))
+            .Replace("%hh%", now.ToString("HH", CultureInfo.InvariantCulture))
+            .Replace("%mm%", now.ToString("mm", CultureInfo.InvariantCulture))
+            .Replace("%ss%", now.ToString("ss", CultureInfo.InvariantCulture))
+            .Replace("%NUM%", counter.ToString("D6", CultureInfo.InvariantCulture));
 
         foreach (var c in Path.GetInvalidFileNameChars())
             name = name.Replace(c, '_');

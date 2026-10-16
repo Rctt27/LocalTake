@@ -10,13 +10,16 @@ UI strings are French; code and comments are English.
 
 ## Commands
 
-Requires the .NET 8 SDK. There is no test project and no linter configured.
+Requires the .NET 10 SDK (pinned in `global.json`). Analyzers run at `latest-recommended` with warnings as errors; `.editorconfig` holds the style, and CI (`.github/workflows/ci.yml`) rejects unformatted code.
 
 ```
-dotnet build -c Release
-dotnet run -c Release
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+dotnet build LocalTake.slnx -c Release
+dotnet run --project src/LocalTake.Wpf -c Release
+dotnet format LocalTake.slnx            # apply the style; CI runs it with --verify-no-changes
+dotnet publish src/LocalTake.Wpf -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ```
+
+Package versions are managed centrally in `Directory.Packages.props`: a `PackageReference` in a project carries no version.
 
 Only one instance can run (named mutex): kill `LocalTake.exe` before rebuilding or running again, otherwise the build cannot overwrite the exe and a new launch exits immediately. Global shortcuts also fail to register while TinyTake or another capture tool holds them.
 
@@ -24,13 +27,15 @@ Verification is manual: launch the app and exercise captures through the shortcu
 
 ## Versioning and releases
 
-[Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`. The only source of the version is `<Version>` in `LocalTake.csproj`.
+[Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`. The only source of the version is `<Version>` in `Directory.Build.props`.
 
 - While the major version is 0 (initial development), MINOR is for new features and behaviour changes, including breaking ones; PATCH is for fixes only. 1.0.0 is decided by the user.
 - What counts as the public interface: the shortcuts, the settings in `settings.json` (an older file must keep loading) and the file names produced.
 - To release: bump `<Version>`, commit `Release vX.Y.Z`, tag `vX.Y.Z` on `main`, push the commit and the tag, run the publish command, then `gh release create vX.Y.Z publish/LocalTake.exe` with short notes.
 
 ## Architecture
+
+The app lives in `src/LocalTake.Wpf/`, one folder per feature (Capture, Editor, Recording, Settings, Hotkeys, Files, Tray, Interop). It is transitional: the code moves into a portable core and an Avalonia app so that LocalTake also runs on macOS.
 
 WPF app (`ShutdownMode=OnExplicitShutdown`, no main window) that also uses WinForms for the tray icon, the selection overlay and the folder picker. `ImplicitUsings` is disabled because the two frameworks share type names; WinForms types are referenced through a `Forms` alias.
 

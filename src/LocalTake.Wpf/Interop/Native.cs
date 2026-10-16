@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace LocalTake;
 
@@ -64,7 +63,7 @@ internal static class Native
     public static extern int GetWindowTextLength(IntPtr hWnd);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    public static extern int GetClassName(IntPtr hWnd, StringBuilder className, int maxCount);
+    public static extern int GetClassName(IntPtr hWnd, [Out] char[] className, int maxCount);
 
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);

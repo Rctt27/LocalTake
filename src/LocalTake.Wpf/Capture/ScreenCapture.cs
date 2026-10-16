@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Text;
 using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
 using WpfPixelFormats = System.Windows.Media.PixelFormats;
@@ -57,7 +56,7 @@ internal static class ScreenCapture
     public static List<Rectangle> VisibleWindows()
     {
         var windows = new List<Rectangle>();
-        var className = new StringBuilder(256);
+        var className = new char[256];
         Native.EnumWindows((hWnd, _) =>
         {
             if (!Native.IsWindowVisible(hWnd) || Native.IsIconic(hWnd))
@@ -70,9 +69,8 @@ internal static class ScreenCapture
             // Untitled windows are mostly invisible helpers; the shell ones are kept so the desktop and taskbar stay selectable.
             if (Native.GetWindowTextLength(hWnd) == 0)
             {
-                className.Clear();
-                Native.GetClassName(hWnd, className, className.Capacity);
-                var name = className.ToString();
+                var length = Native.GetClassName(hWnd, className, className.Length);
+                var name = new string(className, 0, Math.Max(length, 0));
                 if (name is not ("Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "Progman" or "WorkerW"))
                     return true;
             }

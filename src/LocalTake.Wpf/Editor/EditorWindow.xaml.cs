@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -30,9 +31,17 @@ public partial class EditorWindow : Window
 
     private static readonly Dictionary<Key, Tool> ToolKeys = new()
     {
-        [Key.V] = Tool.Select, [Key.A] = Tool.Arrow, [Key.L] = Tool.Line, [Key.R] = Tool.Rectangle,
-        [Key.E] = Tool.Ellipse, [Key.P] = Tool.Pen, [Key.H] = Tool.Highlighter, [Key.T] = Tool.Text,
-        [Key.N] = Tool.Number, [Key.B] = Tool.Blur, [Key.C] = Tool.Crop
+        [Key.V] = Tool.Select,
+        [Key.A] = Tool.Arrow,
+        [Key.L] = Tool.Line,
+        [Key.R] = Tool.Rectangle,
+        [Key.E] = Tool.Ellipse,
+        [Key.P] = Tool.Pen,
+        [Key.H] = Tool.Highlighter,
+        [Key.T] = Tool.Text,
+        [Key.N] = Tool.Number,
+        [Key.B] = Tool.Blur,
+        [Key.C] = Tool.Crop
     };
 
     private readonly AppSettings _settings;
@@ -494,7 +503,7 @@ public partial class EditorWindow : Window
         badge.Children.Add(new Ellipse { Fill = new SolidColorBrush(_color), Stroke = Brushes.White, StrokeThickness = Math.Max(1.5, diameter / 16) });
         badge.Children.Add(new TextBlock
         {
-            Text = number.ToString(),
+            Text = number.ToString(CultureInfo.InvariantCulture),
             Foreground = luminance > 0.6 ? Brushes.Black : Brushes.White,
             FontWeight = FontWeights.Bold,
             FontSize = diameter * 0.5,
