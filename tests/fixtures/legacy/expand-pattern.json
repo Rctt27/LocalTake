@@ -1,0 +1,182 @@
+[
+  {
+    "pattern": "Capture_%YYYY%-%MM%-%DD%_%hh%-%mm%-%ss%",
+    "counter": 1,
+    "result": "Capture_2026-03-07_09-05-02"
+  },
+  {
+    "pattern": "Capture_%YYYY%-%MM%-%DD%_%hh%-%mm%-%ss%",
+    "counter": 42,
+    "result": "Capture_2026-03-07_09-05-02"
+  },
+  {
+    "pattern": "Capture_%YYYY%-%MM%-%DD%_%hh%-%mm%-%ss%",
+    "counter": 1234567,
+    "result": "Capture_2026-03-07_09-05-02"
+  },
+  {
+    "pattern": "%NUM%",
+    "counter": 1,
+    "result": "000001"
+  },
+  {
+    "pattern": "%NUM%",
+    "counter": 42,
+    "result": "000042"
+  },
+  {
+    "pattern": "%NUM%",
+    "counter": 1234567,
+    "result": "1234567"
+  },
+  {
+    "pattern": "img_%NUM%_%YYYY%",
+    "counter": 1,
+    "result": "img_000001_2026"
+  },
+  {
+    "pattern": "img_%NUM%_%YYYY%",
+    "counter": 42,
+    "result": "img_000042_2026"
+  },
+  {
+    "pattern": "img_%NUM%_%YYYY%",
+    "counter": 1234567,
+    "result": "img_1234567_2026"
+  },
+  {
+    "pattern": "a/b:c*?\u0022\u003C\u003E|d\\e",
+    "counter": 1,
+    "result": "a_b_c______d_e"
+  },
+  {
+    "pattern": "a/b:c*?\u0022\u003C\u003E|d\\e",
+    "counter": 42,
+    "result": "a_b_c______d_e"
+  },
+  {
+    "pattern": "a/b:c*?\u0022\u003C\u003E|d\\e",
+    "counter": 1234567,
+    "result": "a_b_c______d_e"
+  },
+  {
+    "pattern": "",
+    "counter": 1,
+    "result": "Capture"
+  },
+  {
+    "pattern": "",
+    "counter": 42,
+    "result": "Capture"
+  },
+  {
+    "pattern": "",
+    "counter": 1234567,
+    "result": "Capture"
+  },
+  {
+    "pattern": "   ",
+    "counter": 1,
+    "result": "Capture"
+  },
+  {
+    "pattern": "   ",
+    "counter": 42,
+    "result": "Capture"
+  },
+  {
+    "pattern": "   ",
+    "counter": 1234567,
+    "result": "Capture"
+  },
+  {
+    "pattern": "%yyyy%",
+    "counter": 1,
+    "result": "%yyyy%"
+  },
+  {
+    "pattern": "%yyyy%",
+    "counter": 42,
+    "result": "%yyyy%"
+  },
+  {
+    "pattern": "%yyyy%",
+    "counter": 1234567,
+    "result": "%yyyy%"
+  },
+  {
+    "pattern": "Capture %hh%h%mm%",
+    "counter": 1,
+    "result": "Capture 09h05"
+  },
+  {
+    "pattern": "Capture %hh%h%mm%",
+    "counter": 42,
+    "result": "Capture 09h05"
+  },
+  {
+    "pattern": "Capture %hh%h%mm%",
+    "counter": 1234567,
+    "result": "Capture 09h05"
+  },
+  {
+    "pattern": "tab\there",
+    "counter": 1,
+    "result": "tab_here"
+  },
+  {
+    "pattern": "tab\there",
+    "counter": 42,
+    "result": "tab_here"
+  },
+  {
+    "pattern": "tab\there",
+    "counter": 1234567,
+    "result": "tab_here"
+  },
+  {
+    "pattern": "%NUM%%NUM%",
+    "counter": 1,
+    "result": "000001000001"
+  },
+  {
+    "pattern": "%NUM%%NUM%",
+    "counter": 42,
+    "result": "000042000042"
+  },
+  {
+    "pattern": "%NUM%%NUM%",
+    "counter": 1234567,
+    "result": "12345671234567"
+  },
+  {
+    "pattern": "%YYYY%%YYYY%",
+    "counter": 1,
+    "result": "20262026"
+  },
+  {
+    "pattern": "%YYYY%%YYYY%",
+    "counter": 42,
+    "result": "20262026"
+  },
+  {
+    "pattern": "%YYYY%%YYYY%",
+    "counter": 1234567,
+    "result": "20262026"
+  },
+  {
+    "pattern": "%%NUM%%",
+    "counter": 1,
+    "result": "%000001%"
+  },
+  {
+    "pattern": "%%NUM%%",
+    "counter": 42,
+    "result": "%000042%"
+  },
+  {
+    "pattern": "%%NUM%%",
+    "counter": 1234567,
+    "result": "%1234567%"
+  }
+]

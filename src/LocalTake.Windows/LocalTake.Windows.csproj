@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Windows app: WPF views and adapters over the core; Win32 goes through LocalTake.Platform.Windows. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WPF and WinForms share many type names; usings stay explicit. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\LocalTake.ico</ApplicationIcon>
+    <!-- WFAC010 targets WinForms-only apps; a WPF app declares its DPI awareness in the manifest. -->
+    <!-- WFO0003 likewise. -->
+    <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
+    <AssemblyName>LocalTake</AssemblyName>
+    <RootNamespace>LocalTake</RootNamespace>
+    <!-- Published as one exe: symbols inside it, and no XML docs or .pdb of the libraries beside it. -->
+    <DebugType>embedded</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\LocalTake.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LocalTake.Windows.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalTake.Core\LocalTake.Core.csproj" />
+    <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" />
+    <ProjectReference Include="..\LocalTake.Platform.Windows\LocalTake.Platform.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+</Project>

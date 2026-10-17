@@ -1,0 +1,337 @@
+[
+  {
+    "input": "PrintScreen",
+    "ok": true,
+    "formatted": "PrintScreen"
+  },
+  {
+    "input": "Alt\u002BPrintScreen",
+    "ok": true,
+    "formatted": "Alt\u002BPrintScreen"
+  },
+  {
+    "input": "Ctrl\u002BPrintScreen",
+    "ok": true,
+    "formatted": "Ctrl\u002BPrintScreen"
+  },
+  {
+    "input": "Ctrl\u002BShift\u002BPrintScreen",
+    "ok": true,
+    "formatted": "Ctrl\u002BShift\u002BPrintScreen"
+  },
+  {
+    "input": "Ctrl\u002BR",
+    "ok": true,
+    "formatted": "Ctrl\u002BR"
+  },
+  {
+    "input": "Ctrl\u002BD",
+    "ok": true,
+    "formatted": "Ctrl\u002BD"
+  },
+  {
+    "input": "",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "  ",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "ctrl\u002Balt\u002Bshift\u002Bwin\u002Ba",
+    "ok": true,
+    "formatted": "Ctrl\u002BAlt\u002BShift\u002BWin\u002BA"
+  },
+  {
+    "input": "Control\u002BWindows\u002BF12",
+    "ok": true,
+    "formatted": "Ctrl\u002BWin\u002BF12"
+  },
+  {
+    "input": "F1",
+    "ok": true,
+    "formatted": "F1"
+  },
+  {
+    "input": "F24",
+    "ok": true,
+    "formatted": "F24"
+  },
+  {
+    "input": "F25",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "A",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "Ctrl\u002B1",
+    "ok": true,
+    "formatted": "Ctrl\u002B1"
+  },
+  {
+    "input": "Ctrl\u002B0",
+    "ok": true,
+    "formatted": "Ctrl\u002B0"
+  },
+  {
+    "input": "Ctrl\u002B9",
+    "ok": true,
+    "formatted": "Ctrl\u002B9"
+  },
+  {
+    "input": "Ctrl\u002BD5",
+    "ok": true,
+    "formatted": "Ctrl\u002B5"
+  },
+  {
+    "input": "PrtScn",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "PrtSc",
+    "ok": true,
+    "formatted": "PrintScreen"
+  },
+  {
+    "input": "snapshot",
+    "ok": true,
+    "formatted": "PrintScreen"
+  },
+  {
+    "input": "Ctrl\u002BSnapshot",
+    "ok": true,
+    "formatted": "Ctrl\u002BPrintScreen"
+  },
+  {
+    "input": "Ctrl\u002BSpace",
+    "ok": true,
+    "formatted": "Ctrl\u002BSpace"
+  },
+  {
+    "input": "Ctrl\u002BEnter",
+    "ok": true,
+    "formatted": "Ctrl\u002BReturn"
+  },
+  {
+    "input": "Ctrl\u002BReturn",
+    "ok": true,
+    "formatted": "Ctrl\u002BReturn"
+  },
+  {
+    "input": "Ctrl\u002BTab",
+    "ok": true,
+    "formatted": "Ctrl\u002BTab"
+  },
+  {
+    "input": "Ctrl\u002BEscape",
+    "ok": true,
+    "formatted": "Ctrl\u002BEscape"
+  },
+  {
+    "input": "Ctrl\u002BDelete",
+    "ok": true,
+    "formatted": "Ctrl\u002BDelete"
+  },
+  {
+    "input": "Ctrl\u002BInsert",
+    "ok": true,
+    "formatted": "Ctrl\u002BInsert"
+  },
+  {
+    "input": "Ctrl\u002BHome",
+    "ok": true,
+    "formatted": "Ctrl\u002BHome"
+  },
+  {
+    "input": "Ctrl\u002BEnd",
+    "ok": true,
+    "formatted": "Ctrl\u002BEnd"
+  },
+  {
+    "input": "Ctrl\u002BPageUp",
+    "ok": true,
+    "formatted": "Ctrl\u002BPageUp"
+  },
+  {
+    "input": "Ctrl\u002BPageDown",
+    "ok": true,
+    "formatted": "Ctrl\u002BNext"
+  },
+  {
+    "input": "Ctrl\u002BPrior",
+    "ok": true,
+    "formatted": "Ctrl\u002BPageUp"
+  },
+  {
+    "input": "Ctrl\u002BNext",
+    "ok": true,
+    "formatted": "Ctrl\u002BNext"
+  },
+  {
+    "input": "Ctrl\u002BLeft",
+    "ok": true,
+    "formatted": "Ctrl\u002BLeft"
+  },
+  {
+    "input": "Ctrl\u002BUp",
+    "ok": true,
+    "formatted": "Ctrl\u002BUp"
+  },
+  {
+    "input": "Ctrl\u002BRight",
+    "ok": true,
+    "formatted": "Ctrl\u002BRight"
+  },
+  {
+    "input": "Ctrl\u002BDown",
+    "ok": true,
+    "formatted": "Ctrl\u002BDown"
+  },
+  {
+    "input": "Ctrl\u002BNumPad0",
+    "ok": true,
+    "formatted": "Ctrl\u002BNumPad0"
+  },
+  {
+    "input": "Ctrl\u002BNumPad9",
+    "ok": true,
+    "formatted": "Ctrl\u002BNumPad9"
+  },
+  {
+    "input": "Ctrl\u002BMultiply",
+    "ok": true,
+    "formatted": "Ctrl\u002BMultiply"
+  },
+  {
+    "input": "Ctrl\u002BAdd",
+    "ok": true,
+    "formatted": "Ctrl\u002BAdd"
+  },
+  {
+    "input": "Ctrl\u002BSubtract",
+    "ok": true,
+    "formatted": "Ctrl\u002BSubtract"
+  },
+  {
+    "input": "Ctrl\u002BDivide",
+    "ok": true,
+    "formatted": "Ctrl\u002BDivide"
+  },
+  {
+    "input": "Ctrl\u002BDecimal",
+    "ok": true,
+    "formatted": "Ctrl\u002BDecimal"
+  },
+  {
+    "input": "Ctrl\u002BOemPlus",
+    "ok": true,
+    "formatted": "Ctrl\u002BOemPlus"
+  },
+  {
+    "input": "Ctrl\u002BOemMinus",
+    "ok": true,
+    "formatted": "Ctrl\u002BOemMinus"
+  },
+  {
+    "input": "Ctrl\u002BOemComma",
+    "ok": true,
+    "formatted": "Ctrl\u002BOemComma"
+  },
+  {
+    "input": "Ctrl\u002BOemPeriod",
+    "ok": true,
+    "formatted": "Ctrl\u002BOemPeriod"
+  },
+  {
+    "input": "Ctrl\u002BPause",
+    "ok": true,
+    "formatted": "Ctrl\u002BPause"
+  },
+  {
+    "input": "Ctrl\u002BBack",
+    "ok": true,
+    "formatted": "Ctrl\u002BBack"
+  },
+  {
+    "input": "Ctrl\u002BScroll",
+    "ok": true,
+    "formatted": "Ctrl\u002BScroll"
+  },
+  {
+    "input": "Ctrl \u002B Alt \u002B X",
+    "ok": true,
+    "formatted": "Ctrl\u002BAlt\u002BX"
+  },
+  {
+    "input": "Ctrl\u002B",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "\u002BA",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "Ctrl\u002BFoo",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "Foo\u002BA",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "Shift\u002BAlt\u002BCtrl\u002BB",
+    "ok": true,
+    "formatted": "Ctrl\u002BAlt\u002BShift\u002BB"
+  },
+  {
+    "input": "Space",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "Enter",
+    "ok": false,
+    "formatted": null
+  },
+  {
+    "input": "Ctrl\u002BCtrl\u002BA",
+    "ok": true,
+    "formatted": "Ctrl\u002BA"
+  },
+  {
+    "input": "Win\u002BShift\u002BS",
+    "ok": true,
+    "formatted": "Shift\u002BWin\u002BS"
+  },
+  {
+    "input": "Alt\u002BF4",
+    "ok": true,
+    "formatted": "Alt\u002BF4"
+  },
+  {
+    "input": "ctrl\u002Bprintscreen",
+    "ok": true,
+    "formatted": "Ctrl\u002BPrintScreen"
+  },
+  {
+    "input": "Ctrl\u002BLeftCtrl",
+    "ok": true,
+    "formatted": "Ctrl\u002BLeftCtrl"
+  },
+  {
+    "input": "Ctrl\u002BNone",
+    "ok": false,
+    "formatted": null
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "OutputFolder": "D:\\Captures",
+  "FileNamePattern": "Shot_%NUM%",
+  "Format": "jpg",
+  "JpegQuality": 75,
+  "AfterCapture": "SaveAndCopy",
+  "CopyPathAfterSave": true,
+  "HotkeyRegion": "Ctrl\u002BShift\u002BA",
+  "HotkeyWindow": "",
+  "HotkeyFullScreen": "F9",
+  "HotkeyLastRegion": "Ctrl\u002BAlt\u002BL",
+  "HotkeyVideoRegion": "Ctrl\u002BShift\u002BV",
+  "HotkeyVideoFullScreen": "Ctrl\u002BShift\u002BF",
+  "HotkeyVideoStart": "Ctrl\u002BAlt\u002BR",
+  "HotkeyVideoStop": "Ctrl\u002BAlt\u002BS",
+  "FfmpegPath": "C:\\Tools\\ffmpeg.exe",
+  "Microphone": "Mic B",
+  "RecordMicrophone": false,
+  "RecordSystemAudio": true,
+  "VideoFrameRate": 24,
+  "LastRegion": {
+    "X": -100,
+    "Y": 50,
+    "Width": 800,
+    "Height": 600
+  },
+  "Counter": 17,
+  "LastSaveAsFolder": "E:\\Elsewhere",
+  "EditorColor": "#1E88E5",
+  "EditorThickness": 6,
+  "EditorFontSize": 32
+}

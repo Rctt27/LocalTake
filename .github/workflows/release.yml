@@ -1,0 +1,50 @@
+name: Release
+
+# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and publishes it as a GitHub release.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      - name: Name the executable after the version
+        shell: bash
+        run: mv dist/LocalTake.exe "dist/LocalTake-${GITHUB_REF_NAME#v}-windows-x64.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.exe
+
+  publish:
+    needs: [windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ "$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)" != "$version" ]; then
+            echo "The tag $GITHUB_REF_NAME does not match <Version> in Directory.Build.props" >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* --title "LocalTake $version" --generate-notes

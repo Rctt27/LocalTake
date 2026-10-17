@@ -1,0 +1,25 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- The only source of the version (Semantic Versioning, see CLAUDE.md). -->
+    <Version>0.2.0</Version>
+    <Product>LocalTake</Product>
+    <Authors>Rctt27</Authors>
+    <Copyright>© Rctt27</Copyright>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591/CS1573: only non-obvious members and parameters get an XML doc comment. -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>
