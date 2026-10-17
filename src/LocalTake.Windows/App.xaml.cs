@@ -13,6 +13,7 @@ using LocalTake.Infrastructure.Logging;
 using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
 using LocalTake.Infrastructure.Settings;
+using LocalTake.Platform.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -80,7 +81,9 @@ public partial class App : Application
         services.AddSingleton<CaptureWorkflow>();
         services.AddSingleton(sp => AppPaths.CreateFfmpegLocator(sp.GetRequiredService<IFileSystem>()));
         services.AddSingleton<IFfmpegPlatform, DirectShowGdigrab>();
-        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp, new HotkeyManager(), HotkeyNaming.Windows));
+        // Start and Stop are registered apart from the capture shortcuts, only while a recording is being prepared or made.
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp,
+            (IGlobalHotkeys)new WindowsHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.Windows));
         services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
 
         // Infrastructure
@@ -88,6 +91,12 @@ public partial class App : Application
         services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
 
         // Windows adapters
+        services.AddSingleton<IScreenGrabber, WindowsScreenGrabber>();
+        services.AddSingleton<INativeWindows, WindowsNativeWindows>();
+        services.AddSingleton<IShell, WindowsShell>();
+        services.AddSingleton<IFileTrash, WindowsFileTrash>();
+        services.AddSingleton<IStartupRegistration>(
+            new WindowsStartupRegistration(WindowsStartupRegistration.RunKeyPath, "LocalTake", Environment.ProcessPath!));
         services.AddSingleton<WpfScreen>();
         services.AddSingleton<IScreen>(sp => sp.GetRequiredService<WpfScreen>());
         services.AddSingleton<IAreaPicker>(sp => sp.GetRequiredService<WpfScreen>());
@@ -96,7 +105,7 @@ public partial class App : Application
         services.AddSingleton<IClipboard, WpfClipboard>();
         services.AddSingleton<IImageCodec, WpfImageCodec>();
         services.AddSingleton<IRecordingViewFactory, WpfRecordingViewFactory>();
-        services.AddSingleton<IGlobalHotkeys, HotkeyManager>();
+        services.AddSingleton<IGlobalHotkeys>(sp => new WindowsHotkeys(sp.GetRequiredService<IUiThread>()));
         services.AddSingleton<TrayIcon>();
         services.AddSingleton<INotifications>(sp => sp.GetRequiredService<TrayIcon>());
         services.AddSingleton<EditorContext>();

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -27,6 +26,8 @@ internal sealed class TrayController : IDisposable
     private readonly IEditorLauncher _editor;
     private readonly IUserDialogs _dialogs;
     private readonly Func<SettingsWindow> _createSettingsWindow;
+    private readonly IShell _shell;
+    private readonly IFileTrash _trash;
 
     private readonly Forms.ToolStripMenuItem _regionItem;
     private readonly Forms.ToolStripMenuItem _windowItem;
@@ -40,8 +41,10 @@ internal sealed class TrayController : IDisposable
 
     public TrayController(
         AppSettings settings, CaptureWorkflow captures, RecordingSession video, IGlobalHotkeys hotkeys, TrayIcon tray,
-        IEditorLauncher editor, IUserDialogs dialogs, Func<SettingsWindow> createSettingsWindow)
+        IEditorLauncher editor, IUserDialogs dialogs, Func<SettingsWindow> createSettingsWindow, IShell shell, IFileTrash trash)
     {
+        _shell = shell;
+        _trash = trash;
         _settings = settings;
         _captures = captures;
         _video = video;
@@ -132,7 +135,7 @@ internal sealed class TrayController : IDisposable
     /// <summary>As in TinyTake, a saved video opens in a player rather than in a notification.</summary>
     private void OpenVideoPreview(string path, bool fullScreen)
     {
-        var preview = new VideoPreviewWindow(path, fullScreen);
+        var preview = new VideoPreviewWindow(path, fullScreen, _shell, _trash);
         preview.RetakeRequested += () => Retake(preview, fullScreen);
         preview.Show();
         preview.Activate();
@@ -185,7 +188,7 @@ internal sealed class TrayController : IDisposable
             image.CacheOption = BitmapCacheOption.OnLoad;
             image.UriSource = new Uri(dialog.FileName);
             image.EndInit();
-            _editor.Open(new WpfImage(ScreenCapture.Normalize(image)));
+            _editor.Open(Normalize(image));
         }
         catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException or UriFormatException)
         {
@@ -199,8 +202,6 @@ internal sealed class TrayController : IDisposable
         try
         {
             image = Clipboard.ContainsImage() ? Clipboard.GetImage() : null;
-            if (image is not null)
-                image = ScreenCapture.Normalize(image);
         }
         catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException)
         {
@@ -211,15 +212,18 @@ internal sealed class TrayController : IDisposable
         if (image is null)
             _tray.Info("Presse-papier vide", "Le presse-papier ne contient pas d'image.");
         else
-            _editor.Open(new WpfImage(image));
+            _editor.Open(Normalize(image));
     }
+
+    /// <summary>Any image (file, clipboard) at 96 DPI, so that one WPF unit is one pixel in the editor.</summary>
+    private static WpfImage Normalize(BitmapSource image) => WpfImage.FromPixels(WpfImage.ToPixels(image));
 
     private void OpenOutputFolder()
     {
         try
         {
             Directory.CreateDirectory(_settings.OutputFolder);
-            Process.Start("explorer.exe", $"\"{_settings.OutputFolder}\"");
+            _shell.OpenFolder(_settings.OutputFolder);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {

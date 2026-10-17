@@ -17,7 +17,7 @@ public sealed class EditorExportTests
         var fileSystem = new FileSystem();
         var saver = new ImageSaver(settings, store, new OutputPathAllocator(fileSystem, TimeProvider.System), new FileCounter(settings, store),
             Substitute.For<IImageCodec>(), clipboard, fileSystem);
-        var editor = new EditorWindow(image, new EditorContext(settings, store, saver, clipboard))
+        var editor = new EditorWindow(image, new EditorContext(settings, store, saver, clipboard, Substitute.For<IShell>()))
         {
             // Off screen and in the background: the tests must not disturb whoever uses the computer.
             WindowStartupLocation = WindowStartupLocation.Manual,

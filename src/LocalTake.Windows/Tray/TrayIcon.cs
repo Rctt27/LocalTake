@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using LocalTake.Core.Ports;
 using Forms = System.Windows.Forms;
@@ -10,10 +9,12 @@ namespace LocalTake;
 internal sealed class TrayIcon : INotifications, IDisposable
 {
     private readonly Forms.NotifyIcon _icon;
+    private readonly IShell _shell;
     private string? _lastSavedPath;
 
-    public TrayIcon()
+    public TrayIcon(IShell shell)
     {
+        _shell = shell;
         Menu = new Forms.ContextMenuStrip();
         _icon = new Forms.NotifyIcon
         {
@@ -57,7 +58,7 @@ internal sealed class TrayIcon : INotifications, IDisposable
     private void RevealLastSaved()
     {
         if (_lastSavedPath is not null && File.Exists(_lastSavedPath))
-            Process.Start("explorer.exe", $"/select,\"{_lastSavedPath}\"");
+            _shell.Reveal(_lastSavedPath);
     }
 
     public void Dispose()

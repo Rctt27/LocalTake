@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using LocalTake.Core.Ports;
 
 namespace LocalTake;
 
@@ -11,9 +12,11 @@ internal sealed class RecordingFrame : Form
 {
     private const int Thickness = 3;
     private readonly Rectangle _bounds;
+    private readonly INativeWindows _windows;
 
-    public RecordingFrame(Rectangle area)
+    public RecordingFrame(Rectangle area, INativeWindows windows)
     {
+        _windows = windows;
         _bounds = Rectangle.Inflate(area, Thickness, Thickness);
         AutoScaleMode = AutoScaleMode.None;
         FormBorderStyle = FormBorderStyle.None;
@@ -41,7 +44,7 @@ internal sealed class RecordingFrame : Form
     protected override void OnHandleCreated(System.EventArgs e)
     {
         base.OnHandleCreated(e);
-        Native.SetWindowDisplayAffinity(Handle, Native.WDA_EXCLUDEFROMCAPTURE);
+        _windows.ExcludeFromCapture(Handle);
     }
 
     protected override void OnShown(System.EventArgs e)

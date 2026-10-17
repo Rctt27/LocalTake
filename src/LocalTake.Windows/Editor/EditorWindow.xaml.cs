@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -23,7 +22,7 @@ using Path = System.Windows.Shapes.Path;
 namespace LocalTake;
 
 /// <summary>What the editor needs from the rest of the app.</summary>
-internal sealed record EditorContext(AppSettings Settings, ISettingsStore Store, ImageSaver Saver, IClipboard Clipboard);
+internal sealed record EditorContext(AppSettings Settings, ISettingsStore Store, ImageSaver Saver, IClipboard Clipboard, IShell Shell);
 
 /// <summary>
 /// Annotation editor. The canvas is sized in image pixels (images are 96 DPI), annotations are ordinary WPF
@@ -752,7 +751,7 @@ public partial class EditorWindow : Window
     {
         _dirty = false;
         var link = new Hyperlink(new Run(path)) { Foreground = new SolidColorBrush(Color.FromRgb(108, 182, 255)) };
-        link.Click += (_, _) => Process.Start("explorer.exe", $"/select,\"{path}\"");
+        link.Click += (_, _) => _context.Shell.Reveal(path);
         StatusText.Inlines.Clear();
         StatusText.Inlines.Add(new Run("Enregistré : "));
         StatusText.Inlines.Add(link);

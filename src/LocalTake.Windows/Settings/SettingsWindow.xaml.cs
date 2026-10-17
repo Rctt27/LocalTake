@@ -19,13 +19,10 @@ namespace LocalTake;
 /// <summary>What the settings window needs from the rest of the app.</summary>
 internal sealed record SettingsContext(
     AppSettings Settings, ISettingsStore Store, SettingsDefaults Defaults, FfmpegLocator Locator, IFfmpegPlatform Platform,
-    IAudioDeviceLister AudioDevices);
+    IAudioDeviceLister AudioDevices, IStartupRegistration Startup);
 
 public partial class SettingsWindow : Window
 {
-    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string RunValueName = "LocalTake";
-
     private readonly AppSettings _settings;
     private readonly SettingsContext _context;
 
@@ -60,7 +57,7 @@ public partial class SettingsWindow : Window
             box.PreviewKeyUp += HotkeyBox_PreviewKeyUp;
         }
 
-        StartupBox.IsChecked = IsStartupEnabled();
+        StartupBox.IsChecked = _context.Startup.IsEnabled;
         UpdateQualityState();
 
         FfmpegBox.Text = settings.FfmpegPath;
@@ -292,22 +289,7 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        SetStartup(StartupBox.IsChecked == true);
+        _context.Startup.SetEnabled(StartupBox.IsChecked == true);
         Close();
-    }
-
-    private static bool IsStartupEnabled()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
-        return key?.GetValue(RunValueName) is not null;
-    }
-
-    private static void SetStartup(bool enabled)
-    {
-        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
-        if (enabled)
-            key.SetValue(RunValueName, $"\"{Environment.ProcessPath}\"");
-        else if (key.GetValue(RunValueName) is not null)
-            key.DeleteValue(RunValueName);
     }
 }

@@ -14,14 +14,14 @@ internal sealed class WpfRecordingView : IRecordingView
     private readonly RecordingBar _bar;
     private RecordingFrame? _frame;
 
-    public WpfRecordingView(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, PixelRect area, bool fullScreen)
+    public WpfRecordingView(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, PixelRect area, bool fullScreen)
     {
         if (!fullScreen)
         {
-            _frame = new RecordingFrame(area.ToRectangle());
+            _frame = new RecordingFrame(area.ToRectangle(), windows);
             _frame.Show();
         }
-        _bar = new RecordingBar(settings, store, platform);
+        _bar = new RecordingBar(settings, store, platform, windows);
         _bar.StartRequested += () => StartRequested?.Invoke(this, EventArgs.Empty);
         _bar.StopRequested += () => StopRequested?.Invoke(this, EventArgs.Empty);
         _bar.CancelRequested += () => CancelRequested?.Invoke(this, EventArgs.Empty);
@@ -59,7 +59,7 @@ internal sealed class WpfRecordingView : IRecordingView
     }
 }
 
-internal sealed class WpfRecordingViewFactory(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform) : IRecordingViewFactory
+internal sealed class WpfRecordingViewFactory(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows) : IRecordingViewFactory
 {
-    public IRecordingView Show(PixelRect area, bool fullScreen) => new WpfRecordingView(settings, store, platform, area, fullScreen);
+    public IRecordingView Show(PixelRect area, bool fullScreen) => new WpfRecordingView(settings, store, platform, windows, area, fullScreen);
 }

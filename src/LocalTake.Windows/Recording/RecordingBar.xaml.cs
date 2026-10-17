@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using LocalTake.Adapters;
 using LocalTake.Core.Geometry;
+using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
 using Forms = System.Windows.Forms;
@@ -37,14 +38,14 @@ public partial class RecordingBar : Window
     public event Action? StopRequested;
     public event Action? CancelRequested;
 
-    internal RecordingBar(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform)
+    internal RecordingBar(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows)
     {
         InitializeComponent();
         _settings = settings;
         _store = store;
         _platform = platform;
         SourceInitialized += (_, _) =>
-            Native.SetWindowDisplayAffinity(new WindowInteropHelper(this).Handle, Native.WDA_EXCLUDEFROMCAPTURE);
+            windows.ExcludeFromCapture(new WindowInteropHelper(this).Handle);
         MouseLeftButtonDown += (_, e) =>
         {
             if (e.ButtonState == MouseButtonState.Pressed)

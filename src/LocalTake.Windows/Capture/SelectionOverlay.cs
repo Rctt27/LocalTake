@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using LocalTake.Adapters;
 using LocalTake.Core.Capture;
 using LocalTake.Core.Geometry;
+using LocalTake.Core.Ports;
 
 namespace LocalTake;
 
@@ -33,37 +34,48 @@ internal sealed class SelectionOverlay : Form
     /// <summary>Selected area in virtual-screen coordinates (physical pixels).</summary>
     public Rectangle? Result { get; private set; }
 
-    /// <summary>
-    /// Freezes the screen and lets the user pick an area. Shared by image captures and videos.
-    /// </summary>
+    /// <summary>Lets the user pick an area of the frozen screen. Shared by image captures and videos.</summary>
+    /// <param name="screen">The frozen virtual desktop.</param>
+    /// <param name="virtualScreen">Where it lies, in physical pixels.</param>
+    /// <param name="windows">The visible windows, front to back, for window mode.</param>
     /// <param name="windowMode">Start in window mode rather than area mode.</param>
-    /// <param name="area">The chosen area in virtual-screen coordinates (physical pixels).</param>
-    /// <returns>The frozen pixels of that area, or null when the user cancelled.</returns>
-    public static Bitmap? SelectArea(bool windowMode, out Rectangle area)
+    /// <returns>The chosen area in virtual-screen coordinates (physical pixels), or null when the user cancelled.</returns>
+    public static PixelRect? SelectArea(PixelBuffer screen, PixelRect virtualScreen, IReadOnlyList<PixelRect> windows, bool windowMode)
     {
-        area = Rectangle.Empty;
-        var virtualScreen = SystemInformation.VirtualScreen;
-        using var screen = ScreenCapture.Capture(virtualScreen);
-        using var overlay = new SelectionOverlay(screen, virtualScreen, ScreenCapture.VisibleWindows(), windowMode);
-        if (overlay.ShowDialog() != DialogResult.OK || overlay.Result is not { } selected)
-            return null;
-
-        area = selected;
-        selected.Offset(-virtualScreen.X, -virtualScreen.Y);
-        return screen.Clone(selected, screen.PixelFormat);
+        using var overlay = new SelectionOverlay(ToBitmap(screen), virtualScreen, windows, windowMode);
+        return overlay.ShowDialog() == DialogResult.OK && overlay.Result is { } selected ? selected.ToPixelRect() : null;
     }
 
-    public SelectionOverlay(Bitmap screen, Rectangle virtualScreen, IEnumerable<Rectangle> windows, bool windowMode)
+    /// <summary>
+    /// A premultiplied bitmap draws several times faster, which keeps the overlay fluid on large screens; captures
+    /// are opaque, so their pixels are the same premultiplied or not.
+    /// </summary>
+    private static Bitmap ToBitmap(PixelBuffer pixels)
     {
-        // A premultiplied copy draws several times faster, which keeps the overlay fluid on large screens.
-        _screen = screen.Clone(new Rectangle(0, 0, screen.Width, screen.Height), PixelFormat.Format32bppPArgb);
-        _virtualScreen = virtualScreen;
-        _model = new SelectionModel(SelectionModel.ToLocal(windows.Select(w => w.ToPixelRect()), virtualScreen.ToPixelRect()), windowMode);
+        var bitmap = new Bitmap(pixels.Width, pixels.Height, PixelFormat.Format32bppPArgb);
+        var data = bitmap.LockBits(new Rectangle(0, 0, pixels.Width, pixels.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppPArgb);
+        try
+        {
+            for (var y = 0; y < pixels.Height; y++)
+                Marshal.Copy(pixels.Pixels, y * pixels.Stride, data.Scan0 + y * data.Stride, pixels.Stride);
+        }
+        finally
+        {
+            bitmap.UnlockBits(data);
+        }
+        return bitmap;
+    }
+
+    private SelectionOverlay(Bitmap screen, PixelRect virtualScreen, IEnumerable<PixelRect> windows, bool windowMode)
+    {
+        _screen = screen;
+        _virtualScreen = virtualScreen.ToRectangle();
+        _model = new SelectionModel(SelectionModel.ToLocal(windows, virtualScreen), windowMode);
 
         AutoScaleMode = AutoScaleMode.None;
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
-        Bounds = virtualScreen;
+        Bounds = _virtualScreen;
         ShowInTaskbar = false;
         TopMost = true;
         KeyPreview = true;

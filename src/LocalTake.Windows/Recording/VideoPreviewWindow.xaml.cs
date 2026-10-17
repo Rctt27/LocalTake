@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
@@ -10,7 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using Microsoft.VisualBasic.FileIO;
+using LocalTake.Core.Ports;
 using Forms = System.Windows.Forms;
 
 namespace LocalTake;
@@ -38,14 +37,18 @@ public partial class VideoPreviewWindow : Window
     /// <summary>Set while the timer moves the seek bar, so that only the user's moves seek.</summary>
     private bool _updatingSeekBar;
 
+    private readonly IShell _shell;
+    private readonly IFileTrash _trash;
     private bool _thumbnailRequested;
     private bool _thumbnailFailed;
     private double _thumbnailSeconds = -1;
 
     /// <param name="fullScreen">How the video was recorded, which "Refaire" repeats.</param>
-    internal VideoPreviewWindow(string path, bool fullScreen)
+    internal VideoPreviewWindow(string path, bool fullScreen, IShell shell, IFileTrash trash)
     {
         InitializeComponent();
+        _shell = shell;
+        _trash = trash;
         Icon = AppIcon.ImageSource;
         _path = path;
         Title = "LocalTake — " + Path.GetFileName(path);
@@ -297,7 +300,7 @@ public partial class VideoPreviewWindow : Window
     private void Reveal_Click(object sender, RoutedEventArgs e)
     {
         if (File.Exists(_path))
-            Process.Start("explorer.exe", $"/select,\"{_path}\"");
+            _shell.Reveal(_path);
         else
             MessageBox.Show(this, "La vidéo n'est plus à cet emplacement.", "LocalTake", MessageBoxButton.OK, MessageBoxImage.Information);
     }
@@ -306,7 +309,7 @@ public partial class VideoPreviewWindow : Window
     {
         try
         {
-            Process.Start(new ProcessStartInfo(_path) { UseShellExecute = true });
+            _shell.OpenFile(_path);
         }
         catch (Exception ex)
         {
@@ -349,7 +352,7 @@ public partial class VideoPreviewWindow : Window
             try
             {
                 if (File.Exists(_path))
-                    FileSystem.DeleteFile(_path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                    _trash.MoveToTrash(_path);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
             {
