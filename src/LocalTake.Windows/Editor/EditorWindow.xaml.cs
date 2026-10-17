@@ -326,7 +326,7 @@ public partial class EditorWindow : Window
             case Tool.Blur:
                 Surface.Children.Remove(shape);
                 if (ToPixelRect(shape) is { } blurArea)
-                    AddAnnotation(CreatePixelated(blurArea));
+                    AddBlur(new Core.Geometry.PixelRect(blurArea.X, blurArea.Y, blurArea.Width, blurArea.Height));
                 break;
             case Tool.Crop:
                 Surface.Children.Remove(shape);
@@ -443,15 +443,20 @@ public partial class EditorWindow : Window
             : null;
     }
 
-    private Image CreatePixelated(Int32Rect area)
-    {
-        var pixels = new Core.Geometry.PixelRect(area.X, area.Y, area.Width, area.Height);
-        var cropped = new CroppedBitmap(_base, area);
-        var (columns, rows) = EditorGeometry.PixelationGrid(pixels, EditorGeometry.PixelationBlock(pixels, _dpiScale));
-        var small = new TransformedBitmap(cropped, new ScaleTransform((double)columns / area.Width, (double)rows / area.Height));
-        small.Freeze();
+    /// <summary>The monitor's scale, by which the toolbar sizes (and the blur block) are multiplied.</summary>
+    internal double DpiScale => _dpiScale;
 
-        var image = new Image { Source = small, Width = area.Width, Height = area.Height, Stretch = Stretch.Fill };
+    /// <summary>Pixelates an area of the image, as an annotation that can be moved, deleted and undone.</summary>
+    internal void AddBlur(Core.Geometry.PixelRect area) => AddAnnotation(CreatePixelated(area));
+
+    /// <summary>The core's pixelation of the base image, the same on every platform, shown at the area's place.</summary>
+    private Image CreatePixelated(Core.Geometry.PixelRect area)
+    {
+        var (columns, rows) = EditorGeometry.PixelationGrid(area, EditorGeometry.PixelationBlock(area, _dpiScale));
+        var pixelated = WpfImage.FromPixels(WpfImage.ToPixels(_base).Pixelate(area, columns, rows));
+
+        var image = new Image { Source = pixelated.Source, Width = area.Width, Height = area.Height, Stretch = Stretch.Fill };
+        // Blocks stay sharp at any zoom.
         RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor);
         Canvas.SetLeft(image, area.X);
         Canvas.SetTop(image, area.Y);

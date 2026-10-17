@@ -19,7 +19,7 @@ namespace LocalTake;
 /// <summary>What the settings window needs from the rest of the app.</summary>
 internal sealed record SettingsContext(
     AppSettings Settings, ISettingsStore Store, SettingsDefaults Defaults, FfmpegLocator Locator, IFfmpegPlatform Platform,
-    IAudioDeviceLister AudioDevices, IStartupRegistration Startup);
+    IAudioDeviceLister AudioDevices, IStartupRegistration Startup, SettingsEditor Editor);
 
 public partial class SettingsWindow : Window
 {
@@ -216,76 +216,16 @@ public partial class SettingsWindow : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        var hotkeys = HotkeyBoxes().Select(b => b.Text.Trim()).Where(t => t.Length > 0).ToList();
-        var duplicate = hotkeys.GroupBy(h => h, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
-        if (duplicate is not null)
+        var form = new SettingsForm(
+            FolderBox.Text, PatternBox.Text, SelectedFormat(), (int)QualitySlider.Value, CopyPathBox.IsChecked == true,
+            Enum.Parse<AfterCaptureAction>((string)((ComboBoxItem)AfterCaptureBox.SelectedItem).Tag),
+            HotkeyRegionBox.Text, HotkeyWindowBox.Text, HotkeyFullScreenBox.Text, HotkeyLastRegionBox.Text,
+            HotkeyVideoRegionBox.Text, HotkeyVideoFullScreenBox.Text, HotkeyVideoStartBox.Text, HotkeyVideoStopBox.Text,
+            FfmpegBox.Text, (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone,
+            RecordMicrophoneBox.IsChecked == true, SystemAudioBox.IsChecked == true, (int)FrameRateBox.SelectedItem);
+        if (_context.Editor.TryApply(form) is { } problem)
         {
-            MessageBox.Show(this, $"Le raccourci {duplicate.Key} est attribué deux fois.", "LocalTake",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(FolderBox.Text) || string.IsNullOrWhiteSpace(PatternBox.Text))
-        {
-            MessageBox.Show(this, "Le dossier et le nom des fichiers sont obligatoires.", "LocalTake",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var ffmpegPath = FfmpegBox.Text.Trim();
-        if (ffmpegPath.Length > 0 && !File.Exists(ffmpegPath))
-        {
-            MessageBox.Show(this, "Le fichier ffmpeg indiqué n'existe pas. Laissez le champ vide pour une détection automatique.",
-                "LocalTake", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        // A relative path would depend on the working directory, which is System32 when Windows starts the app.
-        var folder = FolderBox.Text.Trim();
-        if (!Path.IsPathFullyQualified(folder))
-        {
-            MessageBox.Show(this, "Indiquez le chemin complet du dossier, par exemple C:\\Users\\Moi\\Captures.", "LocalTake",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-        try
-        {
-            folder = Path.GetFullPath(folder);
-            Directory.CreateDirectory(folder);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, "Ce dossier est inutilisable : " + ex.Message, "LocalTake",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        _settings.OutputFolder = folder;
-        _settings.FileNamePattern = PatternBox.Text.Trim();
-        _settings.Format = SelectedFormat();
-        _settings.JpegQuality = (int)QualitySlider.Value;
-        _settings.CopyPathAfterSave = CopyPathBox.IsChecked == true;
-        _settings.AfterCapture = Enum.Parse<AfterCaptureAction>((string)((ComboBoxItem)AfterCaptureBox.SelectedItem).Tag);
-        _settings.HotkeyRegion = HotkeyRegionBox.Text.Trim();
-        _settings.HotkeyWindow = HotkeyWindowBox.Text.Trim();
-        _settings.HotkeyFullScreen = HotkeyFullScreenBox.Text.Trim();
-        _settings.HotkeyLastRegion = HotkeyLastRegionBox.Text.Trim();
-        _settings.HotkeyVideoRegion = HotkeyVideoRegionBox.Text.Trim();
-        _settings.HotkeyVideoFullScreen = HotkeyVideoFullScreenBox.Text.Trim();
-        _settings.HotkeyVideoStart = HotkeyVideoStartBox.Text.Trim();
-        _settings.HotkeyVideoStop = HotkeyVideoStopBox.Text.Trim();
-        _settings.FfmpegPath = ffmpegPath;
-        _settings.Microphone = (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone;
-        _settings.RecordMicrophone = RecordMicrophoneBox.IsChecked == true;
-        _settings.RecordSystemAudio = SystemAudioBox.IsChecked == true;
-        _settings.VideoFrameRate = (int)FrameRateBox.SelectedItem;
-        try
-        {
-            _context.Store.Save(_settings);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            MessageBox.Show(this, "Les réglages n'ont pas pu être enregistrés : " + ex.Message, "LocalTake",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, problem, "LocalTake", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 

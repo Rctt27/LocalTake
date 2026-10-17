@@ -110,6 +110,8 @@ public partial class App : Application
         services.AddSingleton<INotifications>(sp => sp.GetRequiredService<TrayIcon>());
         services.AddSingleton<EditorContext>();
         services.AddSingleton<IEditorLauncher, WpfEditorLauncher>();
+        services.AddSingleton(sp => new SettingsEditor(sp.GetRequiredService<AppSettings>(), sp.GetRequiredService<ISettingsStore>(),
+            sp.GetRequiredService<IFileSystem>(), @"C:\Users\Moi\Captures"));
         services.AddSingleton<SettingsContext>();
         services.AddSingleton<Func<SettingsWindow>>(sp => () => new SettingsWindow(sp.GetRequiredService<SettingsContext>()));
         services.AddSingleton<TrayController>();

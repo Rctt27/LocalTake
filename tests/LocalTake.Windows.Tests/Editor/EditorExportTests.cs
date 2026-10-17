@@ -1,6 +1,9 @@
 using System.IO.Abstractions;
 using System.Windows;
+using LocalTake.Adapters;
+using LocalTake.Core.Editor;
 using LocalTake.Core.Files;
+using LocalTake.Core.Geometry;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Settings;
 using NSubstitute;
@@ -47,5 +50,24 @@ public sealed class EditorExportTests
         width.ShouldBe(301);
         height.ShouldBe(203);
         pixels.ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task Blur_matches_the_core_pixelation()
+    {
+        var area = new PixelRect(10, 20, 90, 50);
+        var (exported, source, dpiScale) = await Sta.Run(() =>
+        {
+            var image = TestImages.Gradient(200, 120);
+            var editor = OpenEditor(image);
+            editor.AddBlur(area);
+            Sta.DoEvents();
+            return (WpfImage.ToPixels(editor.RenderImage()), WpfImage.ToPixels(image), editor.DpiScale);
+        });
+
+        var (columns, rows) = EditorGeometry.PixelationGrid(area, EditorGeometry.PixelationBlock(area, dpiScale));
+        exported.Crop(area).Pixels.ShouldBe(source.Pixelate(area, columns, rows).Pixels);
+        var outside = new PixelRect(0, 0, 200, 20);
+        exported.Crop(outside).Pixels.ShouldBe(source.Crop(outside).Pixels);
     }
 }
