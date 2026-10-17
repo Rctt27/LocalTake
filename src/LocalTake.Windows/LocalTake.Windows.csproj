@@ -15,6 +15,10 @@
     <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
     <AssemblyName>LocalTake</AssemblyName>
     <RootNamespace>LocalTake</RootNamespace>
+    <!-- Published as one exe: symbols inside it, and no XML docs or .pdb of the libraries beside it. -->
+    <DebugType>embedded</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
   <ItemGroup>
