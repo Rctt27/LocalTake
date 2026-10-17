@@ -1,6 +1,6 @@
 name: Release
 
-# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and macOS and publishes them as a GitHub release.
+# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and publishes it as a GitHub release.
 on:
   push:
     tags: ['v*.*.*']
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - run: dotnet publish src/LocalTake.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      - run: dotnet publish src/LocalTake.Wpf -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
       - name: Name the executable after the version
         shell: bash
         run: mv dist/LocalTake.exe "dist/LocalTake-${GITHUB_REF_NAME#v}-windows-x64.exe"
@@ -29,23 +29,8 @@ jobs:
           name: windows
           path: dist/*.exe
 
-  macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-      - run: |
-          build/package-macos.sh osx-arm64 dist
-          build/package-macos.sh osx-x64 dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos
-          path: dist/*.zip
-
   publish:
-    needs: [windows, macos]
+    needs: [windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
