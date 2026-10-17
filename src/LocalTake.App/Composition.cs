@@ -12,6 +12,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Infrastructure.Diagnostics;
 using LocalTake.Infrastructure.Logging;
 using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
@@ -65,6 +66,7 @@ internal static class Composition
         services.AddSingleton(sp => AppPaths.CreateFfmpegLocator(sp.GetRequiredService<IFileSystem>()));
         services.AddSingleton<IAudioDeviceLister, FfmpegAudioDeviceLister>();
         services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
+        services.AddSingleton<DiagnosticsReport>();
         services.AddSingleton<IVideoFrames, FfmpegVideoFrames>();
         services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
         services.AddSingleton(sp => new SettingsEditor(
