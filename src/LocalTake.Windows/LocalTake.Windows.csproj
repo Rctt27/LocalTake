@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Transitional Windows-only app: it moves to LocalTake.App (Avalonia) and is then deleted. -->
+  <!-- The Windows app: WPF views and adapters over the core; Win32 goes through LocalTake.Platform.Windows. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -11,14 +11,18 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\LocalTake.ico</ApplicationIcon>
     <!-- WFAC010 targets WinForms-only apps; a WPF app declares its DPI awareness in the manifest. -->
-    <!-- WFO0003 likewise. CA1001/CA1859/CA1861: style rules not worth applying to code that is being replaced. -->
-    <NoWarn>$(NoWarn);WFAC010;WFO0003;CA1001;CA1859;CA1861</NoWarn>
+    <!-- WFO0003 likewise. -->
+    <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
     <AssemblyName>LocalTake</AssemblyName>
     <RootNamespace>LocalTake</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\LocalTake.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LocalTake.Windows.Tests" />
   </ItemGroup>
 
   <ItemGroup>

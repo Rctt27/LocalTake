@@ -18,7 +18,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalTake;
 
+// The mutex and the container are released in OnExit, the end of a WPF application's life.
+#pragma warning disable CA1001
 public partial class App : Application
+#pragma warning restore CA1001
 {
     private Mutex? _singleInstance;
     private ServiceProvider? _services;

@@ -61,5 +61,5 @@ Nécessite le SDK .NET 10 (`global.json`). L'architecture, les commandes et les 
 ```
 dotnet build LocalTake.slnx
 dotnet test --solution LocalTake.slnx
-dotnet run --project src/LocalTake.App
+dotnet run --project src/LocalTake.Windows
 ```

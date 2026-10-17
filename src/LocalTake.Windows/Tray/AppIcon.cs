@@ -11,7 +11,8 @@ namespace LocalTake;
 /// </summary>
 internal static class AppIcon
 {
-    private static readonly Uri Uri = new("pack://application:,,,/Assets/LocalTake.ico");
+    // Names the assembly, so that the icon also loads when LocalTake.exe is not the entry assembly (tests).
+    private static readonly Uri Uri = new("pack://application:,,,/LocalTake;component/Assets/LocalTake.ico");
 
     private static Icon? _icon;
     private static ImageSource? _imageSource;

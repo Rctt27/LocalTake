@@ -64,7 +64,7 @@ jobs:
         with:
           global-json-file: global.json
       - name: Publish LocalTake.exe
-        run: dotnet publish src/LocalTake.Wpf -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+        run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
       - uses: actions/upload-artifact@v4
         with:
           name: LocalTake-windows

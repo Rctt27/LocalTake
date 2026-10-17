@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - run: dotnet publish src/LocalTake.Wpf -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      - run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
       - name: Name the executable after the version
         shell: bash
         run: mv dist/LocalTake.exe "dist/LocalTake-${GITHUB_REF_NAME#v}-windows-x64.exe"

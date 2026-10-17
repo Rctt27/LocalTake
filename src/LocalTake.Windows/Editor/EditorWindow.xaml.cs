@@ -173,7 +173,7 @@ public partial class EditorWindow : Window
 
     // ---- Zoom -----------------------------------------------------------------------------------------------
 
-    private void SetZoom(double zoom)
+    internal void SetZoom(double zoom)
     {
         zoom = EditorGeometry.ClampZoom(zoom);
         Zoom.ScaleX = Zoom.ScaleY = zoom;
@@ -404,7 +404,7 @@ public partial class EditorWindow : Window
         _ => shape.Width < 3 || shape.Height < 3
     };
 
-    private static Effect Shadow() => new DropShadowEffect { Color = Colors.Black, BlurRadius = 4, ShadowDepth = 1.5, Opacity = 0.45 };
+    private static DropShadowEffect Shadow() => new DropShadowEffect { Color = Colors.Black, BlurRadius = 4, ShadowDepth = 1.5, Opacity = 0.45 };
 
     private static Geometry ArrowGeometry(Point from, Point to, double thickness)
     {
@@ -444,7 +444,7 @@ public partial class EditorWindow : Window
             : null;
     }
 
-    private FrameworkElement CreatePixelated(Int32Rect area)
+    private Image CreatePixelated(Int32Rect area)
     {
         var pixels = new Core.Geometry.PixelRect(area.X, area.Y, area.Width, area.Height);
         var cropped = new CroppedBitmap(_base, area);
@@ -679,7 +679,7 @@ public partial class EditorWindow : Window
     // ---- Output ---------------------------------------------------------------------------------------------
 
     /// <summary>The capture with its annotations, at the image's pixel size.</summary>
-    private BitmapSource RenderImage()
+    internal BitmapSource RenderImage()
     {
         CommitText();
         Surface.UpdateLayout();
