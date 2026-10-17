@@ -88,4 +88,56 @@ public sealed class DiagnosticsReportTests : IDisposable
 
         _hotkeys.Received(1).UnregisterAll();
     }
+
+    /// <summary>
+    /// Shortcuts belong to the thread that created their window: after waiting for ffmpeg, the report must come back
+    /// to the caller's thread (the UI thread) before registering one.
+    /// </summary>
+    [Fact]
+    public async Task Shortcut_is_checked_on_the_callers_context()
+    {
+        var context = new RecordingContext();
+        SynchronizationContext? atRegister = null;
+        _audio.ListAsync(Arg.Any<string>()).Returns(async _ =>
+        {
+            await Task.Delay(10);
+            return (IReadOnlyList<string>)["virtual-audio-capturer"];
+        });
+        _hotkeys.Register(Arg.Any<Hotkey>(), Arg.Any<Action>()).Returns(_ =>
+        {
+            atRegister = SynchronizationContext.Current;
+            return true;
+        });
+
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(context);
+        try
+        {
+            await Run();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        atRegister.ShouldBeSameAs(context);
+    }
+
+    /// <summary>Runs continuations at once, with itself as the current context, as a UI thread's context would.</summary>
+    private sealed class RecordingContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            var previous = Current;
+            SetSynchronizationContext(this);
+            try
+            {
+                d(state);
+            }
+            finally
+            {
+                SetSynchronizationContext(previous);
+            }
+        }
+    }
 }

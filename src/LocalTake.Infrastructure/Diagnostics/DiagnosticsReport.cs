@@ -59,7 +59,10 @@ public sealed class DiagnosticsReport(
         Check("ffmpeg", () => ffmpeg ?? throw new FileNotFoundException(platform.InstallHint));
         if (ffmpeg is not null)
         {
-            var devices = await audio.ListAsync(ffmpeg).ConfigureAwait(false);
+            // No ConfigureAwait(false): the checks below must stay on the caller's thread, which owns the shortcut window.
+#pragma warning disable CA2007
+            var devices = await audio.ListAsync(ffmpeg);
+#pragma warning restore CA2007
             Check("audio inputs", () => devices.Count > 0 ? string.Join(", ", devices) : throw new InvalidOperationException("none listed"));
             Check("computer sound", () => devices.Contains(platform.SystemAudioDevice)
                 ? platform.SystemAudioDevice

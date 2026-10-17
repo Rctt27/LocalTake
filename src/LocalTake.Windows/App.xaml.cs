@@ -1,6 +1,9 @@
 using System;
+using System.IO;
 using System.IO.Abstractions;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using LocalTake.Adapters;
 using LocalTake.Core.Capture;
@@ -9,6 +12,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Infrastructure.Diagnostics;
 using LocalTake.Infrastructure.Logging;
 using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
@@ -27,9 +31,16 @@ public partial class App : Application
     private Mutex? _singleInstance;
     private ServiceProvider? _services;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Before the single-instance check: the report is also useful while LocalTake runs (its shortcuts then show as taken).
+        if (e.Args.Contains("--diagnostics", StringComparer.OrdinalIgnoreCase))
+        {
+            Shutdown(await RunDiagnosticsAsync());
+            return;
+        }
 
         _singleInstance = new Mutex(true, @"Local\LocalTake.SingleInstance", out var isFirst);
         if (!isFirst)
@@ -56,6 +67,17 @@ public partial class App : Application
         };
 
         _services.GetRequiredService<TrayController>();
+    }
+
+    /// <summary>"LocalTake.exe --diagnostics": the report, in the terminal it was started from and in the log folder.</summary>
+    private static async Task<int> RunDiagnosticsAsync()
+    {
+        using var services = ConfigureServices(Current.Dispatcher).BuildServiceProvider();
+        var reportFile = Path.Combine(services.GetRequiredService<IAppPaths>().LogsFolder, "diagnostics.txt");
+        using var output = DiagnosticsConsole.Open(reportFile);
+        var code = await services.GetRequiredService<DiagnosticsReport>().RunAsync(output);
+        output.WriteLine("Report saved to " + reportFile);
+        return code;
     }
 
     /// <summary>The composition root: the core's use cases with the Windows adapters.</summary>
@@ -89,6 +111,7 @@ public partial class App : Application
         // Infrastructure
         services.AddSingleton<IAudioDeviceLister, FfmpegAudioDeviceLister>();
         services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
+        services.AddSingleton<DiagnosticsReport>();
 
         // Windows adapters
         services.AddSingleton<IScreenGrabber, WindowsScreenGrabber>();

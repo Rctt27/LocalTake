@@ -205,6 +205,12 @@ internal static unsafe partial class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool IsClipboardFormatAvailable(uint format);
 
+    public const int ATTACH_PARENT_PROCESS = -1;
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool AttachConsole(int processId);
+
     [LibraryImport("kernel32.dll", SetLastError = true)]
     public static partial nint GlobalAlloc(uint uFlags, nuint dwBytes);
 
