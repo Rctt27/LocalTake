@@ -10,7 +10,7 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 
 ### Démarrage
 
-- [ ] `LocalTake.exe --diagnostics` dans un terminal : toutes les lignes en `[ok]`, code de sortie 0.
+- [ ] LocalTake fermé, `LocalTake.exe --diagnostics` dans un terminal : toutes les lignes en `[ok]`, code de sortie 0. (Si LocalTake tourne, ses raccourcis sont pris et « global shortcut » est en `[FAIL]` : c'est attendu.)
 - [ ] L'icône apparaît dans la zone de notification ; un clic (gauche ou droit) ouvre le menu.
 - [ ] Un second lancement affiche « LocalTake est déjà lancé » et ne crée pas de seconde icône.
 - [ ] Avec TinyTake lancé, un avertissement liste les raccourcis refusés.
@@ -20,6 +20,7 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 
 - [ ] `Impr. écran` : l'écran se fige et s'assombrit, la zone glissée reste claire avec sa taille affichée ; `Échap` annule.
 - [ ] Un simple clic prend la fenêtre sous le curseur ; `Espace` bascule en mode fenêtre.
+- [ ] Le curseur ne clignote pas quand l'écran se fige.
 - [ ] Les couleurs de la capture sont exactes (pas de rouge et de bleu inversés).
 - [ ] Sur deux écrans (si possible avec deux échelles différentes) : la sélection fonctionne sur chacun, et la capture a la taille en pixels réelle.
 - [ ] `Alt+Impr. écran`, `Ctrl+Impr. écran` et « Capturer la dernière zone » fonctionnent.

@@ -48,7 +48,7 @@ LocalTake ne télécharge pas ffmpeg, qu'il faut installer : `winget install Gya
 
 ## Un problème ?
 
-`LocalTake.exe --diagnostics`, dans un terminal, vérifie sans ouvrir de fenêtre ce dont LocalTake a besoin : ffmpeg, les périphériques audio, la capture d'écran, les raccourcis. Le rapport est aussi enregistré dans `diagnostics.txt`, dans le dossier du journal. Joignez-le, avec le journal, à votre signalement.
+`LocalTake.exe --diagnostics`, dans un terminal, vérifie sans ouvrir de fenêtre ce dont LocalTake a besoin : ffmpeg, les périphériques audio, la capture d'écran, les raccourcis. Quittez LocalTake avant, sinon ses propres raccourcis apparaissent comme déjà pris. Le rapport est aussi enregistré dans `diagnostics.txt`, dans le dossier du journal : joignez-le, avec le journal, à votre signalement.
 
 ## Développement
 
