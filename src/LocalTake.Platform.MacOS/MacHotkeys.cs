@@ -215,11 +215,17 @@ public sealed unsafe class MacHotkeys : IGlobalHotkeys
     {
         if (!MacKeys.TryGetKeyCode(hotkey.Key, out var code))
             return false;
+        var modifiers = MacKeys.Modifiers(hotkey.Modifiers);
+        // Carbon accepts a shortcut of macOS itself, which then never reaches LocalTake.
+        if (MacKeys.IsSystemShortcut(code, modifiers))
+            return false;
         uint id;
         lock (Gate)
             id = _nextId++;
-        var status = Carbon.RegisterEventHotKey(code, MacKeys.Modifiers(hotkey.Modifiers),
-            new Carbon.EventHotKeyID { Signature = Signature, Id = id }, Carbon.GetApplicationEventTarget(), 0, out var reference);
+        // Exclusive: refused when another application holds the combination, and kept from other applications after.
+        var status = Carbon.RegisterEventHotKey(code, modifiers,
+            new Carbon.EventHotKeyID { Signature = Signature, Id = id }, Carbon.GetApplicationEventTarget(),
+            Carbon.kEventHotKeyExclusive, out var reference);
         if (status != 0)
             return false;
         lock (Gate)

@@ -71,7 +71,7 @@ Pour l'installer : décompresser `LocalTake-macos.zip`, glisser `LocalTake.app` 
 - [ ] Le menu de l'icône affiche « LocalTake » suivi de la version (grisé) et « Quitter LocalTake », qui ferme l'app.
 - [ ] Un second lancement, LocalTake déjà ouverte, ne crée pas de seconde icône.
 - [ ] `brew install ffmpeg` fonctionne (ou ffmpeg est déjà là : `ffmpeg -version`).
-- [ ] LocalTake fermée, dans le Terminal : `/Applications/LocalTake.app/Contents/MacOS/LocalTake --diagnostics`. Renvoyez tout ce qui s'affiche (aussi enregistré dans `~/Library/Logs/LocalTake/diagnostics.txt`). À cette étape, « screen capture » et « computer sound » peuvent être en `[FAIL]` : c'est ce que les étapes suivantes traitent.
+- [ ] LocalTake fermée, dans le Terminal : `open -a LocalTake --args --diagnostics`, puis `open ~/Library/Logs/LocalTake/diagnostics.txt` : renvoyez ce rapport. (Lancé ainsi, c'est bien LocalTake qui demande les autorisations ; lancé directement depuis `Contents/MacOS`, ce serait le Terminal.) À cette étape, « screen capture » et « computer sound » peuvent être en `[FAIL]` : c'est ce que les étapes suivantes traitent.
 
 Si la politique de votre entreprise bloque l'une de ces lignes (app non signée, Homebrew), on s'arrête là pour en reparler.
 
@@ -79,8 +79,8 @@ Si la politique de votre entreprise bloque l'une de ces lignes (app non signée,
 
 À chaque nouvelle version de l'app, macOS peut redemander les autorisations : c'est normal tant qu'elle n'est pas signée par un développeur identifié.
 
-- [ ] Première fois, LocalTake fermée : `--diagnostics` affiche en `[FAIL]` sur « screen capture » le message « LocalTake n'a pas l'autorisation d'enregistrer l'écran… », et macOS propose l'autorisation.
-- [ ] Après avoir coché LocalTake dans Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran : `--diagnostics` affiche « screen capture: 64×64, N colours » avec N supérieur à 1, et « window list » un nombre de fenêtres.
+- [ ] Première capture (`Ctrl+Maj+1` ou le menu) : un message dit « LocalTake n'a pas l'autorisation d'enregistrer l'écran… » et où l'accorder, et macOS propose l'autorisation. Une vidéo de tout l'écran donne le même message au lieu d'une vidéo noire.
+- [ ] Après avoir coché LocalTake dans Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran puis relancé LocalTake, la capture fonctionne ; LocalTake fermée, `open -a LocalTake --args --diagnostics` écrit dans `diagnostics.txt` « screen capture: 64×64, N colours » avec N supérieur à 1, et « window list » un nombre de fenêtres.
 - [ ] Avec un second écran branché : renvoyez aussi le rapport (les deux écrans seront listés à l'étape 5).
 
 ### Étape 3 : captures depuis la barre des menus et les raccourcis
@@ -118,7 +118,7 @@ Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"
 
 Prérequis : `brew install ffmpeg` ; pour le son de l'ordinateur, `brew install blackhole-2ch`, puis un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
 
-- [ ] `--diagnostics` : la ligne « screens » liste les écrans ; collez aussi la sortie de `ffmpeg -f avfoundation -list_devices true -i ""` pour comparer l'ordre des « Capture screen N ».
+- [ ] Avec deux écrans : `open -a LocalTake --args --diagnostics` ; la ligne « screens » de `diagnostics.txt` liste les écrans dans l'ordre où ffmpeg les numérote (« Capture screen 0 », « 1 »…, visibles avec `ffmpeg -f avfoundation -list_devices true -i ""`).
 - [ ] `Ctrl+Maj+4` (vidéo d'une zone) : la zone se choisit comme une capture ; un cadre rouge l'entoure ; la barre apparaît dessous (ou dessus), se déplace en la glissant, et ne prend pas le clavier à l'application filmée.
 - [ ] Première vidéo avec le micro : macOS demande l'autorisation Micro pour LocalTake ; la vidéo contient la voix, jusqu'au dernier mot avant « Arrêter ».
 - [ ] Avec BlackHole : le bouton « Son du Mac » est actif et le son de l'ordinateur est dans la vidéo ; sans BlackHole, il est grisé et son info-bulle dit quoi installer.

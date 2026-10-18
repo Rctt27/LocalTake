@@ -181,7 +181,7 @@ internal sealed class EditorWindowController : NSWindowController
 
     public void Show()
     {
-        NSApplication.SharedApplication.Activate();
+        AppActivation.BringToFront();
         ShowWindow(this);
         Window!.MakeKeyAndOrderFront(this);
         Window.MakeFirstResponder(_view);

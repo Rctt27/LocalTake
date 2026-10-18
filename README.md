@@ -57,7 +57,7 @@ LocalTake ne télécharge pas ffmpeg, qu'il faut installer, ou dont on indique l
 
 Le diagnostic vérifie, sans ouvrir de fenêtre, ce dont LocalTake a besoin : ffmpeg, les périphériques audio, la capture d'écran, les raccourcis, et sur Mac les écrans. Quittez LocalTake avant, sinon ses propres raccourcis apparaissent comme déjà pris. Dans un terminal :
 - Windows : `LocalTake.exe --diagnostics` ;
-- macOS : `/Applications/LocalTake.app/Contents/MacOS/LocalTake --diagnostics`.
+- macOS : `open -a LocalTake --args --diagnostics`, puis `open ~/Library/Logs/LocalTake/diagnostics.txt` (lancé directement depuis `Contents/MacOS`, il testerait les autorisations du Terminal plutôt que celles de LocalTake).
 
 Le rapport est aussi enregistré dans `diagnostics.txt`, dans le dossier du journal : joignez-le, avec le journal, à votre signalement.
 

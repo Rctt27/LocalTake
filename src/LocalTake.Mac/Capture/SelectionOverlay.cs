@@ -47,7 +47,7 @@ internal sealed class SelectionOverlay
             overlay._views.Add(view);
         }
 
-        NSApplication.SharedApplication.Activate();
+        AppActivation.BringToFront();
         foreach (var view in overlay._views)
             view.Host.OrderFrontRegardless();
         // The keyboard goes to the screen under the mouse.

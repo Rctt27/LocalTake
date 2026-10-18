@@ -72,6 +72,7 @@ internal static unsafe partial class Carbon
 
     public const uint kEventClassKeyboard = 0x6B657962; // 'keyb'
     public const uint kEventHotKeyPressed = 5;
+    public const uint kEventHotKeyExclusive = 1;
     public const uint kEventParamDirectObject = 0x2D2D2D2D; // '----'
     public const uint typeEventHotKeyID = 0x686B6964; // 'hkid'
 

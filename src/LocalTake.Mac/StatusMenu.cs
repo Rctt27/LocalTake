@@ -158,6 +158,14 @@ internal sealed class StatusMenu : IDisposable
     {
         if (_captures.IsCapturing)
             return;
+        // ffmpeg records the screen on LocalTake's behalf. Without the permission, a video of the whole screen would
+        // only show the wallpaper (an area is checked by its selection, which captures the screen).
+        if (!_video.IsBusy && !ScreenCaptureAccess.IsGranted)
+        {
+            ScreenCaptureAccess.Request();
+            _dialogs.ShowWarning(MacScreenGrabber.PermissionMessage);
+            return;
+        }
         // ffmpeg records the microphone on LocalTake's behalf: macOS asks LocalTake, once, before the first video.
         if (!_video.IsBusy && _settings.RecordMicrophone &&
             AVCaptureDevice.GetAuthorizationStatus(AVAuthorizationMediaType.Audio) == AVAuthorizationStatus.NotDetermined)
@@ -217,7 +225,11 @@ internal sealed class StatusMenu : IDisposable
     /// </summary>
     public NSApplicationTerminateReply ShouldTerminate()
     {
-        _ = ReplyToTerminateAsync();
+        // Nothing to wait for: the answer is given now.
+        if (!_video.IsBusy)
+            return _editor.CloseAll() ? NSApplicationTerminateReply.Now : NSApplicationTerminateReply.Cancel;
+        // A recording stops asynchronously: Later, and the reply once this call has returned, as AppKit expects.
+        CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() => _ = ReplyToTerminateAsync());
         return NSApplicationTerminateReply.Later;
     }
 

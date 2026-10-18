@@ -45,6 +45,21 @@ public static unsafe class MacWindowList
     }
 }
 
+/// <summary>The displays in use, as Quartz lists them; ffmpeg's avfoundation numbers its screens in this order.</summary>
+public static unsafe class ActiveDisplays
+{
+    public static IReadOnlyList<uint> List()
+    {
+        var displays = new uint[32];
+        fixed (uint* list = displays)
+        {
+            if (Quartz.CGGetActiveDisplayList((uint)displays.Length, list, out var count) != 0)
+                return [];
+            return displays[..(int)count];
+        }
+    }
+}
+
 /// <summary>The "Screen Recording" permission, which every capture needs.</summary>
 public static class ScreenCaptureAccess
 {

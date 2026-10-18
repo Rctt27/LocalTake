@@ -50,14 +50,14 @@ internal sealed class MacDialogs : IUserDialogs
 
     private static NSAlert Create(string message, NSAlertStyle style)
     {
-        NSApplication.SharedApplication.Activate();
+        AppActivation.BringToFront();
         return new NSAlert { AlertStyle = style, MessageText = Title, InformativeText = message };
     }
 
     /// <summary>"Ouvrir une image…": a PNG, JPEG, TIFF, HEIC or any image macOS reads.</summary>
     public static string? AskImageToOpen(string initialDirectory)
     {
-        NSApplication.SharedApplication.Activate();
+        AppActivation.BringToFront();
         using var panel = NSOpenPanel.OpenPanel;
         panel.AllowedContentTypes = [UTTypes.Image];
         panel.CanChooseDirectories = false;

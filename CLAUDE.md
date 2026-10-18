@@ -28,8 +28,10 @@ The macOS app builds on a Mac only, with Xcode and the `macos` workload; `LocalT
 ```
 dotnet workload install macos --version 10.0.401
 dotnet build src/LocalTake.Mac                        # bin/Release/net10.0-macos/LocalTake.app, universal (arm64 and x86_64)
-LocalTake.app/Contents/MacOS/LocalTake --diagnostics
+open -a LocalTake --args --diagnostics             # report in ~/Library/Logs/LocalTake/diagnostics.txt
 ```
+
+Run from a shell (`Contents/MacOS/LocalTake`), the app would be checked with the shell's privacy permissions, not its own.
 
 Package versions are managed centrally in `Directory.Packages.props`: a `PackageReference` in a project carries no version.
 
@@ -77,7 +79,8 @@ Flow: `App` → `TrayController` (tray menu, global shortcuts) → `CaptureWorkf
 
 - macOS works in points, with Cocoa's origin at the bottom left of the main screen; screens may have different scales. `MacScreenSpace.Layout` lays them out in pixels, origin at the top left of the main screen: origins scaled by the largest scale, sizes by each screen's own, so each keeps its full resolution and none overlap (gaps between them stay black in a capture). `ToPixel`, `ToCocoa` and `FromCocoa` convert; `FromTopLeftPoints` converts Quartz window frames.
 - A capture takes one ScreenCaptureKit screenshot per screen and assembles them (`MacScreenSpace.Compose`). Without the Screen Recording permission it throws a message saying where to grant it. The window list comes from `CGWindowListCopyWindowInfo`, the only one ordered front to back.
-- A selection stays on the screen where it started. ffmpeg numbers screens in `NSScreen.Screens`' order (`IDisplays`, printed by `--diagnostics`).
+- A selection stays on the screen where it started. ffmpeg numbers screens in `CGGetActiveDisplayList`'s order, which `MacDisplays` (`IDisplays`, printed by `--diagnostics`) follows; it need not be `NSScreen.Screens`'.
+- Shortcuts are registered exclusively, and those macOS uses itself (`CopySymbolicHotKeys`, Cmd+Shift+3…) are refused, so a taken shortcut is reported rather than silent.
 
 ### Editor (`EditorWindow`)
 

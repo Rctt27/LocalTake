@@ -101,6 +101,7 @@ public sealed class MacPlatformTests
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
         MacWindowList.OnScreen().ShouldAllBe(w => w.Width >= 0 && w.Height >= 0);
+        ActiveDisplays.List().ShouldNotBeEmpty();
         _ = ScreenCaptureAccess.IsGranted;
     }
 

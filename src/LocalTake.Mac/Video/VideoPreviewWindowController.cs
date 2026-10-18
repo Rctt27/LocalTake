@@ -87,7 +87,7 @@ internal sealed class VideoPreviewWindowController : NSWindowController
 
     public void Show()
     {
-        NSApplication.SharedApplication.Activate();
+        AppActivation.BringToFront();
         ShowWindow(this);
         Window!.MakeKeyAndOrderFront(this);
         Window.MakeFirstResponder(_playerView);

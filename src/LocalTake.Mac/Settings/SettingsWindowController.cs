@@ -108,7 +108,7 @@ internal sealed class SettingsWindowController : NSWindowController
 
     public void Show()
     {
-        NSApplication.SharedApplication.Activate();
+        AppActivation.BringToFront();
         ShowWindow(this);
         Window!.Center();
         Window.MakeKeyAndOrderFront(this);
