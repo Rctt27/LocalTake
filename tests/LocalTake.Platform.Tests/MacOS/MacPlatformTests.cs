@@ -59,6 +59,17 @@ public sealed class MacPlatformTests
         MacKeys.KeyEquivalent(key).ShouldBe(equivalent);
 
     [Fact]
+    public void Every_Mac_key_code_reads_back_as_its_key()
+    {
+        foreach (var key in Enum.GetValues<KeyCode>())
+            if (MacKeys.TryGetKeyCode(key, out var code))
+                MacKeys.FromKeyCode(code).ShouldBe(key);
+    }
+
+    [Fact]
+    public void A_key_LocalTake_does_not_know_reads_as_none() => MacKeys.FromKeyCode(0x3F).ShouldBe(KeyCode.None);
+
+    [Fact]
     public void Key_without_an_equivalent_shows_none() => MacKeys.KeyEquivalent(KeyCode.PrintScreen).ShouldBeNull();
 
     [Fact]

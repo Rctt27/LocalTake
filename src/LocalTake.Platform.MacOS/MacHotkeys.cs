@@ -104,6 +104,11 @@ public static class MacKeys
     /// <summary>A Mac keyboard has no Print Screen, Pause, Scroll Lock or F21 to F24.</summary>
     public static bool TryGetKeyCode(KeyCode key, out uint code) => Codes.TryGetValue(key, out code);
 
+    private static readonly Dictionary<uint, KeyCode> Keys = Codes.ToDictionary(pair => pair.Value, pair => pair.Key);
+
+    /// <summary>The key of a virtual key code (NSEvent.KeyCode), or None for a key LocalTake does not know.</summary>
+    public static KeyCode FromKeyCode(uint code) => Keys.GetValueOrDefault(code, KeyCode.None);
+
     /// <summary>
     /// The character an NSMenuItem shows for the key, as its key equivalent (the function keys use AppKit's private-use
     /// characters, NSF1FunctionKey and the like). Null when a menu cannot show the key.

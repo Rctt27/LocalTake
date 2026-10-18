@@ -9,6 +9,7 @@ using LocalTake.Core.Settings;
 using LocalTake.Mac.Adapters;
 using LocalTake.Mac.Editor;
 using LocalTake.Mac.Platform;
+using LocalTake.Mac.Settings;
 using LocalTake.Mac.Video;
 using LocalTake.Platform.MacOS;
 
@@ -30,6 +31,8 @@ internal sealed class StatusMenu : IDisposable
     private readonly RecordingSession _video;
     private readonly IFileTrash _trash;
     private readonly List<VideoPreviewWindowController> _previews = [];
+    private readonly Func<SettingsWindowController> _createSettingsWindow;
+    private SettingsWindowController? _settingsWindow;
 
     private readonly NSStatusItem _statusItem;
     private readonly NSMenuItem _regionItem;
@@ -41,7 +44,8 @@ internal sealed class StatusMenu : IDisposable
     private readonly NSMenuItem _stopVideoItem;
 
     public StatusMenu(AppSettings settings, CaptureWorkflow captures, IGlobalHotkeys hotkeys, IUserDialogs dialogs, IShell shell,
-        MacEditorLauncher editor, INotifications notifications, RecordingSession video, IFileTrash trash)
+        MacEditorLauncher editor, INotifications notifications, RecordingSession video, IFileTrash trash,
+        Func<SettingsWindowController> createSettingsWindow)
     {
         _settings = settings;
         _captures = captures;
@@ -52,6 +56,7 @@ internal sealed class StatusMenu : IDisposable
         _notifications = notifications;
         _video = video;
         _trash = trash;
+        _createSettingsWindow = createSettingsWindow;
 
         var menu = new NSMenu { AutoEnablesItems = false };
         menu.AddItem(new NSMenuItem("LocalTake " + Version) { Enabled = false });
@@ -71,7 +76,7 @@ internal sealed class StatusMenu : IDisposable
         AddItem(menu, "Coller depuis le presse-papiers", PasteFromClipboard);
         menu.AddItem(NSMenuItem.SeparatorItem);
         AddItem(menu, "Ouvrir le dossier des captures", OpenOutputFolder);
-        AddItem(menu, "Réglages…", () => { }).Enabled = false;
+        AddItem(menu, "Réglages…", OpenSettings);
         menu.AddItem(NSMenuItem.SeparatorItem);
         AddItem(menu, "Quitter LocalTake", () => NSApplication.SharedApplication.Terminate(NSApplication.SharedApplication));
 
@@ -269,6 +274,29 @@ internal sealed class StatusMenu : IDisposable
             _editor.Open(image);
         else
             _notifications.Info("Presse-papiers vide", "Le presse-papiers ne contient pas d'image.");
+    }
+
+    private void OpenSettings()
+    {
+        if (_settingsWindow is not null)
+        {
+            _settingsWindow.Show();
+            return;
+        }
+
+        // While editing shortcuts, pressing one must reach the settings window instead of triggering a capture.
+        _hotkeys.UnregisterAll();
+        var window = _settingsWindow = _createSettingsWindow();
+        window.Closed += (_, _) =>
+        {
+            _settingsWindow = null;
+            // Released once AppKit has finished closing the window.
+            CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(window.Dispose);
+            var failures = RegisterHotkeys();
+            if (failures.Count > 0)
+                ReportHotkeyFailures(failures);
+        };
+        window.Show();
     }
 
     private void OpenOutputFolder()

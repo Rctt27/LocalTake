@@ -15,6 +15,7 @@ using LocalTake.Mac.Capture;
 using LocalTake.Mac.Editor;
 using LocalTake.Mac.Platform;
 using LocalTake.Mac.Recording;
+using LocalTake.Mac.Settings;
 using LocalTake.Platform.MacOS;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -79,6 +80,10 @@ internal static class Composition
             sp.GetRequiredService<ImageSaver>(), sp.GetRequiredService<IClipboard>(), sp.GetRequiredService<IShell>()));
         services.AddSingleton<MacEditorLauncher>();
         services.AddSingleton<IEditorLauncher>(sp => sp.GetRequiredService<MacEditorLauncher>());
+        services.AddSingleton(sp => new SettingsEditor(sp.GetRequiredService<AppSettings>(), sp.GetRequiredService<ISettingsStore>(),
+            sp.GetRequiredService<IFileSystem>(), "/Users/moi/Captures"));
+        services.AddSingleton<SettingsContext>();
+        services.AddSingleton<Func<SettingsWindowController>>(sp => () => new SettingsWindowController(sp.GetRequiredService<SettingsContext>()));
         services.AddSingleton<StatusMenu>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });

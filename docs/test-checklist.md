@@ -128,3 +128,13 @@ Prérequis : `brew install ffmpeg` ; pour le son de l'ordinateur, `brew install 
 - [ ] La vidéo s'ouvre dans la fenêtre d'aperçu et se lit dedans (survol de la barre de temps : aperçu des images ; plein écran) ; `Échap` ferme.
 - [ ] « Afficher dans le Finder » ; « Supprimer » (après confirmation) met la vidéo à la Corbeille ; « Refaire » la met à la Corbeille et relance une vidéo de la même façon.
 - [ ] « Quitter LocalTake » pendant un enregistrement demande s'il faut l'arrêter et garder la vidéo ; « Annuler » laisse l'enregistrement continuer.
+
+### Étape 6 : réglages
+
+- [ ] « Réglages… » ouvre la fenêtre ; pendant qu'elle est ouverte, les raccourcis de LocalTake ne déclenchent pas de capture.
+- [ ] Saisie d'un raccourci avec `Cmd` et `Option` : le champ affiche par exemple `Ctrl+Option+Cmd+K` ; `⌫` le vide ; `Tab` passe au champ suivant.
+- [ ] Un raccourci attribué deux fois est refusé avec un message ; un dossier relatif (`Captures`) aussi.
+- [ ] « Parcourir… » pour le dossier et pour ffmpeg ; le statut d'ffmpeg dit « Détecté : … » quand le champ est vide.
+- [ ] La liste des micros est remplie ; « Enregistrer le son de l'ordinateur » est grisé sans BlackHole.
+- [ ] « Lancer LocalTake à l'ouverture de session » : LocalTake apparaît dans Réglages Système > Général > Ouverture, se lance après redémarrage, puis disparaît une fois la case décochée. (Si macOS refuse, le message s'affiche et le reste est enregistré.)
+- [ ] Après « Enregistrer », les nouveaux raccourcis marchent et s'affichent dans le menu ; les réglages sont conservés après relance.
