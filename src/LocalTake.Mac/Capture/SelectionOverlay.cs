@@ -117,7 +117,7 @@ internal sealed class SelectionOverlay
         {
             // Closed and disposed from .NET: AppKit must not release it a second time.
             ReleaseWhenClosed(false);
-            Opaque = true;
+            IsOpaque = true;
             HasShadow = false;
             AcceptsMouseMovedEvents = true;
         }

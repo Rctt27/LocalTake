@@ -54,7 +54,8 @@ internal sealed class MacNotifications : UNUserNotificationCenterDelegate, INoti
         {
             if (!granted)
             {
-                _log.LogInformation("Notification not shown, not allowed by the user: {Title} ({Error})", title, error?.LocalizedDescription);
+                if (_log.IsEnabled(LogLevel.Information))
+                    _log.LogInformation("Notification not shown, not allowed by the user: {Title} ({Error})", title, error?.LocalizedDescription);
                 return;
             }
             using var content = new UNMutableNotificationContent { Title = title, Body = text };
@@ -63,7 +64,7 @@ internal sealed class MacNotifications : UNUserNotificationCenterDelegate, INoti
             using var request = UNNotificationRequest.FromIdentifier(Guid.NewGuid().ToString("N"), content, null);
             center.AddNotificationRequest(request, failure =>
             {
-                if (failure is not null)
+                if (failure is not null && _log.IsEnabled(LogLevel.Warning))
                     _log.LogWarning("Notification failed: {Error}", failure.LocalizedDescription);
             });
         });
