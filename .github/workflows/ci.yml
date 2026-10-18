@@ -57,6 +57,11 @@ jobs:
   # The macOS app, universal (Apple silicon and Intel), signed ad hoc, to try out on a Mac.
   macos-app:
     runs-on: macos-26
+    env:
+      # Each .NET for macOS requires one Xcode. Workload set 10.0.401 holds .NET for macOS 26.5, which builds with
+      # Xcode 26.5; the newer sets want an Xcode this runner does not have yet. Change both together.
+      MACOS_WORKLOAD_SET: 10.0.401
+      XCODE: /Applications/Xcode_26.5.app
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -64,11 +69,10 @@ jobs:
           global-json-file: global.json
       - name: Select Xcode
         run: |
-          ls -d /Applications/Xcode*.app
-          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$XCODE"
           xcodebuild -version
       - name: Install the macOS workload
-        run: dotnet workload install macos
+        run: dotnet workload install macos --version "$MACOS_WORKLOAD_SET"
       - name: Format
         run: dotnet format LocalTake.Mac.slnx --verify-no-changes
       - name: Build
