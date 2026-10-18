@@ -58,10 +58,10 @@ jobs:
   macos-app:
     runs-on: macos-26
     env:
-      # Each .NET for macOS requires one Xcode. Workload set 10.0.401 holds .NET for macOS 26.5, which builds with
-      # Xcode 26.5; the newer sets want an Xcode this runner does not have yet. Change both together.
+      # Each .NET for macOS requires one Xcode. Workload set 10.0.401 holds .NET for macOS 26.5.10318, which builds with
+      # Xcode 26.6; the newer sets want an Xcode this runner does not have yet. Change both together.
       MACOS_WORKLOAD_SET: 10.0.401
-      XCODE: /Applications/Xcode_26.5.app
+      XCODE: /Applications/Xcode_26.6.app
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
