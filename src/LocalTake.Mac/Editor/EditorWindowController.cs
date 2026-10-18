@@ -152,12 +152,12 @@ internal sealed class EditorWindowController : NSWindowController
         _toolbar.FontSizeChanged += (_, value) => _view.FontSize = value;
         _toolbar.UndoClicked += (_, _) => _view.Undo(null);
         _toolbar.RedoClicked += (_, _) => _view.Redo(null);
-        _toolbar.CopyClicked += (_, _) => Copy();
+        _toolbar.CopyClicked += (_, _) => CopyImage();
         _toolbar.SaveAsClicked += (_, _) => SaveAs();
         _toolbar.SaveClicked += (_, _) => Save();
 
         _view.ToolChanged += (_, _) => _toolbar.Tool = _view.Tool;
-        _view.CopyRequested += (_, _) => Copy();
+        _view.CopyRequested += (_, _) => CopyImage();
         _view.Changed += (_, _) =>
         {
             _dirty = true;
@@ -268,7 +268,7 @@ internal sealed class EditorWindowController : NSWindowController
         }
     }
 
-    private void Copy()
+    private void CopyImage()
     {
         try
         {
@@ -331,6 +331,7 @@ internal sealed class EditorWindowController : NSWindowController
         if (disposing)
         {
             _view.Dispose();
+            _toolbar.Dispose();
             _image.Dispose();
         }
         base.Dispose(disposing);

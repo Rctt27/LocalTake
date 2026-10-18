@@ -7,6 +7,7 @@ using LocalTake.Core.Geometry;
 using LocalTake.Core.Ports;
 using LocalTake.Mac.Adapters;
 using LocalTake.Platform.MacOS;
+using ObjCRuntime;
 
 namespace LocalTake.Mac.Editor;
 
@@ -413,7 +414,6 @@ internal sealed class AnnotationView : NSView
         var size = TextSize;
         var field = new NSTextField(new CGRect(p.X, p.Y, 60, size * 1.4))
         {
-            Font = NSFont.BoldSystemFontOfSize((NFloat)size),
             TextColor = Color,
             BackgroundColor = NSColor.FromSrgb(1f, 1f, 1f, 60f / 255),
             DrawsBackground = true,
@@ -425,6 +425,8 @@ internal sealed class AnnotationView : NSView
             UsesSingleLineMode = false,
             ToolTip = "Entrée : valider · Maj+Entrée : nouvelle ligne"
         };
+        if (NSFont.BoldSystemFontOfSize((NFloat)size) is { } font)
+            field.Font = font;
         field.Changed += (_, _) => Fit(field);
         field.EditingEnded += (_, _) => CommitText();
         // Enter and Escape finish the text; Shift+Enter (or Option+Enter) starts a new line.
@@ -433,7 +435,7 @@ internal sealed class AnnotationView : NSView
             switch (selector.Name)
             {
                 case "insertNewline:" when NSApplication.SharedApplication.CurrentEvent?.ModifierFlags.HasFlag(NSEventModifierMask.ShiftKeyMask) == true:
-                    textView.InsertNewlineIgnoringFieldEditor(textView);
+                    NSApplication.SharedApplication.SendAction(new Selector("insertNewlineIgnoringFieldEditor:"), textView, textView);
                     Fit(field);
                     return true;
                 case "insertNewline:" or "cancelOperation:":

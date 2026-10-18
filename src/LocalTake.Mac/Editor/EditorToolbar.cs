@@ -6,7 +6,7 @@ using LocalTake.Core.Editor;
 namespace LocalTake.Mac.Editor;
 
 /// <summary>The editor's tools, colours, sizes and actions, in one row, as on Windows.</summary>
-internal sealed class EditorToolbar
+internal sealed class EditorToolbar : IDisposable
 {
     private static readonly string[] Palette = ["#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#8E24AA", "#000000", "#FFFFFF"];
     private static readonly double[] Thicknesses = [2, 3, 4, 6, 8, 12];
@@ -101,6 +101,14 @@ internal sealed class EditorToolbar
     {
         get => Tools[(int)Math.Max(0, _tools.SelectedSegment)].Tool;
         set => _tools.SelectedSegment = Array.FindIndex(Tools, t => t.Tool == value);
+    }
+
+    public void Dispose()
+    {
+        _tools.Dispose();
+        _undo.Dispose();
+        _redo.Dispose();
+        View.Dispose();
     }
 
     public void SetUndoState(bool canUndo, bool canRedo)
