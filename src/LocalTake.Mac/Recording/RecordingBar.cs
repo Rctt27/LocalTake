@@ -53,7 +53,8 @@ internal sealed class RecordingBar : NSPanel
         Appearance = NSAppearance.GetAppearance(NSAppearance.NameDarkAqua);
 
         _dot.TextColor = Red;
-        _status.Font = NSFont.MonospacedDigitSystemFontOfSize(13, NSFontWeight.Medium);
+        if (NSFont.MonospacedDigitSystemFontOfSize(13, NSFontWeight.Medium) is { } font)
+            _status.Font = font;
         // Wide enough for "Enregistrement  00:00.0", so that the bar does not resize while the counter runs.
         _status.WidthAnchor.ConstraintGreaterThanOrEqualTo(190).Active = true;
         _microphone = Toggle("Micro", Microphone_Changed);
