@@ -49,6 +49,18 @@ public sealed class MacPlatformTests
         hotkeys.UnregisterAll();
     }
 
+    [Theory]
+    [InlineData(KeyCode.D1, "1")]
+    [InlineData(KeyCode.R, "r")]
+    [InlineData(KeyCode.F1, "")]
+    [InlineData(KeyCode.F12, "")]
+    [InlineData(KeyCode.Space, " ")]
+    public void Menu_shows_a_shortcut_with_its_key_equivalent(KeyCode key, string equivalent) =>
+        MacKeys.KeyEquivalent(key).ShouldBe(equivalent);
+
+    [Fact]
+    public void Key_without_an_equivalent_shows_none() => MacKeys.KeyEquivalent(KeyCode.PrintScreen).ShouldBeNull();
+
     [Fact]
     public void Windows_on_screen_have_a_size()
     {

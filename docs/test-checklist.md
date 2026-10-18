@@ -82,3 +82,17 @@ Si la politique de votre entreprise bloque l'une de ces lignes (app non signée,
 - [ ] Première fois, LocalTake fermée : `--diagnostics` affiche en `[FAIL]` sur « screen capture » le message « LocalTake n'a pas l'autorisation d'enregistrer l'écran… », et macOS propose l'autorisation.
 - [ ] Après avoir coché LocalTake dans Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran : `--diagnostics` affiche « screen capture: 64×64, N colours » avec N supérieur à 1, et « window list » un nombre de fenêtres.
 - [ ] Avec un second écran branché : renvoyez aussi le rapport (les deux écrans seront listés à l'étape 5).
+
+### Étape 3 : captures depuis la barre des menus et les raccourcis
+
+À cette étape, « Ouvrir dans l'éditeur » (réglage par défaut) enregistre la capture dans le dossier : l'éditeur arrive à l'étape 4.
+
+- [ ] Le menu montre les raccourcis à droite des entrées (⌃⇧1, ⌃⇧2, ⌃⇧3, ⌃⇧4).
+- [ ] `Ctrl+Maj+1` (zone) : l'écran se fige, assombri, et couvre aussi la barre des menus et le Dock ; la zone glissée reste claire, avec sa taille en pixels ; `Échap` annule ; un clic sans glisser prend la fenêtre sous le curseur ; `Espace` bascule en mode fenêtre.
+- [ ] `Ctrl+Maj+2` (fenêtre) : la fenêtre au premier plan sous le curseur est prise, pas celle de derrière.
+- [ ] `Ctrl+Maj+3` (tout l'écran) et `Ctrl+Maj+4` (dernière zone, la même qu'à la capture précédente).
+- [ ] Écran Retina : la capture est nette et mesure le double des points (une zone de 100 × 100 points donne 200 × 200 pixels).
+- [ ] Avec un second écran : une capture dessus, et une sélection commencée sur un écran ne déborde pas sur l'autre.
+- [ ] Une notification « Capture enregistrée » apparaît (macOS demande la première fois si LocalTake peut en afficher) ; un clic dessus ouvre le Finder sur le fichier.
+- [ ] Réglage « Après une capture » sur « Copier » (à modifier dans `~/Library/Application Support/LocalTake/settings.json`, `"AfterCapture": "CopyToClipboard"`, LocalTake fermée) : la capture se colle dans Aperçu (Fichier > Nouveau depuis le presse-papiers).
+- [ ] Un raccourci déjà pris par une autre app (par exemple en réglant `"HotkeyRegion": "Cmd+Shift+3"`) : un avertissement le liste au lancement.

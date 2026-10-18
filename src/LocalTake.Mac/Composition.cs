@@ -1,4 +1,6 @@
 using System.IO.Abstractions;
+using LocalTake.Core.Capture;
+using LocalTake.Core.Files;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
@@ -8,6 +10,7 @@ using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
 using LocalTake.Infrastructure.Settings;
 using LocalTake.Mac.Adapters;
+using LocalTake.Mac.Capture;
 using LocalTake.Mac.Platform;
 using LocalTake.Platform.MacOS;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +36,12 @@ internal static class Composition
         services.AddSingleton(sp => sp.GetRequiredService<ISettingsStore>().Load());
 
         // Core
+        services.AddSingleton<OutputPathAllocator>();
+        services.AddSingleton<FileCounter>();
+        services.AddSingleton<ImageSaver>();
+        services.AddSingleton<CaptureDelivery>();
+        services.AddSingleton<CaptureWorkflow>();
+        services.AddSingleton<IRecordingStatus, NoRecording>();
         services.AddSingleton(sp => AppPaths.CreateFfmpegLocator(sp.GetRequiredService<IFileSystem>()));
         // The screens recorded by ffmpeg are wired in with the recording.
         services.AddSingleton<IFfmpegPlatform>(new AvFoundation(static () => []));
@@ -51,6 +60,13 @@ internal static class Composition
         services.AddSingleton<IFileTrash, MacFileTrash>();
         services.AddSingleton<IStartupRegistration, MacStartupRegistration>();
         services.AddSingleton<IGlobalHotkeys>(sp => new MacHotkeys(sp.GetRequiredService<IUiThread>()));
+        services.AddSingleton<MacScreen>();
+        services.AddSingleton<IScreen>(sp => sp.GetRequiredService<MacScreen>());
+        services.AddSingleton<IAreaPicker>(sp => sp.GetRequiredService<MacScreen>());
+        services.AddSingleton<IUserDialogs, MacDialogs>();
+        services.AddSingleton<INotifications, MacNotifications>();
+        services.AddSingleton<IEditorLauncher, SaveInsteadOfEditing>();
+        services.AddSingleton<StatusMenu>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
     }

@@ -104,6 +104,40 @@ public static class MacKeys
     /// <summary>A Mac keyboard has no Print Screen, Pause, Scroll Lock or F21 to F24.</summary>
     public static bool TryGetKeyCode(KeyCode key, out uint code) => Codes.TryGetValue(key, out code);
 
+    /// <summary>
+    /// The character an NSMenuItem shows for the key, as its key equivalent (the function keys use AppKit's private-use
+    /// characters, NSF1FunctionKey and the like). Null when a menu cannot show the key.
+    /// </summary>
+    public static string? KeyEquivalent(KeyCode key) => key switch
+    {
+        >= KeyCode.A and <= KeyCode.Z => ((char)('a' + (key - KeyCode.A))).ToString(),
+        >= KeyCode.D0 and <= KeyCode.D9 => ((char)('0' + (key - KeyCode.D0))).ToString(),
+        >= KeyCode.NumPad0 and <= KeyCode.NumPad9 => ((char)('0' + (key - KeyCode.NumPad0))).ToString(),
+        >= KeyCode.F1 and <= KeyCode.F20 => ((char)(0xF704 + (key - KeyCode.F1))).ToString(),
+        KeyCode.Up => "",
+        KeyCode.Down => "",
+        KeyCode.Left => "",
+        KeyCode.Right => "",
+        KeyCode.Delete => "",
+        KeyCode.Home => "",
+        KeyCode.End => "",
+        KeyCode.PageUp => "",
+        KeyCode.PageDown => "",
+        KeyCode.Space => " ",
+        KeyCode.Enter => "\r",
+        KeyCode.Tab => "\t",
+        KeyCode.Escape => "\u001B",
+        KeyCode.Backspace => "\b",
+        KeyCode.Multiply => "*",
+        KeyCode.Add => "+",
+        KeyCode.Subtract or KeyCode.OemMinus => "-",
+        KeyCode.Decimal or KeyCode.OemPeriod => ".",
+        KeyCode.Divide => "/",
+        KeyCode.OemPlus => "=",
+        KeyCode.OemComma => ",",
+        _ => null
+    };
+
     public static uint Modifiers(HotkeyModifiers modifiers) =>
         (modifiers.HasFlag(HotkeyModifiers.Control) ? Carbon.controlKey : 0) |
         (modifiers.HasFlag(HotkeyModifiers.Alt) ? Carbon.optionKey : 0) |
