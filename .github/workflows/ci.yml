@@ -79,10 +79,14 @@ jobs:
         run: dotnet build src/LocalTake.Mac -c Release
       - name: Sign ad hoc and zip
         run: |
-          app="$(find src/LocalTake.Mac/bin/Release -name LocalTake.app -type d -maxdepth 3 | head -1)"
+          # Each architecture is built in its own folder (osx-arm64, osx-x64), then merged into the universal app here.
+          ls src/LocalTake.Mac/bin/Release/net10.0-macos
+          app=src/LocalTake.Mac/bin/Release/net10.0-macos/LocalTake.app
           codesign --force --deep --sign - "$app"
           codesign --verify --verbose "$app"
-          lipo -archs "$app/Contents/MacOS/LocalTake"
+          archs="$(lipo -archs "$app/Contents/MacOS/LocalTake")"
+          echo "$archs"
+          [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]
           mkdir -p dist
           ditto -c -k --keepParent "$app" dist/LocalTake-macos.zip
       - uses: actions/upload-artifact@v4
