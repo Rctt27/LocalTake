@@ -74,3 +74,11 @@ Pour l'installer : décompresser `LocalTake-macos.zip`, glisser `LocalTake.app` 
 - [ ] LocalTake fermée, dans le Terminal : `/Applications/LocalTake.app/Contents/MacOS/LocalTake --diagnostics`. Renvoyez tout ce qui s'affiche (aussi enregistré dans `~/Library/Logs/LocalTake/diagnostics.txt`). À cette étape, « screen capture » et « computer sound » peuvent être en `[FAIL]` : c'est ce que les étapes suivantes traitent.
 
 Si la politique de votre entreprise bloque l'une de ces lignes (app non signée, Homebrew), on s'arrête là pour en reparler.
+
+### Étape 2 : capture de l'écran
+
+À chaque nouvelle version de l'app, macOS peut redemander les autorisations : c'est normal tant qu'elle n'est pas signée par un développeur identifié.
+
+- [ ] Première fois, LocalTake fermée : `--diagnostics` affiche en `[FAIL]` sur « screen capture » le message « LocalTake n'a pas l'autorisation d'enregistrer l'écran… », et macOS propose l'autorisation.
+- [ ] Après avoir coché LocalTake dans Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran : `--diagnostics` affiche « screen capture: 64×64, N colours » avec N supérieur à 1, et « window list » un nombre de fenêtres.
+- [ ] Avec un second écran branché : renvoyez aussi le rapport (les deux écrans seront listés à l'étape 5).

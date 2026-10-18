@@ -1,0 +1,110 @@
+// Pure geometry: it runs on every OS, although the assembly is marked for macOS.
+#pragma warning disable CA1416
+
+using LocalTake.Core.Geometry;
+using LocalTake.Core.Ports;
+using LocalTake.Platform.MacOS;
+
+namespace LocalTake.Platform.Tests.MacOS;
+
+/// <summary>Cocoa's screens (points, origin at the bottom left of the main screen) laid out in LocalTake's pixels.</summary>
+public sealed class MacScreenSpaceTests
+{
+    private static readonly ScreenFrame Main = new(0, 0, 1440, 900, 2);
+
+    [Fact]
+    public void Single_retina_screen() =>
+        MacScreenSpace.Layout([new ScreenFrame(0, 0, 1512, 982, 2)]).ShouldBe([new PixelRect(0, 0, 3024, 1964)]);
+
+    [Fact]
+    public void Screen_above_the_main_one_has_a_negative_Y()
+    {
+        var layout = MacScreenSpace.Layout([Main, new ScreenFrame(0, 900, 1920, 1080, 1)]);
+
+        layout[0].ShouldBe(new PixelRect(0, 0, 2880, 1800));
+        layout[1].ShouldBe(new PixelRect(0, -2160, 1920, 1080));
+    }
+
+    [Fact]
+    public void Mixed_scales_never_overlap()
+    {
+        var layout = MacScreenSpace.Layout([Main, new ScreenFrame(1440, 0, 1920, 1080, 1)]);
+
+        layout[1].X.ShouldBe(2880);
+        layout[1].Width.ShouldBe(1920);
+        layout[1].Intersect(layout[0]).IsEmpty.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Screen_on_the_left_has_a_negative_X()
+    {
+        var layout = MacScreenSpace.Layout([Main, new ScreenFrame(-1920, 0, 1920, 1080, 1)]);
+
+        layout[1].ShouldBe(new PixelRect(-3840, -360, 1920, 1080));
+        layout[1].Intersect(layout[0]).IsEmpty.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Point_to_pixel_uses_the_screen_scale() =>
+        MacScreenSpace.ToPixel(Main, new PixelRect(0, 0, 2880, 1800), 100, 850).ShouldBe(new PixelPoint(200, 100));
+
+    [Fact]
+    public void Point_on_a_secondary_screen_is_relative_to_its_layout()
+    {
+        var secondary = new ScreenFrame(1440, 0, 1920, 1080, 1);
+        var layout = MacScreenSpace.Layout([Main, secondary]);
+
+        MacScreenSpace.ToPixel(secondary, layout[1], 1440 + 10, 1080 - 20).ShouldBe(new PixelPoint(2880 + 10, -360 + 20));
+    }
+
+    [Fact]
+    public void No_screen_gives_an_empty_layout() => MacScreenSpace.Layout([]).ShouldBeEmpty();
+
+    [Fact]
+    public void Window_frame_on_a_retina_screen_doubles()
+    {
+        ScreenFrame[] screens = [Main];
+
+        MacScreenSpace.FromTopLeftPoints(screens, MacScreenSpace.Layout(screens), 10, 20, 100, 50)
+            .ShouldBe(new PixelRect(20, 40, 200, 100));
+    }
+
+    [Fact]
+    public void Window_frame_uses_the_screen_holding_its_centre()
+    {
+        ScreenFrame[] screens = [Main, new ScreenFrame(1440, 0, 1920, 1080, 1)];
+
+        // Window coordinates have their origin at the top left of the main screen: the right screen starts at Y -180.
+        MacScreenSpace.FromTopLeftPoints(screens, MacScreenSpace.Layout(screens), 1450, -160, 100, 50)
+            .ShouldBe(new PixelRect(2890, -340, 100, 50));
+    }
+
+    [Fact]
+    public void Captures_of_two_screens_make_one_image()
+    {
+        var left = Solid(2, 2, 10);
+        var right = Solid(2, 2, 20);
+
+        var image = MacScreenSpace.Compose(new PixelRect(1, 0, 2, 1),
+            [(new PixelRect(0, 0, 2, 2), left), (new PixelRect(2, 0, 2, 2), right)]);
+
+        image.Width.ShouldBe(2);
+        image.Pixels.ShouldBe(new byte[] { 10, 10, 10, 255, 20, 20, 20, 255 });
+    }
+
+    [Fact]
+    public void Area_outside_every_screen_is_opaque_black()
+    {
+        var image = MacScreenSpace.Compose(new PixelRect(1, 0, 2, 1), [(new PixelRect(0, 0, 2, 2), Solid(2, 2, 10))]);
+
+        image.Pixels[4..].ShouldBe(new byte[] { 0, 0, 0, 255 });
+    }
+
+    private static PixelBuffer Solid(int width, int height, byte value)
+    {
+        var pixels = new byte[width * height * 4];
+        for (var i = 0; i < pixels.Length; i += 4)
+            (pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]) = (value, value, value, 255);
+        return new PixelBuffer(width, height, pixels);
+    }
+}

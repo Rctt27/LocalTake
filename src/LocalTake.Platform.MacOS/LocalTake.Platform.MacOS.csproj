@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    macOS implementations of the core's ports, through the Objective-C runtime, Carbon, CoreGraphics and ImageIO.
-    Like LocalTake.Platform.Windows, it targets net10.0 so that the app builds anywhere and picks it at run time.
+    What the macOS app needs beyond Apple's bindings: Carbon shortcuts, key codes and the screens' geometry.
+    It targets net10.0, so that its geometry is tested on every CI runner.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

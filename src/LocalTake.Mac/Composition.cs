@@ -8,6 +8,7 @@ using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
 using LocalTake.Infrastructure.Settings;
 using LocalTake.Mac.Adapters;
+using LocalTake.Mac.Platform;
 using LocalTake.Platform.MacOS;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -43,6 +44,12 @@ internal static class Composition
         // macOS adapters
         services.AddSingleton<IUiThread>(new MainThread());
         services.AddSingleton<IScreenGrabber, MacScreenGrabber>();
+        services.AddSingleton<INativeWindows, MacNativeWindows>();
+        services.AddSingleton<IClipboard, MacClipboard>();
+        services.AddSingleton<IImageCodec, MacImageCodec>();
+        services.AddSingleton<IShell, MacShell>();
+        services.AddSingleton<IFileTrash, MacFileTrash>();
+        services.AddSingleton<IStartupRegistration, MacStartupRegistration>();
         services.AddSingleton<IGlobalHotkeys>(sp => new MacHotkeys(sp.GetRequiredService<IUiThread>()));
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });

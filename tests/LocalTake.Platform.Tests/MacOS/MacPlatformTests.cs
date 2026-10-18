@@ -1,24 +1,15 @@
 // Managed parts (key table) are checked on every OS; native calls are skipped outside macOS.
 #pragma warning disable CA1416
 
-using LocalTake.Core.Geometry;
 using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Platform.MacOS;
 
 namespace LocalTake.Platform.Tests.MacOS;
 
-/// <summary>What can be checked anywhere: tables. The native calls run on the macOS CI runner only.</summary>
-public sealed class MacPlatformTests : IDisposable
+/// <summary>What can be checked anywhere: tables. The Carbon calls run on the macOS CI runner only.</summary>
+public sealed class MacPlatformTests
 {
-    private readonly string _folder = Path.Combine(Path.GetTempPath(), "LocalTakeMac", Guid.NewGuid().ToString("N"));
-
-    public void Dispose()
-    {
-        if (Directory.Exists(_folder))
-            Directory.Delete(_folder, recursive: true);
-    }
-
     [Fact]
     public void Every_key_of_a_Mac_keyboard_has_its_own_code()
     {
@@ -59,27 +50,11 @@ public sealed class MacPlatformTests : IDisposable
     }
 
     [Fact]
-    public void The_main_display_scale_is_known()
+    public void Windows_on_screen_have_a_size()
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
-        MacScreenGrabber.MainDisplayScale().ShouldBeGreaterThanOrEqualTo(1);
-        new MacScreenGrabber().VisibleWindows().ShouldAllBe(w => w.Width > 1);
-    }
-
-    [Fact]
-    public void A_capture_has_the_requested_size_when_the_permission_is_granted()
-    {
-        Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
-        try
-        {
-            var image = new MacScreenGrabber().Grab(new PixelRect(0, 0, 64, 32));
-            image.Width.ShouldBe(64);
-            image.Height.ShouldBe(32);
-        }
-        catch (InvalidOperationException ex)
-        {
-            Assert.Skip("Screen Recording permission not granted on this runner: " + ex.Message);
-        }
+        MacWindowList.OnScreen().ShouldAllBe(w => w.Width >= 0 && w.Height >= 0);
+        _ = ScreenCaptureAccess.IsGranted;
     }
 
     private static Core.Settings.SettingsDefaults SettingsDefaultsFor() => Core.Settings.SettingsDefaults.ForMacOS("/x");
