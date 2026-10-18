@@ -34,13 +34,13 @@ public sealed class DiagnosticsReportTests : IDisposable
 
     public void Dispose() => _temp.Dispose();
 
-    private async Task<(int Code, string Output)> Run()
+    private async Task<(int Code, string Output)> Run(IDisplays? displays = null)
     {
         var paths = Substitute.For<IAppPaths>();
         paths.SettingsFile.Returns(_temp.File("settings.json"));
         paths.LogsFolder.Returns(_temp.Path);
         var locator = new FfmpegLocator(new FileSystem(), _temp.Path, null, "ffmpeg.exe", []);
-        var report = new DiagnosticsReport(paths, _settings, locator, _platform, _audio, _grabber, _hotkeys, NullLogger<DiagnosticsReport>.Instance);
+        var report = new DiagnosticsReport(paths, _settings, locator, _platform, _audio, _grabber, _hotkeys, NullLogger<DiagnosticsReport>.Instance, displays);
         using var output = new StringWriter();
         var code = await report.RunAsync(output);
         return (code, output.ToString());
@@ -55,6 +55,25 @@ public sealed class DiagnosticsReportTests : IDisposable
         output.ShouldContain("[ok]   ffmpeg");
         output.ShouldContain("[ok]   global shortcut: PrintScreen accepted");
         output.ShouldContain("Everything LocalTake needs is available.");
+    }
+
+    [Fact]
+    public async Task Screens_are_listed()
+    {
+        var displays = Substitute.For<IDisplays>();
+        displays.Screens().Returns([new PixelRect(0, 0, 3024, 1964), new PixelRect(2880, 0, 1920, 1080)]);
+
+        var (_, output) = await Run(displays);
+
+        output.ShouldContain("screens: 0 = 3024×1964 at 0,0; 1 = 1920×1080 at 2880,0");
+    }
+
+    [Fact]
+    public async Task No_screen_line_without_displays()
+    {
+        var (_, output) = await Run();
+
+        output.ShouldNotContain("screens:");
     }
 
     [Fact]

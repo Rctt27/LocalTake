@@ -33,6 +33,15 @@ internal sealed class MacDialogs : IUserDialogs
         };
     }
 
+    /// <summary>Oui, Non; Escape answers Non.</summary>
+    public static bool AskYesNo(string message)
+    {
+        using var alert = Create(message, NSAlertStyle.Warning);
+        alert.AddButton("Oui");
+        alert.AddButton("Non").KeyEquivalent = "\u001B";
+        return (long)alert.RunModal() == (long)NSAlertButtonReturn.First;
+    }
+
     public static void Show(string message, NSAlertStyle style)
     {
         using var alert = Create(message, style);

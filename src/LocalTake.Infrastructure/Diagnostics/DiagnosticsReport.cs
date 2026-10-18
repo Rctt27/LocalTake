@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using LocalTake.Core.Geometry;
 using LocalTake.Core.Hotkeys;
@@ -12,6 +13,7 @@ namespace LocalTake.Infrastructure.Diagnostics;
 /// "LocalTake --diagnostics": checks what LocalTake needs from this computer, without opening any window, and prints
 /// the report (also written to the log). Meant to be attached to a bug report, on macOS especially.
 /// </summary>
+/// <param name="displays">The screens as recording numbers them; macOS only, where they may not follow ffmpeg's order.</param>
 public sealed class DiagnosticsReport(
     IAppPaths paths,
     AppSettings settings,
@@ -20,7 +22,8 @@ public sealed class DiagnosticsReport(
     IAudioDeviceLister audio,
     IScreenGrabber grabber,
     IGlobalHotkeys hotkeys,
-    ILogger<DiagnosticsReport> log)
+    ILogger<DiagnosticsReport> log,
+    IDisplays? displays = null)
 {
     /// <returns>0 when every check passed, otherwise 2.</returns>
     public async Task<int> RunAsync(TextWriter output)
@@ -77,6 +80,10 @@ public sealed class DiagnosticsReport(
             return $"{image.Width}×{image.Height}, {distinct} colours";
         });
         Check("window list", () => $"{grabber.VisibleWindows().Count} windows");
+        // On macOS, the order in which recording numbers the screens: compare with ffmpeg's "Capture screen N".
+        if (displays is not null)
+            Check("screens", () => string.Join("; ", displays.Screens().Select((s, i) =>
+                string.Create(CultureInfo.InvariantCulture, $"{i} = {s.Width}×{s.Height} at {s.X},{s.Y}"))));
 
         Check("global shortcut", () =>
         {

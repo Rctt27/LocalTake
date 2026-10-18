@@ -42,6 +42,27 @@ public static class MacScreenSpace
             laidOut.Y + Round((screen.Y + screen.Height - pointY) * screen.Scale));
     }
 
+    /// <summary>A rectangle of the layout, on <paramref name="screen"/>, as a Cocoa frame in points.</summary>
+    /// <param name="laidOut">The screen's rectangle from <see cref="Layout"/>.</param>
+    /// <returns>The frame, with the screen's scale.</returns>
+    public static ScreenFrame ToCocoa(ScreenFrame screen, PixelRect laidOut, PixelRect rect)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+        var scale = screen.Scale;
+        double width = rect.Width / scale, height = rect.Height / scale;
+        var top = (rect.Y - laidOut.Y) / scale;
+        return new ScreenFrame(screen.X + (rect.X - laidOut.X) / scale, screen.Y + screen.Height - top - height, width, height, scale);
+    }
+
+    /// <summary>A Cocoa frame on <paramref name="screen"/> (its visible frame, for instance) as pixels of the layout.</summary>
+    public static PixelRect FromCocoa(ScreenFrame screen, PixelRect laidOut, ScreenFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+        ArgumentNullException.ThrowIfNull(frame);
+        var origin = ToPixel(screen, laidOut, frame.X, frame.Y + frame.Height);
+        return new PixelRect(origin.X, origin.Y, Round(frame.Width * screen.Scale), Round(frame.Height * screen.Scale));
+    }
+
     /// <summary>
     /// A rectangle in Quartz window coordinates (points, origin at the top left of the main screen, Y going down) as
     /// pixels of the layout, at the scale of the screen holding its centre.

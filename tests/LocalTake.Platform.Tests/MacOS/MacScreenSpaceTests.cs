@@ -80,6 +80,33 @@ public sealed class MacScreenSpaceTests
     }
 
     [Fact]
+    public void Pixels_to_a_Cocoa_frame_on_a_retina_screen()
+    {
+        var frame = MacScreenSpace.ToCocoa(Main, new PixelRect(0, 0, 2880, 1800), new PixelRect(200, 100, 400, 300));
+
+        frame.ShouldBe(new ScreenFrame(100, 700, 200, 150, 2));
+    }
+
+    [Fact]
+    public void Pixels_to_a_Cocoa_frame_on_a_secondary_screen()
+    {
+        var secondary = new ScreenFrame(1440, 0, 1920, 1080, 1);
+        var layout = MacScreenSpace.Layout([Main, secondary]);
+
+        MacScreenSpace.ToCocoa(secondary, layout[1], new PixelRect(2890, -340, 100, 50))
+            .ShouldBe(new ScreenFrame(1450, 1010, 100, 50, 1));
+    }
+
+    [Fact]
+    public void Cocoa_frame_back_to_pixels()
+    {
+        var laidOut = new PixelRect(0, 0, 2880, 1800);
+        var area = new PixelRect(200, 100, 400, 300);
+
+        MacScreenSpace.FromCocoa(Main, laidOut, MacScreenSpace.ToCocoa(Main, laidOut, area)).ShouldBe(area);
+    }
+
+    [Fact]
     public void Captures_of_two_screens_make_one_image()
     {
         var left = Solid(2, 2, 10);

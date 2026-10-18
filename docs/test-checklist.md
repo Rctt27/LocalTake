@@ -87,10 +87,10 @@ Si la politique de votre entreprise bloque l'une de ces lignes (app non signée,
 
 À cette étape, « Ouvrir dans l'éditeur » (réglage par défaut) enregistre la capture dans le dossier : l'éditeur arrive à l'étape 4.
 
-- [ ] Le menu montre les raccourcis à droite des entrées (⌃⇧1, ⌃⇧2, ⌃⇧3, ⌃⇧4).
+- [ ] Le menu montre les raccourcis à droite des entrées (⌃⇧1, ⌃⇧2, ⌃⇧3).
 - [ ] `Ctrl+Maj+1` (zone) : l'écran se fige, assombri, et couvre aussi la barre des menus et le Dock ; la zone glissée reste claire, avec sa taille en pixels ; `Échap` annule ; un clic sans glisser prend la fenêtre sous le curseur ; `Espace` bascule en mode fenêtre.
 - [ ] `Ctrl+Maj+2` (fenêtre) : la fenêtre au premier plan sous le curseur est prise, pas celle de derrière.
-- [ ] `Ctrl+Maj+3` (tout l'écran) et `Ctrl+Maj+4` (dernière zone, la même qu'à la capture précédente).
+- [ ] `Ctrl+Maj+3` (tout l'écran), et « Capturer la dernière zone » dans le menu (la même qu'à la capture précédente ; pas de raccourci par défaut).
 - [ ] Écran Retina : la capture est nette et mesure le double des points (une zone de 100 × 100 points donne 200 × 200 pixels).
 - [ ] Avec un second écran : une capture dessus, et une sélection commencée sur un écran ne déborde pas sur l'autre.
 - [ ] Une notification « Capture enregistrée » apparaît (macOS demande la première fois si LocalTake peut en afficher) ; un clic dessus ouvre le Finder sur le fichier.
@@ -113,3 +113,18 @@ Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"
 - [ ] « Quitter LocalTake » (menu de l'icône ou `⌘Q` dans l'éditeur) avec un éditeur non enregistré pose la question ; « Annuler » garde LocalTake ouvert.
 - [ ] Menu de l'icône : « Ouvrir une image… » et « Coller depuis le presse-papiers » ouvrent l'éditeur.
 - [ ] La couleur, l'épaisseur et la taille du texte choisies sont reprises à l'éditeur suivant.
+
+### Étape 5 : vidéo
+
+Prérequis : `brew install ffmpeg` ; pour le son de l'ordinateur, `brew install blackhole-2ch`, puis un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
+
+- [ ] `--diagnostics` : la ligne « screens » liste les écrans ; collez aussi la sortie de `ffmpeg -f avfoundation -list_devices true -i ""` pour comparer l'ordre des « Capture screen N ».
+- [ ] `Ctrl+Maj+4` (vidéo d'une zone) : la zone se choisit comme une capture ; un cadre rouge l'entoure ; la barre apparaît dessous (ou dessus), se déplace en la glissant, et ne prend pas le clavier à l'application filmée.
+- [ ] Première vidéo avec le micro : macOS demande l'autorisation Micro pour LocalTake ; la vidéo contient la voix, jusqu'au dernier mot avant « Arrêter ».
+- [ ] Avec BlackHole : le bouton « Son du Mac » est actif et le son de l'ordinateur est dans la vidéo ; sans BlackHole, il est grisé et son info-bulle dit quoi installer.
+- [ ] Le cadre rouge et la barre n'apparaissent pas dans la vidéo.
+- [ ] « Enregistrer une vidéo (tout l'écran) » dans le menu ; puis, avec un second écran, une vidéo d'une zone sur le second écran : c'est bien cet écran qui est filmé.
+- [ ] `Ctrl+Maj+R` démarre (compte à rebours 3, 2, 1), `Ctrl+Maj+D` arrête ; « Annuler » n'enregistre rien.
+- [ ] La vidéo s'ouvre dans la fenêtre d'aperçu et se lit dedans (survol de la barre de temps : aperçu des images ; plein écran) ; `Échap` ferme.
+- [ ] « Afficher dans le Finder » ; « Supprimer » (après confirmation) met la vidéo à la Corbeille ; « Refaire » la met à la Corbeille et relance une vidéo de la même façon.
+- [ ] « Quitter LocalTake » pendant un enregistrement demande s'il faut l'arrêter et garder la vidéo ; « Annuler » laisse l'enregistrement continuer.

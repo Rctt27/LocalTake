@@ -3,6 +3,7 @@ using LocalTake.Core.Capture;
 using LocalTake.Core.Files;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
+using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Settings;
 using LocalTake.Infrastructure.Diagnostics;
 using LocalTake.Infrastructure.Logging;
@@ -12,6 +13,7 @@ using LocalTake.Infrastructure.Settings;
 using LocalTake.Mac.Adapters;
 using LocalTake.Mac.Capture;
 using LocalTake.Mac.Editor;
+using LocalTake.Mac.Recording;
 using LocalTake.Mac.Platform;
 using LocalTake.Platform.MacOS;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,17 +44,24 @@ internal static class Composition
         services.AddSingleton<ImageSaver>();
         services.AddSingleton<CaptureDelivery>();
         services.AddSingleton<CaptureWorkflow>();
-        services.AddSingleton<IRecordingStatus, NoRecording>();
         services.AddSingleton(sp => AppPaths.CreateFfmpegLocator(sp.GetRequiredService<IFileSystem>()));
         // The screens recorded by ffmpeg are wired in with the recording.
-        services.AddSingleton<IFfmpegPlatform>(new AvFoundation(static () => []));
+        // ffmpeg numbers the screens in NSScreen's order.
+        services.AddSingleton<IFfmpegPlatform>(sp => new AvFoundation(sp.GetRequiredService<IDisplays>().Screens));
+        // Start and Stop are registered apart from the capture shortcuts, only while a recording is being prepared or made.
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp,
+            (IGlobalHotkeys)new MacHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.MacOS));
+        services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
 
         // Infrastructure
         services.AddSingleton<IAudioDeviceLister, FfmpegAudioDeviceLister>();
+        services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
         services.AddSingleton<DiagnosticsReport>();
 
         // macOS adapters
         services.AddSingleton<IUiThread>(new MainThread());
+        services.AddSingleton<IDisplays, MacDisplays>();
+        services.AddSingleton<IRecordingViewFactory, MacRecordingViewFactory>();
         services.AddSingleton<IScreenGrabber, MacScreenGrabber>();
         services.AddSingleton<INativeWindows, MacNativeWindows>();
         services.AddSingleton<IClipboard, MacClipboard>();

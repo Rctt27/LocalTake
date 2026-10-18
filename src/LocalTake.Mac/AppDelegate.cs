@@ -1,6 +1,5 @@
 using AppKit;
 using Foundation;
-using LocalTake.Mac.Editor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -25,11 +24,9 @@ internal sealed class AppDelegate : NSApplicationDelegate
         _services.GetRequiredService<StatusMenu>();
     }
 
-    /// <summary>Quitting asks about every capture not saved yet, and "Annuler" keeps LocalTake running.</summary>
+    /// <summary>Quitting stops a recording and asks about every capture not saved yet; "Annuler" keeps LocalTake running.</summary>
     public override NSApplicationTerminateReply ApplicationShouldTerminate(NSApplication sender) =>
-        _services?.GetService<MacEditorLauncher>()?.CloseAll() == false
-            ? NSApplicationTerminateReply.Cancel
-            : NSApplicationTerminateReply.Now;
+        _services?.GetService<StatusMenu>()?.ShouldTerminate() ?? NSApplicationTerminateReply.Now;
 
     public override void WillTerminate(NSNotification notification) => _services?.Dispose();
 
