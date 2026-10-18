@@ -59,7 +59,7 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 
 ## macOS
 
-L'application macOS se construit par étapes (`docs/superpowers/plans/2026-10-17-macos-native.md`). Chaque étape ajoute sa partie ci-dessous ; on la vérifie avec l'artefact `LocalTake-macos` de la CI (onglet *Actions* du dépôt, dernier passage de la branche, section *Artifacts*).
+Avec `LocalTake-x.y.z-macos.zip` d'une release, ou l'artefact `LocalTake-macos` de la CI (onglet *Actions* du dépôt, dernier passage de la branche, section *Artifacts*). Les étapes suivent l'ordre de construction de l'app (`docs/superpowers/plans/2026-10-17-macos-native.md`) ; ensemble, elles forment la checklist macOS complète d'une release.
 
 Pour l'installer : décompresser `LocalTake-macos.zip`, glisser `LocalTake.app` dans Applications, puis clic droit > Ouvrir > Ouvrir (l'app n'est pas signée par un développeur identifié ; macOS ne le demande qu'une fois). Si macOS refuse sans proposer « Ouvrir » : Réglages Système > Confidentialité et sécurité > « Ouvrir quand même ».
 
@@ -68,7 +68,7 @@ Pour l'installer : décompresser `LocalTake-macos.zip`, glisser `LocalTake.app` 
 - [ ] Version de macOS (menu Pomme > À propos de ce Mac) : 14 (Sonoma) ou plus récente. Notez-la, ainsi que la puce (Apple ou Intel).
 - [ ] L'app s'ouvre par clic droit > Ouvrir.
 - [ ] L'icône de LocalTake est dans la barre des menus, en noir ou en blanc selon le thème, et pas dans le Dock.
-- [ ] Le menu de l'icône affiche « LocalTake 0.2.0 » (grisé) et « Quitter LocalTake », qui ferme l'app.
+- [ ] Le menu de l'icône affiche « LocalTake » suivi de la version (grisé) et « Quitter LocalTake », qui ferme l'app.
 - [ ] Un second lancement, LocalTake déjà ouverte, ne crée pas de seconde icône.
 - [ ] `brew install ffmpeg` fonctionne (ou ffmpeg est déjà là : `ffmpeg -version`).
 - [ ] LocalTake fermée, dans le Terminal : `/Applications/LocalTake.app/Contents/MacOS/LocalTake --diagnostics`. Renvoyez tout ce qui s'affiche (aussi enregistré dans `~/Library/Logs/LocalTake/diagnostics.txt`). À cette étape, « screen capture » et « computer sound » peuvent être en `[FAIL]` : c'est ce que les étapes suivantes traitent.

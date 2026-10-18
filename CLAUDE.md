@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-LocalTake is a tray screen-capture and screen-recording tool for Windows (a macOS app is planned: `docs/superpowers/plans/2026-10-17-macos-native.md`), modelled on TinyTake, with every remote feature removed. **Captures must never leave the machine**: no network calls, no upload, no telemetry. This is also why the default Windows output folder avoids a OneDrive-synced Pictures folder (`AppPaths.WindowsOutputFolder`), why ffmpeg is never downloaded, and why the log is a local file only.
+LocalTake is a tray (Windows) and menu bar (macOS) screen-capture and screen-recording tool, modelled on TinyTake, with every remote feature removed. **Captures must never leave the machine**: no network calls, no upload, no telemetry. This is also why the default Windows output folder avoids a OneDrive-synced Pictures folder (`AppPaths.WindowsOutputFolder`), why ffmpeg is never downloaded, and why the log is a local file only.
 
 UI strings are French; code and comments are English.
 
@@ -23,9 +23,17 @@ dotnet format LocalTake.slnx                          # apply the style
 dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ```
 
+The macOS app builds on a Mac only, with Xcode and the `macos` workload; `LocalTake.Mac.slnx` holds it with the projects it uses. Each .NET for macOS requires one Xcode: CI pins workload set `10.0.401` (.NET for macOS 26.5) with Xcode 26.6, in `ci.yml` and `release.yml` alike; change both together.
+
+```
+dotnet workload install macos --version 10.0.401
+dotnet build src/LocalTake.Mac                        # bin/Release/net10.0-macos/LocalTake.app, universal (arm64 and x86_64)
+LocalTake.app/Contents/MacOS/LocalTake --diagnostics
+```
+
 Package versions are managed centrally in `Directory.Packages.props`: a `PackageReference` in a project carries no version.
 
-Only one instance can run (named mutex): kill `LocalTake` before running again, otherwise a new launch exits immediately. Global shortcuts fail to register while TinyTake or another capture tool holds them.
+Only one instance can run (a named mutex on Windows, the bundle identifier on macOS): kill `LocalTake` before running again, otherwise a new launch exits immediately. Global shortcuts fail to register while TinyTake or another capture tool holds them.
 
 The UI on a real screen is verified by hand with `docs/test-checklist.md`. To check a recording, `ffmpeg -i file.mp4` lists its streams and `-af volumedetect -f null -` measures its audio. Settings and log locations are in README.md.
 
@@ -33,7 +41,8 @@ The UI on a real screen is verified by hand with `docs/test-checklist.md`. To ch
 
 - `tests/LocalTake.Core.Tests`: unit tests of the core, without I/O (MockFileSystem, FakeTimeProvider, fakes in `Fakes.cs`). CI requires 90 % line coverage of the core.
 - `tests/LocalTake.Infrastructure.IntegrationTests`: real files and a real ffmpeg, which records its own test sources (`lavfi`) with the production encoding. Tests needing ffmpeg skip themselves when it is not installed; CI installs it.
-- `tests/LocalTake.Platform.Tests`: each platform's adapters, run on that platform (CI runs Windows and macOS); tables and files are checked everywhere.
+- `tests/LocalTake.Platform.Tests`: each platform's adapters, run on that platform (CI runs Windows and macOS); tables, files and the macOS screen geometry (`MacScreenSpace`) are checked everywhere.
+- The macOS app has no automated tests (no reliable `net10.0-macos` test host in CI): logic worth a test goes to the core or `LocalTake.Platform.MacOS`, and the app is checked by hand with the macOS part of `docs/test-checklist.md`, using the CI artifact `LocalTake-macos`.
 - `tests/LocalTake.Windows.Tests` (Windows only): the WPF adapters and windows, off screen on one STA thread hosting `App` without starting it (`Sta.Run`); the editor's export is checked pixel by pixel.
 - `tests/fixtures/legacy`: the behaviour of v0.1.0 (file names, shortcuts, ffmpeg command lines, settings files), recorded from the original code. Characterization tests compare against it; never regenerate it, and make a deliberate change in the test with a comment.
 - New behaviour starts with a failing test.
@@ -44,16 +53,17 @@ The UI on a real screen is verified by hand with `docs/test-checklist.md`. To ch
 
 - While the major version is 0 (initial development), MINOR is for new features and behaviour changes, including breaking ones; PATCH is for fixes only. 1.0.0 is decided by the user.
 - What counts as the public interface: the shortcuts, the settings in `settings.json` (an older file must keep loading) and the file names produced.
-- To release: bump `<Version>`, commit `Release vX.Y.Z`, tag `vX.Y.Z` on `main` and push both. `.github/workflows/release.yml` builds the Windows exe and creates the GitHub release; it refuses a tag that does not match `<Version>`.
+- To release: bump `<Version>`, commit `Release vX.Y.Z`, tag `vX.Y.Z` on `main` and push both. `.github/workflows/release.yml` builds the Windows exe and the macOS app (zipped, signed ad hoc, neither notarized nor signed with a Developer ID) and creates the GitHub release; it refuses a tag that does not match `<Version>`.
 
 ## Architecture
 
-A shared core, and one native app per operating system (only Windows so far). Keep every rule that can be tested in the core, so that each app stays views and adapters.
+A shared core, and one native app per operating system. Keep every rule that can be tested in the core, so that each app stays views and adapters.
 
 - `src/LocalTake.Core` (`net10.0`, no UI framework, no OS API): the rules and use cases. `Capture/` (`CaptureWorkflow`, `CaptureDelivery`, `SelectionModel`), `Recording/` (`RecordingSession`, `RecordingCommand`, `FfmpegLocator`, and the ffmpeg inputs of each OS: `DirectShowGdigrab`, `AvFoundation`), `Files/` (`FileNamePattern`, `OutputPathAllocator`, `FileCounter`, `ImageSaver`), `Editor/` (`EditorGeometry`, `UndoHistory`), `Hotkeys/` (`Hotkey`, `KeyCode`), `Settings/` (`AppSettings`, `SettingsDefaults`, `SettingsEditor`). Everything platform-specific is an interface in `Ports/`; images cross ports as opaque `IImage` or as `PixelBuffer` (BGRA, straight alpha), which also crops and pixelates.
 - `src/LocalTake.Infrastructure` (portable): `JsonSettingsStore`, the ffmpeg processes (`FfmpegVideoRecorder`, `FfmpegAudioDeviceLister`), `FileLoggerProvider`, `AppPaths`, and `DiagnosticsReport` (`--diagnostics`).
-- `src/LocalTake.Platform.Windows`: the Win32 ports in `LibraryImport` (shortcuts, screen grab and window list, clipboard, Recycle Bin, Run key, Explorer, window display affinity). `src/LocalTake.Platform.MacOS`: Carbon shortcuts and key codes, kept for the macOS app.
+- `src/LocalTake.Platform.Windows`: the Win32 ports in `LibraryImport` (shortcuts, screen grab and window list, clipboard, Recycle Bin, Run key, Explorer, window display affinity). `src/LocalTake.Platform.MacOS` (`net10.0`, tested on every runner): what Apple's bindings do not cover, Carbon shortcuts and key codes, the window list, and the screens' geometry (`MacScreenSpace`).
 - `src/LocalTake.Windows` (WPF, `net10.0-windows`, `AssemblyName` LocalTake): the views and the WPF adapters (`Adapters/`). `App.ConfigureServices` is the composition root. WinForms is used for `NotifyIcon` and for the overlay and frame windows.
+- `src/LocalTake.Mac` (`net10.0-macos`, AppKit and AVKit, `LSUIElement`: no Dock icon): `StatusMenu` (the menu bar icon, as `TrayController`), `Capture/` (one overlay window per screen), `Editor/`, `Recording/`, `Video/` (an `AVPlayerView`), `Settings/`, and the adapters on Apple's APIs (`Platform/`: ScreenCaptureKit, NSPasteboard, Trash, `SMAppService`; `Adapters/`). `Composition.Build` is the composition root. A main menu, invisible in a menu bar app, gives the editor ⌘S, ⌘Z, ⌘C and ⌘Q through the responder chain.
 
 Flow: `App` → `TrayController` (tray menu, global shortcuts) → `CaptureWorkflow` or `RecordingSession`. A capture freezes the virtual desktop (`IScreenGrabber`), shows `SelectionOverlay`, then crops the frozen pixels; `CaptureDelivery` applies `AfterCaptureAction` (open the editor, save, copy, or save and copy).
 
@@ -62,6 +72,12 @@ Flow: `App` → `TrayController` (tray menu, global shortcuts) → `CaptureWorkf
 - Every screen coordinate is in **physical pixels** (`PixelRect`): virtual desktop, monitors, windows, overlay input, saved region. The process is Per-Monitor-V2 aware (`app.manifest`).
 - `SelectionOverlay` is one borderless form over the whole virtual desktop, drawing the frozen screenshot; its rules are `SelectionModel`'s.
 - The editor canvas is sized in image pixels (bitmaps at 96 DPI, so one WPF unit is one pixel). Export (`EditorWindow.RenderImage`) renders the canvas through a `VisualBrush` at exactly the image's pixel size, independent of zoom and scroll. Sizes chosen in the toolbar (stroke, font, badge, blur block) are multiplied by the monitor's DPI scale; zoom is shown relative to screen pixels.
+
+### macOS screens
+
+- macOS works in points, with Cocoa's origin at the bottom left of the main screen; screens may have different scales. `MacScreenSpace.Layout` lays them out in pixels, origin at the top left of the main screen: origins scaled by the largest scale, sizes by each screen's own, so each keeps its full resolution and none overlap (gaps between them stay black in a capture). `ToPixel`, `ToCocoa` and `FromCocoa` convert; `FromTopLeftPoints` converts Quartz window frames.
+- A capture takes one ScreenCaptureKit screenshot per screen and assembles them (`MacScreenSpace.Compose`). Without the Screen Recording permission it throws a message saying where to grant it. The window list comes from `CGWindowListCopyWindowInfo`, the only one ordered front to back.
+- A selection stays on the screen where it started. ffmpeg numbers screens in `NSScreen.Screens`' order (`IDisplays`, printed by `--diagnostics`).
 
 ### Editor (`EditorWindow`)
 

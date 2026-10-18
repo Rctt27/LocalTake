@@ -1,6 +1,6 @@
 name: Release
 
-# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and publishes it as a GitHub release.
+# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and macOS and publishes both as a GitHub release.
 on:
   push:
     tags: ['v*.*.*']
@@ -29,8 +29,36 @@ jobs:
           name: windows
           path: dist/*.exe
 
+  # The same build as the CI's macos-app job; keep the workload set and Xcode in step with it.
+  macos:
+    runs-on: macos-26
+    env:
+      MACOS_WORKLOAD_SET: 10.0.401
+      XCODE: /Applications/Xcode_26.6.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: sudo xcode-select -s "$XCODE"
+      - run: dotnet workload install macos --version "$MACOS_WORKLOAD_SET"
+      - run: dotnet build src/LocalTake.Mac -c Release
+      - name: Sign ad hoc and zip, named after the version
+        run: |
+          app=src/LocalTake.Mac/bin/Release/net10.0-macos/LocalTake.app
+          codesign --force --deep --sign - "$app"
+          codesign --verify --verbose "$app"
+          archs="$(lipo -archs "$app/Contents/MacOS/LocalTake")"
+          [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]
+          mkdir -p dist
+          ditto -c -k --keepParent "$app" "dist/LocalTake-${GITHUB_REF_NAME#v}-macos.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.zip
+
   publish:
-    needs: [windows]
+    needs: [windows, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
