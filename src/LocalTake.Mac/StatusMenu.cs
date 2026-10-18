@@ -1,5 +1,5 @@
-using AVFoundation;
 using AppKit;
+using AVFoundation;
 using Foundation;
 using LocalTake.Core.Capture;
 using LocalTake.Core.Hotkeys;
