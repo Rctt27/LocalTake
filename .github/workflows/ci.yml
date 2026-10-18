@@ -54,6 +54,38 @@ jobs:
       - name: Platform tests
         run: dotnet test --project tests/LocalTake.Platform.Tests -c Release
 
+  # The macOS app, universal (Apple silicon and Intel), signed ad hoc, to try out on a Mac.
+  macos-app:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Select Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          xcodebuild -version
+      - name: Install the macOS workload
+        run: dotnet workload install macos
+      - name: Format
+        run: dotnet format LocalTake.Mac.slnx --verify-no-changes
+      - name: Build
+        run: dotnet build src/LocalTake.Mac -c Release
+      - name: Sign ad hoc and zip
+        run: |
+          app="$(find src/LocalTake.Mac/bin/Release -name LocalTake.app -type d -maxdepth 3 | head -1)"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --verbose "$app"
+          lipo -archs "$app/Contents/MacOS/LocalTake"
+          mkdir -p dist
+          ditto -c -k --keepParent "$app" dist/LocalTake-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalTake-macos
+          path: dist/LocalTake-macos.zip
+
   # The Windows build to try out.
   package-windows:
     needs: windows
