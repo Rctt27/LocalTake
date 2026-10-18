@@ -116,7 +116,7 @@ internal sealed class SelectionOverlay
         public OverlayWindow(CGRect frame) : base(frame, NSWindowStyle.Borderless, NSBackingStore.Buffered, false)
         {
             // Closed and disposed from .NET: AppKit must not release it a second time.
-            ReleasedWhenClosed = false;
+            ReleaseWhenClosed(false);
             Opaque = true;
             HasShadow = false;
             AcceptsMouseMovedEvents = true;
