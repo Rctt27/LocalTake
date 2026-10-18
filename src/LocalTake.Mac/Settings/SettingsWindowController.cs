@@ -116,7 +116,7 @@ internal sealed class SettingsWindowController : NSWindowController
 
     // ---- Layout ---------------------------------------------------------------------------------------------
 
-    private NSView Build()
+    private NSStackView Build()
     {
         var hotkeyTitles = new[]
         {
@@ -172,7 +172,7 @@ internal sealed class SettingsWindowController : NSWindowController
         return form;
     }
 
-    private static NSView Section(string title)
+    private static NSTextField Section(string title)
     {
         var label = NSTextField.CreateLabel(title);
         if (NSFont.BoldSystemFontOfSize(13) is { } font)
