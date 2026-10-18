@@ -114,5 +114,21 @@ public static class MacScreenSpace
         return new PixelBuffer(area.Width, area.Height, pixels);
     }
 
+    /// <summary>
+    /// The order ffmpeg numbers the screens "Capture screen N" in: CGGetActiveDisplayList's, which need not be
+    /// NSScreen's. Screens it does not list keep their order, after the others.
+    /// </summary>
+    /// <param name="screens">Each screen's display identifier, in NSScreen's order.</param>
+    /// <param name="displayList">The active displays, in CGGetActiveDisplayList's order.</param>
+    /// <returns>Indexes into <paramref name="screens"/>.</returns>
+    public static IReadOnlyList<int> InDisplayOrder(IReadOnlyList<uint> screens, IReadOnlyList<uint> displayList)
+    {
+        ArgumentNullException.ThrowIfNull(screens);
+        ArgumentNullException.ThrowIfNull(displayList);
+        return [.. Enumerable.Range(0, screens.Count)
+            .OrderBy(i => displayList.ToList().IndexOf(screens[i]) is var at and >= 0 ? at : int.MaxValue)
+            .ThenBy(i => i)];
+    }
+
     private static int Round(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 }

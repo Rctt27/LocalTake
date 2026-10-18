@@ -73,6 +73,30 @@ public sealed class MacPlatformTests
     public void Key_without_an_equivalent_shows_none() => MacKeys.KeyEquivalent(KeyCode.PrintScreen).ShouldBeNull();
 
     [Fact]
+    public void A_shortcut_already_registered_is_refused()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
+        Hotkey.TryParse("Ctrl+Alt+Shift+F18", out var hotkey).ShouldBeTrue();
+        using var first = new MacHotkeys(new ImmediateUiThread());
+        using var second = new MacHotkeys(new ImmediateUiThread());
+
+        first.Register(hotkey, () => { }).ShouldBeTrue();
+        second.Register(hotkey, () => { }).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_shortcut_of_macOS_is_refused()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
+        // Cmd+Shift+3 takes a screenshot, unless turned off in System Settings > Keyboard > Keyboard Shortcuts.
+        Assert.SkipUnless(MacKeys.IsSystemShortcut(0x14, MacKeys.Modifiers(HotkeyModifiers.Meta | HotkeyModifiers.Shift)), "Turned off on this Mac.");
+        Hotkey.TryParse("Cmd+Shift+3", out var hotkey).ShouldBeTrue();
+        using var hotkeys = new MacHotkeys(new ImmediateUiThread());
+
+        hotkeys.Register(hotkey, () => { }).ShouldBeFalse();
+    }
+
+    [Fact]
     public void Windows_on_screen_have_a_size()
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");

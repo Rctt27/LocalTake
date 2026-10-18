@@ -143,6 +143,46 @@ public static class MacKeys
         _ => null
     };
 
+    /// <summary>
+    /// Whether macOS uses this key and these Carbon modifiers for one of its own shortcuts, enabled in System Settings
+    /// > Keyboard > Keyboard Shortcuts (Cmd+Shift+3 for a screenshot, for instance). Registering it would succeed but
+    /// never fire.
+    /// </summary>
+    public static unsafe bool IsSystemShortcut(uint code, uint modifiers)
+    {
+        if (Carbon.CopySymbolicHotKeys(out var list) != 0 || list == 0)
+            return false;
+        var codeKey = Quartz.CFString("kHISymbolicHotKeyCode");
+        var modifiersKey = Quartz.CFString("kHISymbolicHotKeyModifiers");
+        var enabledKey = Quartz.CFString("kHISymbolicHotKeyEnabled");
+        try
+        {
+            var count = Quartz.CFArrayGetCount(list);
+            for (nint i = 0; i < count; i++)
+            {
+                var entry = Quartz.CFArrayGetValueAtIndex(list, i);
+                int entryCode = -1, entryModifiers = -1;
+                var enabled = Quartz.CFDictionaryGetValue(entry, enabledKey);
+                var codeValue = Quartz.CFDictionaryGetValue(entry, codeKey);
+                var modifiersValue = Quartz.CFDictionaryGetValue(entry, modifiersKey);
+                if (enabled == 0 || !Quartz.CFBooleanGetValue(enabled) || codeValue == 0 || modifiersValue == 0)
+                    continue;
+                Quartz.CFNumberGetValue(codeValue, Quartz.kCFNumberSInt32Type, &entryCode);
+                Quartz.CFNumberGetValue(modifiersValue, Quartz.kCFNumberSInt32Type, &entryModifiers);
+                if (entryCode == code && entryModifiers == modifiers)
+                    return true;
+            }
+            return false;
+        }
+        finally
+        {
+            Quartz.CFRelease(codeKey);
+            Quartz.CFRelease(modifiersKey);
+            Quartz.CFRelease(enabledKey);
+            Quartz.CFRelease(list);
+        }
+    }
+
     public static uint Modifiers(HotkeyModifiers modifiers) =>
         (modifiers.HasFlag(HotkeyModifiers.Control) ? Carbon.controlKey : 0) |
         (modifiers.HasFlag(HotkeyModifiers.Alt) ? Carbon.optionKey : 0) |

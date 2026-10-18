@@ -58,6 +58,19 @@ public sealed class MacScreenSpaceTests
     }
 
     [Fact]
+    public void Screens_follow_the_display_list_ffmpeg_numbers()
+    {
+        // NSScreen lists 5 then 9; ffmpeg's "Capture screen 0" is display 9.
+        MacScreenSpace.InDisplayOrder([5, 9], [9, 5]).ShouldBe([1, 0]);
+    }
+
+    [Fact]
+    public void Screens_missing_from_the_display_list_come_last()
+    {
+        MacScreenSpace.InDisplayOrder([5, 7, 9], [9]).ShouldBe([2, 0, 1]);
+    }
+
+    [Fact]
     public void No_screen_gives_an_empty_layout() => MacScreenSpace.Layout([]).ShouldBeEmpty();
 
     [Fact]

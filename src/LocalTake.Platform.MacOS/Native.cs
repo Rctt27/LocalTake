@@ -40,6 +40,13 @@ internal static unsafe partial class Quartz
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool CFNumberGetValue(nint number, int type, void* value);
 
+    [LibraryImport(CoreFoundation)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static partial bool CFBooleanGetValue(nint boolean);
+
+    [LibraryImport(CoreGraphics)]
+    public static partial int CGGetActiveDisplayList(uint maxDisplays, uint* displays, out uint displayCount);
+
     [LibraryImport(CoreGraphics)]
     public static partial nint CGWindowListCopyWindowInfo(uint option, uint relativeToWindow);
 
@@ -99,6 +106,10 @@ internal static unsafe partial class Carbon
 
     [LibraryImport(Library)]
     public static partial int UnregisterEventHotKey(nint hotKeyRef);
+
+    /// <summary>The shortcuts of macOS itself, as a CFArray of CFDictionary; released by the caller.</summary>
+    [LibraryImport(Library)]
+    public static partial int CopySymbolicHotKeys(out nint hotKeys);
 
     [LibraryImport(Library)]
     public static partial int GetEventParameter(nint evt, uint name, uint type, nint outActualType, nuint bufferSize, nint outActualSize, void* outData);
