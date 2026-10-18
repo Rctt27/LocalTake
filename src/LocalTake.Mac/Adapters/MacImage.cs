@@ -47,7 +47,7 @@ internal sealed class MacImage(CGImage image) : IImage
     {
         using (source)
         {
-            using var image = source?.CreateImage(0, (CGImageOptions?)null);
+            using var image = source?.CreateImage(0, new CGImageOptions());
             return image is null ? null : FromPixels(ToPixels(image));
         }
     }

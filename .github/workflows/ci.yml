@@ -73,10 +73,10 @@ jobs:
           xcodebuild -version
       - name: Install the macOS workload
         run: dotnet workload install macos --version "$MACOS_WORKLOAD_SET"
-      - name: Format
-        run: dotnet format LocalTake.Mac.slnx --verify-no-changes
       - name: Build
         run: dotnet build src/LocalTake.Mac -c Release
+      - name: Format
+        run: dotnet format LocalTake.Mac.slnx --verify-no-changes
       - name: Sign ad hoc and zip
         run: |
           # Each architecture is built in its own folder (osx-arm64, osx-x64), then merged into the universal app here.
