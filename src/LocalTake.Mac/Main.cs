@@ -31,6 +31,7 @@ internal static class Program
             return;
 
         app.ActivationPolicy = NSApplicationActivationPolicy.Accessory;
+        app.MainMenu = MainMenu.Create();
         app.Delegate = new AppDelegate();
         app.Run();
     }

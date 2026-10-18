@@ -1,5 +1,7 @@
 using AppKit;
+using Foundation;
 using LocalTake.Core.Ports;
+using UniformTypeIdentifiers;
 
 namespace LocalTake.Mac.Adapters;
 
@@ -14,21 +16,24 @@ internal sealed class MacDialogs : IUserDialogs
 
     public void ShowInfo(string message) => Show(message, NSAlertStyle.Informational);
 
-    public Task<DialogAnswer> AskYesNoCancelAsync(string message)
+    public Task<DialogAnswer> AskYesNoCancelAsync(string message) => Task.FromResult(AskYesNoCancel(message));
+
+    /// <summary>Oui, Non, Annuler; Escape answers Annuler.</summary>
+    public static DialogAnswer AskYesNoCancel(string message)
     {
         using var alert = Create(message, NSAlertStyle.Warning);
         alert.AddButton("Oui");
         alert.AddButton("Non");
         alert.AddButton("Annuler").KeyEquivalent = "\u001B";
-        return Task.FromResult((long)alert.RunModal() switch
+        return (long)alert.RunModal() switch
         {
             (long)NSAlertButtonReturn.First => DialogAnswer.Yes,
             (long)NSAlertButtonReturn.Second => DialogAnswer.No,
             _ => DialogAnswer.Cancel
-        });
+        };
     }
 
-    private static void Show(string message, NSAlertStyle style)
+    public static void Show(string message, NSAlertStyle style)
     {
         using var alert = Create(message, style);
         alert.RunModal();
@@ -38,5 +43,33 @@ internal sealed class MacDialogs : IUserDialogs
     {
         NSApplication.SharedApplication.Activate();
         return new NSAlert { AlertStyle = style, MessageText = Title, InformativeText = message };
+    }
+
+    /// <summary>"Ouvrir une image…": a PNG, JPEG, TIFF, HEIC or any image macOS reads.</summary>
+    public static string? AskImageToOpen(string initialDirectory)
+    {
+        NSApplication.SharedApplication.Activate();
+        using var panel = NSOpenPanel.OpenPanel;
+        panel.AllowedContentTypes = [UTTypes.Image];
+        panel.CanChooseDirectories = false;
+        panel.AllowsMultipleSelection = false;
+        if (Directory.Exists(initialDirectory))
+            panel.DirectoryUrl = NSUrl.FromFilename(initialDirectory);
+        return panel.RunModal() == 1 ? panel.Url?.Path : null;
+    }
+}
+
+/// <summary>The "Enregistrer sous…" panel, PNG or JPEG after the extension typed.</summary>
+internal sealed class MacSaveFileDialog : ISaveFileDialog
+{
+    public Task<string?> AskAsync(string suggestedName, bool jpeg, string initialDirectory)
+    {
+        using var panel = NSSavePanel.SavePanel;
+        panel.AllowedContentTypes = jpeg ? [UTTypes.Jpeg, UTTypes.Png] : [UTTypes.Png, UTTypes.Jpeg];
+        panel.NameFieldStringValue = suggestedName + (jpeg ? ".jpg" : ".png");
+        panel.CanCreateDirectories = true;
+        if (Directory.Exists(initialDirectory))
+            panel.DirectoryUrl = NSUrl.FromFilename(initialDirectory);
+        return Task.FromResult(panel.RunModal() == 1 ? panel.Url?.Path : null);
     }
 }

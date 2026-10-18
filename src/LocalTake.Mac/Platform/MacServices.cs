@@ -52,6 +52,14 @@ internal sealed class MacClipboard : IClipboard
         pasteboard.SetStringForType(text, Text);
     }
 
+    /// <summary>The image on the pasteboard at its full pixel size, or null when there is none.</summary>
+    public static MacImage? GetImage()
+    {
+        var pasteboard = NSPasteboard.GeneralPasteboard;
+        var data = pasteboard.GetDataForType(Png) ?? pasteboard.GetDataForType(Tiff);
+        return data is null ? null : MacImage.Decode(data);
+    }
+
 }
 
 /// <summary>The Finder.</summary>

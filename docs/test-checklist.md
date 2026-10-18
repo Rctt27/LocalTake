@@ -96,3 +96,20 @@ Si la politique de votre entreprise bloque l'une de ces lignes (app non signée,
 - [ ] Une notification « Capture enregistrée » apparaît (macOS demande la première fois si LocalTake peut en afficher) ; un clic dessus ouvre le Finder sur le fichier.
 - [ ] Réglage « Après une capture » sur « Copier » (à modifier dans `~/Library/Application Support/LocalTake/settings.json`, `"AfterCapture": "CopyToClipboard"`, LocalTake fermée) : la capture se colle dans Aperçu (Fichier > Nouveau depuis le presse-papiers).
 - [ ] Un raccourci déjà pris par une autre app (par exemple en réglant `"HotkeyRegion": "Cmd+Shift+3"`) : un avertissement le liste au lancement.
+
+### Étape 4 : éditeur
+
+Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"AfterCapture": "OpenEditor"`).
+
+- [ ] Une capture s'ouvre dans l'éditeur, à sa taille réelle si elle tient à l'écran, nette sur un écran Retina ; « 1:1 » affiche 100 %.
+- [ ] Chaque outil avec sa touche : V (sélection, déplacer, `Suppr` ou `⌫` pour effacer), A, L, R, E, P, H, T, N, B, C ; `Maj` contraint (flèche et ligne à 45°, carré, cercle, trait droit).
+- [ ] Texte : `Entrée` valide, `Maj+Entrée` passe à la ligne ; `⌘C`/`⌘V` fonctionnent pendant la saisie.
+- [ ] Numérotation : 1, 2, 3 ; effacer le 2 puis ajouter donne 4.
+- [ ] Recadrer, puis `⌘Z` : l'image et les annotations reviennent ; `⇧⌘Z` refait.
+- [ ] Flou : la zone est pixelisée à l'écran comme dans le fichier exporté.
+- [ ] `⌘S` enregistre (PNG, puis JPEG en réglant `"Format": "jpg"`) ; un clic sur « Enregistré : … » montre le fichier dans le Finder ; `⇧⌘S` propose un nom et un dossier.
+- [ ] `⌘C` puis collage dans Aperçu (Fichier > Nouveau depuis le presse-papiers) : l'image a la taille de la capture, quel que soit le zoom (`⌘0`, `⌘1`, `⌘=`, `⌘-`, pincement du trackpad).
+- [ ] Fermer (`⌘W` ou le bouton rouge) sans enregistrer pose la question ; « Annuler » garde la fenêtre.
+- [ ] « Quitter LocalTake » (menu de l'icône ou `⌘Q` dans l'éditeur) avec un éditeur non enregistré pose la question ; « Annuler » garde LocalTake ouvert.
+- [ ] Menu de l'icône : « Ouvrir une image… » et « Coller depuis le presse-papiers » ouvrent l'éditeur.
+- [ ] La couleur, l'épaisseur et la taille du texte choisies sont reprises à l'éditeur suivant.

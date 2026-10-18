@@ -11,6 +11,7 @@ using LocalTake.Infrastructure.Recording;
 using LocalTake.Infrastructure.Settings;
 using LocalTake.Mac.Adapters;
 using LocalTake.Mac.Capture;
+using LocalTake.Mac.Editor;
 using LocalTake.Mac.Platform;
 using LocalTake.Platform.MacOS;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,7 +66,10 @@ internal static class Composition
         services.AddSingleton<IAreaPicker>(sp => sp.GetRequiredService<MacScreen>());
         services.AddSingleton<IUserDialogs, MacDialogs>();
         services.AddSingleton<INotifications, MacNotifications>();
-        services.AddSingleton<IEditorLauncher, SaveInsteadOfEditing>();
+        services.AddSingleton(sp => new EditorContext(sp.GetRequiredService<AppSettings>(), sp.GetRequiredService<ISettingsStore>(),
+            sp.GetRequiredService<ImageSaver>(), sp.GetRequiredService<IClipboard>(), sp.GetRequiredService<IShell>()));
+        services.AddSingleton<MacEditorLauncher>();
+        services.AddSingleton<IEditorLauncher>(sp => sp.GetRequiredService<MacEditorLauncher>());
         services.AddSingleton<StatusMenu>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });

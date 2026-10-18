@@ -1,4 +1,6 @@
 using CoreGraphics;
+using Foundation;
+using ImageIO;
 using LocalTake.Core.Ports;
 using LocalTake.Platform.MacOS;
 
@@ -29,6 +31,25 @@ internal sealed class MacImage(CGImage image) : IImage
         using var provider = new CGDataProvider(pixels.Pixels);
         return new MacImage(new CGImage(pixels.Width, pixels.Height, 8, 32, pixels.Stride, colorSpace, StraightBgra,
             provider, null, false, CGColorRenderingIntent.Default));
+    }
+
+    /// <summary>An image file, as LocalTake's own images are: sRGB pixels. Null when macOS cannot read it.</summary>
+    public static MacImage? Load(string path)
+    {
+        using var url = NSUrl.FromFilename(path);
+        return Decode(CGImageSource.FromUrl(url));
+    }
+
+    /// <summary>Encoded image data (PNG, TIFF…), from the pasteboard for instance. Null when unreadable.</summary>
+    public static MacImage? Decode(NSData data) => Decode(CGImageSource.FromData(data));
+
+    private static MacImage? Decode(CGImageSource? source)
+    {
+        using (source)
+        {
+            using var image = source?.CreateImage(0, (CGImageOptions?)null);
+            return image is null ? null : FromPixels(ToPixels(image));
+        }
     }
 
     /// <summary>Any CGImage as straight-alpha BGRA pixels, in sRGB.</summary>

@@ -4,6 +4,8 @@ using LocalTake.Core.Capture;
 using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Settings;
+using LocalTake.Mac.Adapters;
+using LocalTake.Mac.Platform;
 using LocalTake.Platform.MacOS;
 
 namespace LocalTake.Mac;
@@ -19,6 +21,8 @@ internal sealed class StatusMenu : IDisposable
     private readonly IGlobalHotkeys _hotkeys;
     private readonly IUserDialogs _dialogs;
     private readonly IShell _shell;
+    private readonly IEditorLauncher _editor;
+    private readonly INotifications _notifications;
 
     private readonly NSStatusItem _statusItem;
     private readonly NSMenuItem _regionItem;
@@ -26,13 +30,16 @@ internal sealed class StatusMenu : IDisposable
     private readonly NSMenuItem _fullScreenItem;
     private readonly NSMenuItem _lastRegionItem;
 
-    public StatusMenu(AppSettings settings, CaptureWorkflow captures, IGlobalHotkeys hotkeys, IUserDialogs dialogs, IShell shell)
+    public StatusMenu(AppSettings settings, CaptureWorkflow captures, IGlobalHotkeys hotkeys, IUserDialogs dialogs, IShell shell,
+        IEditorLauncher editor, INotifications notifications)
     {
         _settings = settings;
         _captures = captures;
         _hotkeys = hotkeys;
         _dialogs = dialogs;
         _shell = shell;
+        _editor = editor;
+        _notifications = notifications;
 
         var menu = new NSMenu { AutoEnablesItems = false };
         menu.AddItem(new NSMenuItem("LocalTake " + Version) { Enabled = false });
@@ -41,6 +48,9 @@ internal sealed class StatusMenu : IDisposable
         _windowItem = AddItem(menu, "Capturer une fenêtre", () => _ = _captures.CaptureAreaAsync(windowMode: true, fromMenu: true));
         _fullScreenItem = AddItem(menu, "Capturer tout l'écran", () => _ = _captures.CaptureFullScreenAsync(fromMenu: true));
         _lastRegionItem = AddItem(menu, "Capturer la dernière zone", () => _ = _captures.CaptureLastRegionAsync(fromMenu: true));
+        menu.AddItem(NSMenuItem.SeparatorItem);
+        AddItem(menu, "Ouvrir une image…", OpenImageFile);
+        AddItem(menu, "Coller depuis le presse-papiers", PasteFromClipboard);
         menu.AddItem(NSMenuItem.SeparatorItem);
         AddItem(menu, "Ouvrir le dossier des captures", OpenOutputFolder);
         AddItem(menu, "Réglages…", () => { }).Enabled = false;
@@ -113,6 +123,24 @@ internal sealed class StatusMenu : IDisposable
             "macOS a refusé ces raccourcis, déjà utilisés par une autre application ou absents d'un clavier de Mac :\n\n  " +
             string.Join("\n  ", failures) +
             "\n\nLes captures restent disponibles depuis l'icône de LocalTake dans la barre des menus.");
+
+    private void OpenImageFile()
+    {
+        if (MacDialogs.AskImageToOpen(_settings.OutputFolder) is not { } path)
+            return;
+        if (MacImage.Load(path) is { } image)
+            _editor.Open(image);
+        else
+            _dialogs.ShowError("Impossible d'ouvrir cette image : macOS ne sait pas la lire.");
+    }
+
+    private void PasteFromClipboard()
+    {
+        if (MacClipboard.GetImage() is { } image)
+            _editor.Open(image);
+        else
+            _notifications.Info("Presse-papiers vide", "Le presse-papiers ne contient pas d'image.");
+    }
 
     private void OpenOutputFolder()
     {
