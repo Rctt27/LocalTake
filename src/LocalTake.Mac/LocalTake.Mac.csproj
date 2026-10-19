@@ -10,6 +10,11 @@
     <SupportedOSPlatformVersion>14.0</SupportedOSPlatformVersion>
     <!-- One universal app for Apple silicon and Intel Macs. -->
     <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+    <!--
+      Keep only what the app uses of .NET's libraries and Apple's bindings: untrimmed, the bundle carries the whole
+      runtime and links every Apple framework. LocalTake's own assemblies stay whole; a trim warning fails the build.
+    -->
+    <TrimMode>partial</TrimMode>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>LocalTake</AssemblyName>
     <RootNamespace>LocalTake.Mac</RootNamespace>

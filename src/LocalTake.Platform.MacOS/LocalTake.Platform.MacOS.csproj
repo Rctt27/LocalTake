@@ -9,6 +9,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>LocalTake.Platform.MacOS</RootNamespace>
+    <!-- The macOS app is trimmed: reflection on .NET's types is reported here, on every OS. -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

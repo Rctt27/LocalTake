@@ -5,6 +5,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>LocalTake.Infrastructure</RootNamespace>
+    <!-- The macOS app is trimmed: reflection on .NET's types is reported here, on every OS. -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>
