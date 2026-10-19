@@ -23,7 +23,7 @@ dotnet format LocalTake.slnx                          # apply the style
 dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ```
 
-The macOS app builds on a Mac only, with Xcode and the `macos` workload; `LocalTake.Mac.slnx` holds it with the projects it uses. Each .NET for macOS requires one Xcode: CI pins workload set `10.0.401` (.NET for macOS 26.5) with Xcode 26.6, in `ci.yml` and `release.yml` alike; change both together.
+The macOS app builds on a Mac only, with Xcode and the `macos` workload; `LocalTake.Mac.slnx` holds it with the projects it uses. Each .NET for macOS requires one Xcode: CI pins workload set `10.0.401` (.NET for macOS 26.5) with Xcode 26.6, in `ci.yml` and `release.yml` alike; change both together. The app is trimmed (`TrimMode` partial): it keeps only what it uses of .NET's libraries and Apple's bindings, and links only the Apple frameworks those need. A trim warning fails its build, and the trim analyzer runs on the core, the infrastructure and `LocalTake.Platform.MacOS` on every OS, so reflection on .NET's types (JSON without generated metadata, for one) is caught on Windows too.
 
 ```
 dotnet workload install macos --version 10.0.401
@@ -111,6 +111,6 @@ Flow: `App` → `TrayController` (tray menu, global shortcuts) → `CaptureWorkf
 ### Settings and file names
 
 - `ISettingsStore.Save` throws; `TrySave` swallows IO errors and is used for incidental state (last region, counter, editor preferences) so a locked file never interrupts a capture.
-- `JsonSettingsStore` writes the keys of v0.1.0 plus `SchemaVersion`; a key missing from the file keeps the platform default (`SettingsDefaults`), and a corrupt file gives the defaults.
+- `JsonSettingsStore` writes the keys of v0.1.0 plus `SchemaVersion`, through metadata generated at compile time (`SettingsJsonContext`) rather than reflection, which trimming would break; a key missing from the file keeps the platform default (`SettingsDefaults`), and a corrupt file gives the defaults.
 - The settings window's checks and saving are `SettingsEditor.TryApply` (core); the window fills a `SettingsForm` and shows the message it returns.
 - File names come from `FileNamePattern.Expand`, side-effect free and shared with the settings preview; videos use the same pattern. Invalid characters are those of Windows, on every platform, so a pattern names files alike everywhere. The `%NUM%` counter only advances after a successful save (`FileCounter`).
