@@ -38,7 +38,15 @@ public sealed partial class AvFoundation(Func<IReadOnlyList<PixelRect>> displays
         return devices;
     }
 
-    public CaptureInputs BuildInputs(PixelRect area, VideoOptions options)
+    /// <summary>BlackHole, when listed; tried anyway when ffmpeg could not list the devices.</summary>
+    public bool CanRecordSystemAudio(IReadOnlyCollection<string> devices)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        return devices.Count == 0 || devices.Contains(SystemAudioDevice);
+    }
+
+    /// <param name="systemAudio">Unused: the Mac records the computer sound through BlackHole.</param>
+    public CaptureInputs BuildInputs(PixelRect area, VideoOptions options, PipedAudio? systemAudio)
     {
         ArgumentNullException.ThrowIfNull(options);
         var audio = new List<IReadOnlyList<string>>();

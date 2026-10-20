@@ -36,7 +36,7 @@ public sealed class AvFoundationTests
     [Fact]
     public void The_display_holding_the_area_is_recorded_and_cropped_to_it()
     {
-        var inputs = _platform.BuildInputs(new PixelRect(3000, 100, 640, 480), new VideoOptions(30, null, false));
+        var inputs = _platform.BuildInputs(new PixelRect(3000, 100, 640, 480), new VideoOptions(30, null, false), null);
 
         inputs.AudioInputs.ShouldBeEmpty();
         inputs.VideoInput.ShouldBe(["-f", "avfoundation", "-thread_queue_size", "1024", "-capture_cursor", "1", "-framerate", "30", "-i", "Capture screen 1:none"]);
@@ -46,7 +46,7 @@ public sealed class AvFoundationTests
     [Fact]
     public void Each_audio_input_is_opened_by_name()
     {
-        var inputs = _platform.BuildInputs(new PixelRect(0, 0, 100, 100), new VideoOptions(24, "MacBook Pro Microphone", true));
+        var inputs = _platform.BuildInputs(new PixelRect(0, 0, 100, 100), new VideoOptions(24, "MacBook Pro Microphone", true), null);
         inputs.AudioInputs.ShouldBe(
         [
             ["-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":MacBook Pro Microphone"],
@@ -57,7 +57,7 @@ public sealed class AvFoundationTests
     [Fact]
     public void An_area_over_two_displays_records_the_one_holding_most_of_it()
     {
-        var inputs = _platform.BuildInputs(new PixelRect(2700, 0, 400, 300), new VideoOptions(30, null, false));
+        var inputs = _platform.BuildInputs(new PixelRect(2700, 0, 400, 300), new VideoOptions(30, null, false), null);
         inputs.VideoInput[^1].ShouldBe("Capture screen 1:none");
         // One display only: the part of the area on it, with even dimensions.
         inputs.VideoFilter.ShouldBe("crop=220:300:0:0");
@@ -65,4 +65,15 @@ public sealed class AvFoundationTests
 
     [Fact]
     public void The_install_hint_names_Homebrew() => _platform.InstallHint.ShouldContain("brew install ffmpeg");
+
+    [Fact]
+    public void The_computer_sound_needs_BlackHole()
+    {
+        _platform.CanRecordSystemAudio(["MacBook Pro Microphone"]).ShouldBeFalse();
+        _platform.CanRecordSystemAudio(["MacBook Pro Microphone", "BlackHole 2ch"]).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void BlackHole_is_tried_anyway_when_ffmpeg_could_not_list_the_devices() =>
+        _platform.CanRecordSystemAudio([]).ShouldBeTrue();
 }

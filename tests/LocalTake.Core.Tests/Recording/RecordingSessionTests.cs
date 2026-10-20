@@ -44,7 +44,7 @@ public sealed class RecordingSessionTests
         _session = new RecordingSession(
             _settings,
             new FfmpegLocator(_fs, Path.Combine(Root, "app"), null, "ffmpeg.exe", []),
-            new DirectShowGdigrab(), _lister, _picker, _screen, _views, _hotkeys, _recorders,
+            new DirectShowGdigrab(() => true), _lister, _picker, _screen, _views, _hotkeys, _recorders,
             new OutputPathAllocator(_fs, _clock), counter, _clipboard, _dialogs, new ImmediateUiThread(), _fs, _clock,
             HotkeyNaming.Windows);
         _session.VideoSaved += (_, e) => _saved.Add((e.Path, e.FullScreen));

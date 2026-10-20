@@ -102,7 +102,7 @@ public partial class App : Application
         services.AddSingleton<CaptureDelivery>();
         services.AddSingleton<CaptureWorkflow>();
         services.AddSingleton(sp => AppPaths.CreateFfmpegLocator(sp.GetRequiredService<IFileSystem>()));
-        services.AddSingleton<IFfmpegPlatform, DirectShowGdigrab>();
+        services.AddSingleton<IFfmpegPlatform>(new DirectShowGdigrab(() => true));
         // Start and Stop are registered apart from the capture shortcuts, only while a recording is being prepared or made.
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp,
             (IGlobalHotkeys)new WindowsHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.Windows));

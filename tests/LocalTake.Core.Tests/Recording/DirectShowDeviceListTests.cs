@@ -4,7 +4,7 @@ namespace LocalTake.Core.Tests.Recording;
 
 public sealed class DirectShowDeviceListTests
 {
-    private readonly DirectShowGdigrab _platform = new();
+    private readonly DirectShowGdigrab _platform = new(() => true);
 
     [Fact]
     public void Recent_ffmpeg_builds_tag_each_device_with_its_kind()

@@ -105,7 +105,7 @@ public sealed class FfmpegRecorderTests : IDisposable
     [Fact]
     public async Task The_audio_device_lister_returns_an_empty_list_when_ffmpeg_cannot_run()
     {
-        var lister = new FfmpegAudioDeviceLister(new DirectShowGdigrab());
+        var lister = new FfmpegAudioDeviceLister(new DirectShowGdigrab(() => true));
         (await lister.ListAsync(_folder.File("not-ffmpeg.exe"))).ShouldBeEmpty();
     }
 
@@ -160,7 +160,9 @@ public sealed class FfmpegRecorderTests : IDisposable
             return [];
         }
 
-        public CaptureInputs BuildInputs(PixelRect area, VideoOptions options)
+        public bool CanRecordSystemAudio(IReadOnlyCollection<string> devices) => false;
+
+        public CaptureInputs BuildInputs(PixelRect area, VideoOptions options, PipedAudio? systemAudio)
         {
             Area = area;
             return TestSources(audio: false);

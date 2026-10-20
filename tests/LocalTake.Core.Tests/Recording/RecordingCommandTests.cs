@@ -10,10 +10,12 @@ public sealed class RecordingCommandTests
         string Name, int X, int Y, int Width, int Height, int FrameRate, string? Microphone, bool SystemAudio,
         string Culture, string[] Arguments);
 
+    // Deliberate change: the cases with the computer sound recorded TinyTake's driver through dshow. LocalTake now
+    // captures it itself and pipes it to ffmpeg after the screen (DirectShowGdigrabTests); every other case is v0.1.0's.
     public static TheoryData<string> LegacyCaseNames()
     {
         var data = new TheoryData<string>();
-        foreach (var c in Fixtures.Load<List<ArgumentsCase>>("ffmpeg-arguments.json"))
+        foreach (var c in Fixtures.Load<List<ArgumentsCase>>("ffmpeg-arguments.json").Where(c => !c.SystemAudio))
             data.Add(c.Name);
         return data;
     }
@@ -27,8 +29,8 @@ public sealed class RecordingCommandTests
         try
         {
             CultureInfo.CurrentCulture = new CultureInfo(c.Culture);
-            var inputs = new DirectShowGdigrab().BuildInputs(
-                new PixelRect(c.X, c.Y, c.Width, c.Height), new VideoOptions(c.FrameRate, c.Microphone, c.SystemAudio));
+            var inputs = new DirectShowGdigrab(() => true).BuildInputs(
+                new PixelRect(c.X, c.Y, c.Width, c.Height), new VideoOptions(c.FrameRate, c.Microphone, c.SystemAudio), null);
 
             RecordingCommand.Build(inputs, @"C:\Out\video.mp4").ShouldBe(c.Arguments);
         }
@@ -36,6 +38,31 @@ public sealed class RecordingCommandTests
         {
             CultureInfo.CurrentCulture = previous;
         }
+    }
+
+    [Fact]
+    public void Trailing_audio_inputs_are_opened_after_the_screen()
+    {
+        var inputs = new CaptureInputs([["-i", "mic"]], ["-i", "screen"], TrailingAudioInputs: [["-i", "late"]], DownmixToStereo: true);
+        RecordingCommand.Build(inputs, "out.mp4").ShouldBe(
+        [
+            "-hide_banner", "-loglevel", "level+info", "-nostats", "-y",
+            "-i", "mic", "-i", "screen", "-i", "late",
+            "-filter_complex", "[0:a][2:a]amix=inputs=2:duration=longest:dropout_transition=0,volume=2[a]",
+            "-map", "1:v", "-map", "[a]",
+            "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-crf", "23", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "160k", "-ac", "2",
+            "-movflags", "+faststart", "out.mp4"
+        ]);
+    }
+
+    [Fact]
+    public void A_single_trailing_input_is_mapped_by_its_index()
+    {
+        var args = RecordingCommand.Build(new CaptureInputs([], ["-i", "screen"], TrailingAudioInputs: [["-i", "late"]]), "out.mp4").ToList();
+        args.ShouldContain("-map");
+        args.Skip(args.IndexOf("-map")).Take(4).ShouldBe(["-map", "0:v", "-map", "1:a"]);
+        args.ShouldNotContain("-ac");
     }
 
     [Fact]

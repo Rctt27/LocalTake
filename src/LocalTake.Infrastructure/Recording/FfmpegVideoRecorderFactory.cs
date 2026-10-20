@@ -8,5 +8,5 @@ namespace LocalTake.Infrastructure.Recording;
 public sealed class FfmpegVideoRecorderFactory(IFfmpegPlatform platform) : IVideoRecorderFactory
 {
     public IVideoRecorder Start(string ffmpegPath, PixelRect area, string outputPath, VideoOptions options, Action<IVideoRecorder> onUnexpectedExit) =>
-        FfmpegVideoRecorder.Start(ffmpegPath, platform.BuildInputs(area, options), outputPath, onUnexpectedExit);
+        FfmpegVideoRecorder.Start(ffmpegPath, platform.BuildInputs(area, options, null), outputPath, onUnexpectedExit);
 }
