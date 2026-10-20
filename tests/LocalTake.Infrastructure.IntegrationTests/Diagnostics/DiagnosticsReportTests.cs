@@ -25,6 +25,8 @@ public sealed class DiagnosticsReportTests : IDisposable
         File.WriteAllText(ffmpeg, "");
         _settings.FfmpegPath = ffmpeg;
         _platform.SystemAudioDevice.Returns("virtual-audio-capturer");
+        _platform.SystemAudioRequirement.Returns("an audio output");
+        _platform.CanRecordSystemAudio(Arg.Any<IReadOnlyCollection<string>>()).Returns(true);
         _platform.InstallHint.Returns("Install ffmpeg.");
         _audio.ListAsync(ffmpeg).Returns(["Microphone (USB)", "virtual-audio-capturer"]);
         _grabber.Grab(Arg.Any<PixelRect>()).Returns(new PixelBuffer(64, 64, new byte[64 * 64 * 4]));
@@ -67,6 +69,19 @@ public sealed class DiagnosticsReportTests : IDisposable
         code.ShouldBe(2);
         output.ShouldContain("[FAIL] global shortcut");
         output.ShouldContain("1 check(s) failed.");
+    }
+
+    [Fact]
+    public async Task The_computer_sound_is_checked_by_the_platform()
+    {
+        // TinyTake's driver is listed but no longer used: only the platform knows whether the sound can be recorded.
+        _platform.CanRecordSystemAudio(Arg.Any<IReadOnlyCollection<string>>()).Returns(false);
+
+        var (code, output) = await Run();
+
+        code.ShouldBe(2);
+        output.ShouldContain("[FAIL] computer sound");
+        output.ShouldContain("missing: an audio output");
     }
 
     [Fact]

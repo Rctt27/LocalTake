@@ -31,6 +31,7 @@ public sealed class RecordingSessionTests
     private readonly FakeTimeProvider _clock = new();
     private readonly List<(string Path, bool FullScreen)> _saved = [];
     private readonly RecordingSession _session;
+    private bool _hasAudioOutput = true;
 
     public RecordingSessionTests()
     {
@@ -44,7 +45,7 @@ public sealed class RecordingSessionTests
         _session = new RecordingSession(
             _settings,
             new FfmpegLocator(_fs, Path.Combine(Root, "app"), null, "ffmpeg.exe", []),
-            new DirectShowGdigrab(() => true), _lister, _picker, _screen, _views, _hotkeys, _recorders,
+            new DirectShowGdigrab(() => _hasAudioOutput), _lister, _picker, _screen, _views, _hotkeys, _recorders,
             new OutputPathAllocator(_fs, _clock), counter, _clipboard, _dialogs, new ImmediateUiThread(), _fs, _clock,
             HotkeyNaming.Windows);
         _session.VideoSaved += (_, e) => _saved.Add((e.Path, e.FullScreen));
@@ -157,12 +158,21 @@ public sealed class RecordingSessionTests
     }
 
     [Fact]
-    public async Task System_audio_is_skipped_when_its_driver_is_missing()
+    public async Task System_audio_is_skipped_without_an_audio_output()
+    {
+        _hasAudioOutput = false;
+        _settings.RecordSystemAudio = true;
+        await RecordingAsync();
+        _recorders.Options!.SystemAudio.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task System_audio_no_longer_needs_TinyTake_s_driver()
     {
         _lister.ListAsync(Arg.Any<string>()).Returns(["Mic A"]);
         _settings.RecordSystemAudio = true;
         await RecordingAsync();
-        _recorders.Options!.SystemAudio.ShouldBeFalse();
+        _recorders.Options!.SystemAudio.ShouldBeTrue();
     }
 
     [Fact]
@@ -301,7 +311,8 @@ public sealed class RecordingSessionTests
         await ReadyAsync();
         await _clock.RunUntil(_session.StartAsync());
 
-        _dialogs.Received(1).ShowError("ffmpeg n'a pas pu démarrer : access denied");
+        // Not only ffmpeg: capturing the computer sound can fail too.
+        _dialogs.Received(1).ShowError("L'enregistrement n'a pas pu démarrer : access denied");
         _settings.Counter.ShouldBe(8);
         _session.IsBusy.ShouldBeFalse();
     }

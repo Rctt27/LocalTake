@@ -25,9 +25,13 @@ public sealed class WasapiSystemAudioTests
         using var ffmpeg = Connect(capture);
         await ffmpeg.ConnectAsync(2000, TestContext.Current.CancellationToken);
 
+        // Measured after half a second, once the device delivers at its pace: its first packet takes a while.
         var buffer = new byte[65536];
-        long total = 0;
         var clock = Stopwatch.StartNew();
+        while (clock.Elapsed < TimeSpan.FromSeconds(0.5))
+            _ = await ffmpeg.ReadAsync(buffer, TestContext.Current.CancellationToken);
+        long total = 0;
+        clock.Restart();
         while (clock.Elapsed < TimeSpan.FromSeconds(2))
             total += await ffmpeg.ReadAsync(buffer, TestContext.Current.CancellationToken);
 

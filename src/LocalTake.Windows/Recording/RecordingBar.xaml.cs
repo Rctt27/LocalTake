@@ -28,7 +28,7 @@ public partial class RecordingBar : Window
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly Stopwatch _elapsed = new();
     private bool _hasMicrophone = true;
-    private bool _hasSystemAudio = true;
+    private bool _hasSystemAudio;
     private bool _audioLocked;
 
     /// <summary>Set while the code updates the toggles, so that only the user's choices are saved.</summary>
@@ -44,6 +44,8 @@ public partial class RecordingBar : Window
         _settings = settings;
         _store = store;
         _platform = platform;
+        // Known before ffmpeg lists the devices: on Windows it only takes an audio output.
+        _hasSystemAudio = platform.CanRecordSystemAudio([]);
         SourceInitialized += (_, _) =>
             windows.ExcludeFromCapture(new WindowInteropHelper(this).Handle);
         MouseLeftButtonDown += (_, e) =>
@@ -98,7 +100,7 @@ public partial class RecordingBar : Window
 
         var microphones = AudioDevices.Microphones(devices, _platform.SystemAudioDevice).ToList();
         _hasMicrophone = microphones.Count > 0;
-        _hasSystemAudio = devices.Contains(_platform.SystemAudioDevice);
+        _hasSystemAudio = _platform.CanRecordSystemAudio(devices);
 
         // A list only when there is a choice to make, as in TinyTake.
         MicrophoneBox.SelectionChanged -= MicrophoneBox_SelectionChanged;
@@ -178,7 +180,7 @@ public partial class RecordingBar : Window
         SystemAudioToggle.IsChecked = _hasSystemAudio && _settings.RecordSystemAudio;
         SystemAudioToggle.IsEnabled = _hasSystemAudio && !_audioLocked;
         SystemAudioToggle.ToolTip = !_hasSystemAudio
-            ? "Nécessite le pilote « virtual-audio-capturer », installé avec TinyTake (TinyTake Filter) : introuvable sur cet ordinateur."
+            ? $"Nécessite {_platform.SystemAudioRequirement} : introuvable sur cet ordinateur."
             : _settings.RecordSystemAudio ? "Le son de l'ordinateur est enregistré. Cliquer pour le couper."
                 : "Son de l'ordinateur coupé. Cliquer pour l'enregistrer.";
         SystemAudioLabel.TextDecorations = SystemAudioToggle.IsChecked == true ? null : TextDecorations.Strikethrough;

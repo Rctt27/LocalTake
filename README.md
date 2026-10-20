@@ -36,7 +36,7 @@ Enregistrement en MP4 d'une zone ou de tout l'écran. Une fois la zone choisie, 
 
 La vidéo s'ouvre ensuite dans un aperçu qui la lit aussitôt : `Espace` met en pause, `←` / `→` avancent ou reculent de 10 secondes, et survoler la barre de défilement montre l'image à cet instant. On peut l'afficher dans l'Explorateur, l'envoyer à la Corbeille, ou **Refaire** : la vidéo part à la Corbeille et un nouvel enregistrement commence de la même façon.
 
-LocalTake ne télécharge pas ffmpeg, qu'il faut installer : `winget install Gyan.FFmpeg`, ou indiquer son emplacement dans les réglages. Le son de l'ordinateur utilise le pilote `virtual-audio-capturer` installé avec TinyTake (TinyTake Filter).
+LocalTake ne télécharge pas ffmpeg, qu'il faut installer : `winget install Gyan.FFmpeg`, ou indiquer son emplacement dans les réglages. Le son de l'ordinateur est capté directement depuis la sortie audio par défaut, sans pilote à installer.
 
 ## Fichiers
 

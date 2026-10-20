@@ -42,7 +42,11 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 ### Vidéo
 
 - [ ] `Ctrl+Maj+Impr. écran` : zone, cadre rouge autour, barre dessous ; `Ctrl+R` démarre après 3 secondes.
-- [ ] Micro et son du PC (pilote TinyTake) : `ffmpeg -i video.mp4` montre une piste audio, et la fin de la phrase prononcée avant « Arrêter » est présente.
+- [ ] Micro et son du PC, sans le pilote TinyTake : `ffmpeg -i video.mp4` montre une piste audio, le son joué est synchrone avec l'image, et la fin de la phrase prononcée avant « Arrêter » est présente.
+- [ ] Son du PC sans rien qui joue : l'aperçu dure autant que l'enregistrement.
+- [ ] Casque USB débranché pendant l'enregistrement : la vidéo se finalise, le son du PC devient muet jusqu'à la fin.
+- [ ] Annuler pendant « Démarrage… », puis réenregistrer : rien ne bloque.
+- [ ] Sortie audio désactivée dans Windows : « Son du PC » est grisé, l'infobulle dit qu'il faut une sortie audio.
 - [ ] Le cadre et la barre n'apparaissent pas dans la vidéo.
 - [ ] Aperçu : la vidéo se lit dans la fenêtre ; `Espace`, `←` / `→` ; image au survol de la barre de défilement.
 - [ ] « Afficher dans l'Explorateur » ouvre l'Explorateur sur la vidéo.

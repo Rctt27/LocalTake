@@ -64,8 +64,8 @@ public sealed class DiagnosticsReport(
             var devices = await audio.ListAsync(ffmpeg);
 #pragma warning restore CA2007
             Check("audio inputs", () => devices.Count > 0 ? string.Join(", ", devices) : throw new InvalidOperationException("none listed"));
-            Check("computer sound", () => devices.Contains(platform.SystemAudioDevice)
-                ? platform.SystemAudioDevice
+            Check("computer sound", () => platform.CanRecordSystemAudio(devices)
+                ? "available"
                 : throw new InvalidOperationException("missing: " + platform.SystemAudioRequirement));
         }
 

@@ -117,11 +117,11 @@ public partial class SettingsWindow : Window
                 MicrophoneBox.SelectedItem = item;
         }
 
-        var hasSystemAudio = devices.Contains(_context.Platform.SystemAudioDevice);
+        var hasSystemAudio = _context.Platform.CanRecordSystemAudio(devices);
         SystemAudioBox.IsEnabled = hasSystemAudio || SystemAudioBox.IsChecked == true;
         SystemAudioBox.ToolTip = hasSystemAudio
-            ? "Utilise le pilote « virtual-audio-capturer » installé avec TinyTake (TinyTake Filter)."
-            : "Nécessite le pilote « virtual-audio-capturer », installé avec TinyTake (TinyTake Filter) : introuvable sur cet ordinateur.";
+            ? "Enregistre ce que joue la sortie audio par défaut."
+            : $"Nécessite {_context.Platform.SystemAudioRequirement} : introuvable sur cet ordinateur.";
     }
 
     private void BrowseFfmpeg_Click(object sender, RoutedEventArgs e)

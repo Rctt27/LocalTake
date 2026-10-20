@@ -151,7 +151,7 @@ public sealed class RecordingSession(
             var microphone = settings.RecordMicrophone
                 ? AudioDevices.PickMicrophone(devices, settings.Microphone, platform.SystemAudioDevice)
                 : null;
-            var systemAudio = settings.RecordSystemAudio && (devices.Count == 0 || devices.Contains(platform.SystemAudioDevice));
+            var systemAudio = settings.RecordSystemAudio && platform.CanRecordSystemAudio(devices);
             var options = new VideoOptions(Math.Clamp(settings.VideoFrameRate, 5, 60), microphone, systemAudio);
             var path = paths.Next(settings.OutputFolder, settings.FileNamePattern, settings.Counter, ".mp4");
             // Taken now, so that an image saved meanwhile gets the next number instead of the same one.
@@ -166,7 +166,7 @@ public sealed class RecordingSession(
             ReleaseNumber();
             CloseUi();
             SetState(State.Idle);
-            dialogs.ShowError("ffmpeg n'a pas pu démarrer : " + ex.Message);
+            dialogs.ShowError("L'enregistrement n'a pas pu démarrer : " + ex.Message);
             return;
         }
 
