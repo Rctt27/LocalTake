@@ -11,15 +11,20 @@ namespace LocalTake.Infrastructure.Recording;
 /// <summary>One ffmpeg process recording to an MP4 file.</summary>
 public sealed partial class FfmpegVideoRecorder : IVideoRecorder
 {
+    /// <summary>How long ffmpeg gets to stop on its own before the computer sound's pipe is closed.</summary>
+    private static readonly TimeSpan StarvedPipeDelay = TimeSpan.FromSeconds(3);
+
     private readonly Process _process;
+    private readonly IDisposable? _systemAudio;
     private readonly ConcurrentQueue<string> _log = new();
     private readonly Action<IVideoRecorder> _onUnexpectedExit;
     private readonly TaskCompletionSource<bool> _capturing = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private volatile bool _stopping;
 
-    private FfmpegVideoRecorder(Process process, string outputPath, Action<IVideoRecorder> onUnexpectedExit)
+    private FfmpegVideoRecorder(Process process, IDisposable? systemAudio, string outputPath, Action<IVideoRecorder> onUnexpectedExit)
     {
         _process = process;
+        _systemAudio = systemAudio;
         OutputPath = outputPath;
         _onUnexpectedExit = onUnexpectedExit;
     }
@@ -34,7 +39,9 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
     /// <param name="inputs">The platform's screen and audio inputs.</param>
     /// <param name="outputPath">The MP4 to write.</param>
     /// <param name="onUnexpectedExit">ffmpeg stopped on its own; called on a worker thread.</param>
-    public static FfmpegVideoRecorder Start(string ffmpegPath, CaptureInputs inputs, string outputPath, Action<IVideoRecorder> onUnexpectedExit)
+    /// <param name="systemAudio">The capture feeding one of the inputs, freed once ffmpeg is done with it.</param>
+    public static FfmpegVideoRecorder Start(string ffmpegPath, CaptureInputs inputs, string outputPath, Action<IVideoRecorder> onUnexpectedExit,
+        IDisposable? systemAudio = null)
     {
         var start = new ProcessStartInfo(ffmpegPath)
         {
@@ -48,7 +55,7 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
             start.ArgumentList.Add(arg);
 
         var process = new Process { StartInfo = start, EnableRaisingEvents = true };
-        var recorder = new FfmpegVideoRecorder(process, outputPath, onUnexpectedExit);
+        var recorder = new FfmpegVideoRecorder(process, systemAudio, outputPath, onUnexpectedExit);
         process.ErrorDataReceived += (_, e) => recorder.OnErrorLine(e.Data);
         process.Exited += (_, _) => recorder.OnExited();
 
@@ -82,12 +89,21 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try
         {
-            await _process.WaitForExitAsync(timeout.Token);
+            // The computer sound is freed only once ffmpeg is done: it reads that input up to its last frame. But a
+            // pipe that stays empty leaves ffmpeg blocked reading it, deaf to "q"; closing it ends that input.
+            var exit = _process.WaitForExitAsync(timeout.Token);
+            if (_systemAudio is not null && await Task.WhenAny(exit, Task.Delay(StarvedPipeDelay, timeout.Token)) != exit)
+                _systemAudio.Dispose();
+            await exit;
         }
         catch (OperationCanceledException)
         {
             Kill();
             return false;
+        }
+        finally
+        {
+            _systemAudio?.Dispose();
         }
         return _process.ExitCode == 0 && File.Exists(OutputPath) && new FileInfo(OutputPath).Length > 0;
     }
@@ -107,9 +123,14 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
         {
             // Already exited.
         }
+        _systemAudio?.Dispose();
     }
 
-    public void Dispose() => _process.Dispose();
+    public void Dispose()
+    {
+        _systemAudio?.Dispose();
+        _process.Dispose();
+    }
 
     private void OnErrorLine(string? line)
     {
