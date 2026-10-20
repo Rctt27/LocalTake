@@ -100,6 +100,8 @@ public sealed class FfmpegRecorderTests : IDisposable
         var factory = new FfmpegVideoRecorderFactory(platform);
         using var recorder = factory.Start(ffmpeg, new PixelRect(0, 0, 320, 240), _folder.File("factory.mp4"), new VideoOptions(30, null, false), _ => { });
         (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        // A few frames first: a video stopped before its first frame is a failure.
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         (await recorder.StopAsync()).ShouldBeTrue();
         platform.Area.ShouldBe(new PixelRect(0, 0, 320, 240));
     }
@@ -165,6 +167,8 @@ public sealed class FfmpegRecorderTests : IDisposable
         using var recorder = FfmpegVideoRecorder.Start(ffmpeg, TestSources(audio: true), _folder.File("freed.mp4"), _ => { }, capture);
         (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
         capture.Disposed.ShouldBeFalse();
+        // A few frames first: a video stopped before its first frame is a failure.
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         (await recorder.StopAsync()).ShouldBeTrue();
         capture.Disposed.ShouldBeTrue();
     }
@@ -190,6 +194,8 @@ public sealed class FfmpegRecorderTests : IDisposable
         using var recorder = factory.Start(ffmpeg, new PixelRect(0, 0, 320, 240), _folder.File("sound.mp4"), new VideoOptions(30, null, true), _ => { });
         platform.SystemAudio.ShouldBeSameAs(source.Capture!.Input);
         (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        // A few frames first: a video stopped before its first frame is a failure.
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         (await recorder.StopAsync()).ShouldBeTrue();
         source.Capture.Disposed.ShouldBeTrue();
     }
