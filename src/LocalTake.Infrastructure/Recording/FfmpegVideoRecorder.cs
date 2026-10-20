@@ -20,6 +20,7 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
     private readonly Action<IVideoRecorder> _onUnexpectedExit;
     private readonly TaskCompletionSource<bool> _capturing = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private volatile bool _stopping;
+    private volatile bool _noVideo;
 
     private FfmpegVideoRecorder(Process process, IDisposable? systemAudio, string outputPath, Action<IVideoRecorder> onUnexpectedExit)
     {
@@ -105,7 +106,9 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
         {
             _systemAudio?.Dispose();
         }
-        return _process.ExitCode == 0 && File.Exists(OutputPath) && new FileInfo(OutputPath).Length > 0;
+        // A sound input silent from the start holds every frame in the muxer: ffmpeg then writes an MP4 with exit code
+        // 0 but without a single frame, and says so of the video, always the first output stream.
+        return !_noVideo && _process.ExitCode == 0 && File.Exists(OutputPath) && new FileInfo(OutputPath).Length > 0;
     }
 
     public void Kill()
@@ -136,6 +139,8 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
     {
         if (string.IsNullOrWhiteSpace(line))
             return;
+        if (line.Contains("Finishing stream 0:0 without any data written to it", StringComparison.Ordinal))
+            _noVideo = true;
         if (line.Contains(RecordingCommand.CapturingLine, StringComparison.Ordinal))
             _capturing.TrySetResult(true);
         // The info level is only read for that line; the log keeps warnings and errors.

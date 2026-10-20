@@ -143,6 +143,21 @@ public sealed class FfmpegRecorderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_video_without_a_single_frame_is_a_failure()
+    {
+        // A pipe silent from the start: the muxer waits for its sound and holds every frame, and closing the pipe makes
+        // ffmpeg write an MP4 without a single frame, with exit code 0. That must not count as a saved video.
+        var ffmpeg = RequireFfmpeg();
+        var pipe = new TestPipe(TimeSpan.Zero);
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, WithPipe(pipe), _folder.File("empty.mp4"), _ => { }, pipe);
+        await Task.Delay(1500, TestContext.Current.CancellationToken);
+
+        var watch = Stopwatch.StartNew();
+        (await recorder.StopAsync()).ShouldBeFalse();
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
     public async Task The_computer_sound_is_freed_only_once_ffmpeg_has_finished()
     {
         var ffmpeg = RequireFfmpeg();
@@ -295,6 +310,8 @@ public sealed class FfmpegRecorderTests : IDisposable
 
         public TestPipe(TimeSpan? feedFor)
         {
+            // Elsewhere .NET's named pipes are Unix sockets, which ffmpeg cannot open by that name.
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "ffmpeg reads Windows named pipes only.");
             var name = "localtake-test-" + Guid.NewGuid().ToString("N");
             Path = @"\\.\pipe\" + name;
             _server = new NamedPipeServerStream(name, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
