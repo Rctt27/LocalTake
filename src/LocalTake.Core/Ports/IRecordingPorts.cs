@@ -67,6 +67,25 @@ public interface IVideoRecorderFactory
     IVideoRecorder Start(string ffmpegPath, PixelRect area, string outputPath, VideoOptions options, Action<IVideoRecorder> onUnexpectedExit);
 }
 
+/// <summary>What the computer plays, on a platform where LocalTake captures it itself instead of ffmpeg (Windows).</summary>
+public interface ISystemAudioSource
+{
+    /// <summary>Whether there is an audio output to capture.</summary>
+    bool IsAvailable();
+
+    /// <summary>
+    /// Opens the default output and a pipe for ffmpeg. Capture starts when ffmpeg opens the pipe: sound captured
+    /// before ffmpeg reads would come out ahead of the picture.
+    /// </summary>
+    ISystemAudioCapture Start();
+}
+
+/// <summary>The computer sound of one recording, written to a pipe until disposed.</summary>
+public interface ISystemAudioCapture : IDisposable
+{
+    PipedAudio Input { get; }
+}
+
 public interface IAudioDeviceLister
 {
     /// <summary>The audio inputs ffmpeg can record, or an empty list when it cannot list them.</summary>
