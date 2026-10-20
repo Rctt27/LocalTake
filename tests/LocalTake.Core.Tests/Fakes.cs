@@ -126,12 +126,21 @@ internal sealed class FakeRecorderFactory : IVideoRecorderFactory
     public PixelRect? Area { get; private set; }
     public Exception? StartFailure { get; set; }
 
+    /// <summary>The clock whose time is noted at each launch, in <see cref="StartedAt"/>.</summary>
+    public TimeProvider Clock { get; set; } = TimeProvider.System;
+
+    public DateTimeOffset? StartedAt { get; private set; }
+
+    /// <summary>Forgets the last recorder, so that a test can wait for the next one.</summary>
+    public void Reset() => Recorder = null;
+
     public IVideoRecorder Start(string ffmpegPath, PixelRect area, string outputPath, VideoOptions options, Action<IVideoRecorder> onUnexpectedExit)
     {
         if (StartFailure is not null)
             throw StartFailure;
         Area = area;
         Options = options;
+        StartedAt = Clock.GetUtcNow();
         return Recorder = new FakeRecorder(outputPath) { OnUnexpectedExit = onUnexpectedExit };
     }
 }

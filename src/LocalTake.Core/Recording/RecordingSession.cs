@@ -28,6 +28,9 @@ public sealed class RecordingSession(
 
     private const int CountdownSeconds = 3;
 
+    /// <summary>How long ffmpeg takes to capture before it has done it once: the time to open its devices.</summary>
+    private static readonly TimeSpan DefaultStartupTime = TimeSpan.FromSeconds(0.7);
+
     /// <summary>Should ffmpeg never announce that it captures, the counter starts anyway after this.</summary>
     private static readonly TimeSpan CaptureStartTimeout = TimeSpan.FromSeconds(5);
 
@@ -35,6 +38,9 @@ public sealed class RecordingSession(
     private IRecordingView? _view;
     private IVideoRecorder? _recorder;
     private Task _stopping = Task.CompletedTask;
+
+    /// <summary>How long ffmpeg last took from its launch to capturing; it is launched that long before 0.</summary>
+    private TimeSpan _startupTime = DefaultStartupTime;
 
     private string _ffmpeg = "";
     private PixelRect _target;
@@ -124,7 +130,11 @@ public sealed class RecordingSession(
             view.SetAudioDevices([.. devices]);
     }
 
-    /// <summary>Start button or shortcut: 3, 2, 1, then ffmpeg starts.</summary>
+    /// <summary>
+    /// Start button or shortcut: 3, 2, 1, then the recording. ffmpeg takes a while to open its inputs, so it is launched
+    /// that long before the end of the countdown, and the counter starts when it actually captures: at 0, what is said
+    /// is recorded.
+    /// </summary>
     public async Task StartAsync()
     {
         if (_state != State.Ready || _view is not { } view)
@@ -135,6 +145,10 @@ public sealed class RecordingSession(
 
         // Usually listed long ago; at worst ffmpeg's own timeout applies.
         var devices = await _devices;
+        if (session != _session || _state != State.Countdown)
+            return;
+        var countdown = TimeSpan.FromSeconds(CountdownSeconds);
+        var launching = LaunchAsync(countdown - (_startupTime < countdown ? _startupTime : countdown), session, devices, view);
         for (var seconds = CountdownSeconds; seconds > 0; seconds--)
         {
             if (session != _session || _state != State.Countdown)
@@ -142,8 +156,24 @@ public sealed class RecordingSession(
             view.ShowCountdown(seconds);
             await Task.Delay(TimeSpan.FromSeconds(1), clock);
         }
-        if (session != _session || _state != State.Countdown)
+        if (await launching is not { } started || session != _session || _state != State.Countdown)
             return;
+
+        // Slower than last time: Stop already works, and the counter waits for the devices, so that the first words
+        // are not lost. Should ffmpeg never announce it, the counter starts anyway.
+        view.ShowStarting();
+        SetState(State.Recording);
+        await Task.WhenAny(started.Capturing, Task.Delay(CaptureStartTimeout, clock));
+        if (_recorder == started && _view == view && _state == State.Recording)
+            view.ShowRecording();
+    }
+
+    /// <summary>Launches ffmpeg after the delay, unless the countdown was abandoned; null when nothing was launched.</summary>
+    private async Task<IVideoRecorder?> LaunchAsync(TimeSpan delay, int session, IReadOnlyList<string> devices, IRecordingView view)
+    {
+        await Task.Delay(delay, clock);
+        if (session != _session || _state != State.Countdown)
+            return null;
 
         IVideoRecorder started;
         try
@@ -167,16 +197,22 @@ public sealed class RecordingSession(
             CloseUi();
             SetState(State.Idle);
             dialogs.ShowError("L'enregistrement n'a pas pu démarrer : " + ex.Message);
-            return;
+            return null;
         }
+        _ = StartCounterOnCaptureAsync(started, clock.GetTimestamp(), session, view);
+        return started;
+    }
 
-        // Recording from now on, so that Stop finishes the file; but the devices take about 0.3 s to open, and the
-        // counter only starts once they capture, so that the first words are not lost.
-        view.ShowStarting();
+    /// <summary>Ends the countdown as soon as ffmpeg captures, and remembers how long that took for the next one.</summary>
+    private async Task StartCounterOnCaptureAsync(IVideoRecorder started, long launchedAt, int session, IRecordingView view)
+    {
+        if (!await started.Capturing)
+            return;
+        _startupTime = clock.GetElapsedTime(launchedAt);
+        if (_recorder != started || _view != view || session != _session || _state != State.Countdown)
+            return;
         SetState(State.Recording);
-        await Task.WhenAny(started.Capturing, Task.Delay(CaptureStartTimeout, clock));
-        if (_recorder == started && _view == view && _state == State.Recording)
-            view.ShowRecording();
+        view.ShowRecording();
     }
 
     /// <summary>
@@ -189,6 +225,8 @@ public sealed class RecordingSession(
         {
             case State.Countdown when _view is { } view:
                 _session++;
+                // ffmpeg may already be launched: what it captured before 0 is not kept.
+                DiscardRecorder();
                 view.ShowReady(_startShortcut, _stopShortcut);
                 SetState(State.Ready);
                 return Task.CompletedTask;

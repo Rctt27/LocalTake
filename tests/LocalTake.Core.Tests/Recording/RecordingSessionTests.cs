@@ -140,7 +140,8 @@ public sealed class RecordingSessionTests
         _settings.VideoFrameRate = 120;
         await RecordingAsync();
 
-        View.Calls.ShouldBe(["ready Ctrl+R Ctrl+D", "countdown 3", "countdown 3", "countdown 2", "countdown 1", "starting", "recording"]);
+        // ffmpeg is launched during the countdown and captures at once here: no "starting" after 0.
+        View.Calls.ShouldBe(["ready Ctrl+R Ctrl+D", "countdown 3", "countdown 3", "countdown 2", "countdown 1", "recording"]);
         _recorders.Options.ShouldBe(new VideoOptions(60, "Mic A", true));
         _recorders.Area.ShouldBe(new PixelRect(10, 20, 640, 480));
         Recorder.OutputPath.ShouldBe(Path.Combine(Out, "Video_000008.mp4"));
@@ -182,6 +183,75 @@ public sealed class RecordingSessionTests
         var start = _session.StartAsync();
         await _clock.RunUntil(start);
         View.Calls[^1].ShouldBe("recording");
+    }
+
+    /// <summary>Starts the countdown and returns once ffmpeg is launched, with the time that took.</summary>
+    private async Task<TimeSpan> LaunchedAfterAsync()
+    {
+        _recorders.Clock = _clock;
+        var started = _clock.GetUtcNow();
+        _ = _session.StartAsync();
+        await _clock.RunUntil(WaitFor(() => _recorders.Recorder is not null));
+        return _recorders.StartedAt!.Value - started;
+    }
+
+    [Fact]
+    public async Task Ffmpeg_is_launched_before_the_end_of_the_countdown_so_that_it_captures_at_zero()
+    {
+        // It takes a while to open its inputs: "Démarrage…" after 0 was time the user believed recorded.
+        await ReadyAsync();
+        var launched = await LaunchedAfterAsync();
+
+        launched.TotalSeconds.ShouldBe(2.3, 0.15);
+        View.Calls.ShouldContain("countdown 1");
+        View.Calls.ShouldNotContain("starting");
+        _session.IsReady.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task The_counter_starts_when_ffmpeg_captures_even_a_little_before_zero()
+    {
+        await ReadyAsync();
+        await LaunchedAfterAsync();
+        Recorder.CapturingSource.SetResult(true);
+        await _clock.RunUntil(WaitFor(() => View.Calls[^1] == "recording"), maxSeconds: 1);
+
+        View.Calls.ShouldNotContain("starting");
+        _session.IsRecording.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Ffmpeg_is_launched_as_long_before_zero_as_it_took_last_time()
+    {
+        await ReadyAsync();
+        await LaunchedAfterAsync();
+        // 1.2 s to capture: past 0, so "starting" shows meanwhile.
+        _clock.Advance(_recorders.StartedAt!.Value + TimeSpan.FromSeconds(1.2) - _clock.GetUtcNow());
+        Recorder.CapturingSource.SetResult(true);
+        await WaitFor(() => View.Calls[^1] == "recording");
+        View.Calls.ShouldContain("starting");
+        Recorder.StopResult.SetResult(true);
+        await _clock.RunUntil(_session.StopAsync());
+
+        await ReadyAsync();
+        _recorders.Reset();
+        (await LaunchedAfterAsync()).TotalSeconds.ShouldBe(1.8, 0.15);
+    }
+
+    [Fact]
+    public async Task Stop_during_the_countdown_after_ffmpeg_was_launched_discards_it()
+    {
+        await ReadyAsync();
+        await LaunchedAfterAsync();
+        View.Calls.ShouldNotContain("starting");
+        var recorder = Recorder;
+        await _session.StopAsync();
+
+        recorder.Killed.ShouldBeTrue();
+        recorder.Disposed.ShouldBeTrue();
+        _settings.Counter.ShouldBe(8);
+        _session.IsReady.ShouldBeTrue();
+        View.Calls[^1].ShouldBe("ready Ctrl+R Ctrl+D");
     }
 
     [Fact]
