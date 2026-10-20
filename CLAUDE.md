@@ -8,6 +8,10 @@ LocalTake is a tray screen-capture and screen-recording tool for Windows (a macO
 
 UI strings are French; code and comments are English.
 
+## Before starting work
+
+LocalTake is developed from several machines, so a local clone can be far behind GitHub. Before writing a plan, branching or changing code: `git fetch`, compare `main` with `origin/main` and pull if it is behind, then check that the SDK pinned in `global.json` is installed (`dotnet --list-sdks`). Work started on a stale `main` has to be redone on the new code.
+
 ## Commands
 
 Requires the .NET 10 SDK (pinned in `global.json`). Analyzers run at `latest-recommended` with warnings as errors; `.editorconfig` holds the style, and CI rejects unformatted code.
