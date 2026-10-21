@@ -86,7 +86,8 @@ public sealed class FfmpegRecorderTests : IDisposable
 
         var probe = await RunFfmpegAsync(ffmpeg, "-hide_banner", "-i", track);
         probe.Output.ShouldContain("Audio: pcm_s16le");
-        probe.Output.ShouldContain("16000 Hz, mono");
+        // ffmpeg 5 writes "mono", 6.1 "1 channels".
+        probe.Output.ShouldMatch(@"16000 Hz, (mono|1 channels)");
         var inTrack = await BeepStartsAsync(ffmpeg, track);
         var inVideo = await BeepStartsAsync(ffmpeg, output);
         inTrack.Count.ShouldBeGreaterThanOrEqualTo(2);

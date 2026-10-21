@@ -52,7 +52,8 @@ public sealed class FfmpegAudioExtractorTests : IDisposable
 
         var probe = await RunAsync(ffmpeg, "-hide_banner", "-i", audio);
         probe.ShouldContain("Audio: pcm_s16le");
-        probe.ShouldContain("16000 Hz, mono");
+        // ffmpeg 5 writes "mono", 6.1 "1 channels".
+        probe.ShouldMatch(@"16000 Hz, (mono|1 channels)");
     }
 
     [Fact]
