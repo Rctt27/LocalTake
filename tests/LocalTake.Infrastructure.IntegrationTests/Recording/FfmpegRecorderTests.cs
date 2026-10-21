@@ -144,19 +144,32 @@ public sealed class FfmpegRecorderTests : IDisposable
         probe.Output.ShouldContain("Video: h264");
     }
 
+    [Theory]
+    [InlineData("[warning] Finishing stream 0:0 without any data written to it.", true)]
+    [InlineData("[vost#0:0/libx264 @ 000001c2] [warning] Finishing stream without any data written to it.", true)]
+    [InlineData("[warning] Finishing stream 0:1 without any data written to it.", false)]
+    [InlineData("[aost#0:1/aac @ 000001c2] [warning] Finishing stream without any data written to it.", false)]
+    public void An_empty_video_is_recognised_in_old_and_new_ffmpeg_wordings(string line, bool noVideo) =>
+        FfmpegVideoRecorder.SaysNoVideoWasWritten(line).ShouldBe(noVideo);
+
     [Fact]
-    public async Task A_video_without_a_single_frame_is_a_failure()
+    public async Task A_video_is_saved_only_when_it_has_frames()
     {
-        // A pipe silent from the start: the muxer waits for its sound and holds every frame, and closing the pipe makes
-        // ffmpeg write an MP4 without a single frame, with exit code 0. That must not count as a saved video.
+        // A pipe silent from the start: ffmpeg 5 holds every frame waiting for the sound, and closing the pipe gets an
+        // MP4 without a single frame, with exit code 0. That must not count as a saved video. Whatever this ffmpeg does
+        // with it, Stop must say saved exactly when the file has frames.
         var ffmpeg = RequireFfmpeg();
+        var output = _folder.File("empty.mp4");
         var pipe = new TestPipe(TimeSpan.Zero);
-        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, WithPipe(pipe), _folder.File("empty.mp4"), _ => { }, pipe);
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, WithPipe(pipe), output, _ => { }, pipe);
         await Task.Delay(1500, TestContext.Current.CancellationToken);
 
         var watch = Stopwatch.StartNew();
-        (await recorder.StopAsync()).ShouldBeFalse();
+        var saved = await recorder.StopAsync();
         watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
+        var (_, frames) = await RunFfmpegAsync(ffmpeg, "-v", "error", "-i", output, "-map", "0:v:0?", "-c", "copy", "-f", "framecrc", "-");
+        var hasFrames = frames.Split('\n').Any(l => l.StartsWith("0,", StringComparison.Ordinal));
+        saved.ShouldBe(hasFrames, "ffmpeg said:\n" + recorder.ErrorTail);
     }
 
     [Fact]

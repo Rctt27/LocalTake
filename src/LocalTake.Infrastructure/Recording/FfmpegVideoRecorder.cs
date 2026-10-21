@@ -135,11 +135,13 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
         _process.Dispose();
     }
 
+    internal static bool SaysNoVideoWasWritten(string line) => NoVideoWritten().IsMatch(line);
+
     private void OnErrorLine(string? line)
     {
         if (string.IsNullOrWhiteSpace(line))
             return;
-        if (line.Contains("Finishing stream 0:0 without any data written to it", StringComparison.Ordinal))
+        if (SaysNoVideoWasWritten(line))
             _noVideo = true;
         if (line.Contains(RecordingCommand.CapturingLine, StringComparison.Ordinal))
             _capturing.TrySetResult(true);
@@ -160,6 +162,10 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
         _process.WaitForExit();
         _onUnexpectedExit(this);
     }
+
+    /// <summary>The video is the first output stream. ffmpeg 5 names it in the text, 6.1 and later in the prefix.</summary>
+    [GeneratedRegex(@"Finishing stream 0:0 without any data written to it|vost#0:0[^\]]*\].*Finishing stream without any data written to it")]
+    private static partial Regex NoVideoWritten();
 
     [GeneratedRegex(@"\[(info|verbose|debug|trace)\] ")]
     private static partial Regex InfoLevel();
