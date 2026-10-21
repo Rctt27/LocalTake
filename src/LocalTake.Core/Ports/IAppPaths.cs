@@ -10,4 +10,7 @@ public interface IAppPaths
 
     /// <summary>Captures must stay on this computer: never a folder synced to the cloud.</summary>
     string DefaultOutputFolder { get; }
+
+    /// <summary>Files LocalTake makes for itself, such as the microphone tracks to transcribe; local, never synced.</summary>
+    string WorkFolder { get; }
 }

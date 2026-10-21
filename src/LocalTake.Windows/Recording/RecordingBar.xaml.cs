@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,11 +18,15 @@ using Forms = System.Windows.Forms;
 namespace LocalTake;
 
 /// <summary>
-/// Audio toggles and Start before recording, then elapsed time, Stop and Cancel. Excluded from capture like
+/// The status, which is the bar's on/off button (▶ to start, then the elapsed time with ■ to stop), the audio and
+/// subtitle toggles, and Cancel. Excluded from capture like
 /// <see cref="RecordingFrame"/>.
 /// </summary>
 public partial class RecordingBar : Window
 {
+    /// <summary>What the status button does: start, stop, or nothing while the countdown runs or the file is finished.</summary>
+    private enum StatusMode { Start, Wait, Stop }
+
     private readonly AppSettings _settings;
     private readonly ISettingsStore _store;
     private readonly IFfmpegPlatform _platform;
@@ -29,7 +34,13 @@ public partial class RecordingBar : Window
     private readonly Stopwatch _elapsed = new();
     private bool _hasMicrophone = true;
     private bool _hasSystemAudio;
+    private readonly bool _canTranscribe;
     private bool _audioLocked;
+    private StatusMode _mode = StatusMode.Wait;
+    private string _startHint = "Démarrer";
+    private string _stopHint = "Arrêter";
+    private string _startTip = "";
+    private string _stopTip = "";
 
     /// <summary>Set while the code updates the toggles, so that only the user's choices are saved.</summary>
     private bool _updatingToggles;
@@ -38,12 +49,14 @@ public partial class RecordingBar : Window
     public event Action? StopRequested;
     public event Action? CancelRequested;
 
-    internal RecordingBar(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows)
+    /// <param name="canTranscribe">Whether there is a model to transcribe the microphone with.</param>
+    internal RecordingBar(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, bool canTranscribe)
     {
         InitializeComponent();
         _settings = settings;
         _store = store;
         _platform = platform;
+        _canTranscribe = canTranscribe;
         // Known before ffmpeg lists the devices: on Windows it only takes an audio output.
         _hasSystemAudio = platform.CanRecordSystemAudio([]);
         SourceInitialized += (_, _) =>
@@ -55,10 +68,7 @@ public partial class RecordingBar : Window
         };
         _timer.Tick += (_, _) =>
         {
-            var elapsed = _elapsed.Elapsed;
-            StatusText.Text = $"Enregistrement  {elapsed:mm\\:ss\\.f}";
-            // The timer ticks for the tenths; the dot keeps blinking every half second.
-            Dot.Opacity = (long)elapsed.TotalMilliseconds / 500 % 2 == 0 ? 1 : 0.35;
+            StatusText.Text = Elapsed(_elapsed.Elapsed);
         };
         Closed += (_, _) => _timer.Stop();
         UpdateAudioToggles();
@@ -76,17 +86,17 @@ public partial class RecordingBar : Window
         Native.SetWindowPos(hwnd, IntPtr.Zero, position.X, position.Y, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE);
     }
 
-    /// <param name="startShortcut">Shown on the Start button, or null when it could not be registered.</param>
-    /// <param name="stopShortcut">Shown on the Stop button, or null.</param>
+    /// <param name="startShortcut">Shown beside "Prêt à enregistrer", or null when it could not be registered.</param>
+    /// <param name="stopShortcut">Shown beside the elapsed time, or null.</param>
     public void ShowReady(string? startShortcut, string? stopShortcut)
     {
-        Dot.Opacity = 0.35;
+        string WithShortcut(string text, string? shortcut) => shortcut is null ? text : $"{text} ({shortcut})";
+        _startHint = WithShortcut("Démarrer", startShortcut);
+        _stopHint = WithShortcut("Arrêter", stopShortcut);
+        _startTip = WithShortcut("Lancer le compte à rebours de 3 secondes, puis l'enregistrement", startShortcut);
+        _stopTip = WithShortcut("Arrêter l'enregistrement et garder la vidéo", stopShortcut);
+        SetMode(StatusMode.Start);
         StatusText.Text = "Prêt à enregistrer";
-        StartButton.Content = startShortcut is null ? "●  Démarrer" : $"●  Démarrer ({startShortcut})";
-        StopButton.Content = stopShortcut is null ? "■  Arrêter" : $"■  Arrêter ({stopShortcut})";
-        StartButton.Visibility = Visibility.Visible;
-        StopButton.Visibility = Visibility.Collapsed;
-        StartButton.IsEnabled = true;
         _audioLocked = false;
         UpdateAudioToggles();
     }
@@ -112,8 +122,8 @@ public partial class RecordingBar : Window
 
     public void ShowCountdown(int seconds)
     {
+        SetMode(StatusMode.Wait);
         StatusText.Text = $"Début dans {seconds}…";
-        StartButton.IsEnabled = false;
         _audioLocked = true;
         UpdateAudioToggles();
     }
@@ -121,17 +131,17 @@ public partial class RecordingBar : Window
     /// <summary>ffmpeg is launched but not capturing yet: Stop already works, the counter waits.</summary>
     public void ShowStarting()
     {
+        SetMode(StatusMode.Stop);
         StatusText.Text = "Démarrage…";
-        StartButton.Visibility = Visibility.Collapsed;
-        StopButton.Visibility = Visibility.Visible;
     }
 
     /// <summary>Capture has begun: what is said from now on is in the video.</summary>
+    /// <remarks>Usually straight from the countdown: ffmpeg captures before 0, without <see cref="ShowStarting"/>.</remarks>
     public void ShowRecording()
     {
-        Dot.Opacity = 1;
+        SetMode(StatusMode.Stop);
         _elapsed.Start();
-        StatusText.Text = "Enregistrement  00:00.0";
+        StatusText.Text = Elapsed(TimeSpan.Zero);
         // The bar sizes to its content: a counter a pixel wider or narrower would resize it every tenth and
         // clip the last digit while it redraws.
         StatusText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -142,10 +152,33 @@ public partial class RecordingBar : Window
     public void ShowFinishing()
     {
         _timer.Stop();
-        Dot.Opacity = 0.35;
+        SetMode(StatusMode.Wait);
+        CancelButton.IsEnabled = false;
+        // Still the stop square, dimmed: the recording is over, its file is being finished.
+        Dot.Visibility = Visibility.Collapsed;
+        StopSquare.Visibility = Visibility.Visible;
+        StopSquare.Opacity = 0.35;
         StatusText.Text = "Finalisation…";
-        StopButton.IsEnabled = CancelButton.IsEnabled = false;
     }
+
+    /// <summary>
+    /// The status button: ▶ and its shortcut when ready, ■ and its shortcut from "Démarrage…" until the end, a dimmed
+    /// dot and no click while the countdown runs.
+    /// </summary>
+    private void SetMode(StatusMode mode)
+    {
+        _mode = mode;
+        StatusButton.IsEnabled = mode != StatusMode.Wait;
+        PlayIcon.Visibility = mode == StatusMode.Start ? Visibility.Visible : Visibility.Collapsed;
+        StopSquare.Visibility = mode == StatusMode.Stop ? Visibility.Visible : Visibility.Collapsed;
+        StopSquare.Opacity = 1;
+        Dot.Visibility = mode == StatusMode.Wait ? Visibility.Visible : Visibility.Collapsed;
+        StatusHint.Visibility = mode == StatusMode.Wait ? Visibility.Collapsed : Visibility.Visible;
+        StatusHint.Text = mode == StatusMode.Start ? _startHint : _stopHint;
+        StatusButton.ToolTip = mode == StatusMode.Start ? _startTip : _stopTip;
+    }
+
+    private static string Elapsed(TimeSpan elapsed) => elapsed.ToString(@"mm\:ss\.f", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// The toggles show the saved choice, except for an input this computer lacks. Once the countdown starts, ffmpeg's
@@ -184,6 +217,17 @@ public partial class RecordingBar : Window
             : _settings.RecordSystemAudio ? "Le son de l'ordinateur est enregistré. Cliquer pour le couper."
                 : "Son de l'ordinateur coupé. Cliquer pour l'enregistrer.";
         SystemAudioLabel.TextDecorations = SystemAudioToggle.IsChecked == true ? null : TextDecorations.Strikethrough;
+
+        // Only the microphone is transcribed: without it, there is nothing to put in the subtitles.
+        var microphoneOn = MicrophoneToggle.IsChecked == true;
+        TranscriptionToggle.IsChecked = _canTranscribe && microphoneOn && _settings.TranscribeMicrophone;
+        TranscriptionToggle.IsEnabled = _canTranscribe && microphoneOn && !_audioLocked;
+        TranscriptionToggle.ToolTip = !_canTranscribe ? "Modèle de transcription introuvable : voir les réglages."
+            : !microphoneOn ? "Les sous-titres transcrivent le micro : activez-le d'abord."
+            : _settings.TranscribeMicrophone
+                ? "Ce que vous dites au micro sera transcrit en sous-titres après l'enregistrement. Cliquer pour ne pas le transcrire."
+                : "Pas de sous-titres. Cliquer pour transcrire le micro après l'enregistrement.";
+        TranscriptionLabel.TextDecorations = TranscriptionToggle.IsChecked == true ? null : TextDecorations.Strikethrough;
     }
 
     private void Microphone_Changed(object sender, RoutedEventArgs e)
@@ -204,6 +248,15 @@ public partial class RecordingBar : Window
         UpdateAudioToggles();
     }
 
+    private void Transcription_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_updatingToggles)
+            return;
+        _settings.TranscribeMicrophone = TranscriptionToggle.IsChecked == true;
+        _store.TrySave(_settings);
+        UpdateAudioToggles();
+    }
+
     private void MicrophoneBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (MicrophoneBox.SelectedItem is not string microphone)
@@ -212,7 +265,12 @@ public partial class RecordingBar : Window
         _store.TrySave(_settings);
     }
 
-    private void Start_Click(object sender, RoutedEventArgs e) => StartRequested?.Invoke();
-    private void Stop_Click(object sender, RoutedEventArgs e) => StopRequested?.Invoke();
+    private void Status_Click(object sender, RoutedEventArgs e)
+    {
+        if (_mode == StatusMode.Start)
+            StartRequested?.Invoke();
+        else if (_mode == StatusMode.Stop)
+            StopRequested?.Invoke();
+    }
     private void Cancel_Click(object sender, RoutedEventArgs e) => CancelRequested?.Invoke();
 }

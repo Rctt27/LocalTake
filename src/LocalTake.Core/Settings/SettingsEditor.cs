@@ -22,10 +22,17 @@ public sealed record SettingsForm(
     string Microphone,
     bool RecordMicrophone,
     bool RecordSystemAudio,
-    int VideoFrameRate)
+    int VideoFrameRate,
+    bool TranscribeMicrophone,
+    string TranscriptionLanguage,
+    string TranscriptionModelPath)
 {
     /// <summary>The frame rates offered.</summary>
     public static IReadOnlyList<int> FrameRates { get; } = [15, 24, 30, 60];
+
+    /// <summary>The transcription languages offered, by Whisper code, with their French names.</summary>
+    public static IReadOnlyList<(string Code, string Name)> TranscriptionLanguages { get; } =
+        [("fr", "Français"), ("en", "Anglais"), ("auto", "Détection automatique")];
 
     public IEnumerable<string> Hotkeys =>
     [
@@ -41,7 +48,10 @@ public sealed record SettingsForm(
             settings.AfterCapture, settings.HotkeyRegion, settings.HotkeyWindow, settings.HotkeyFullScreen, settings.HotkeyLastRegion,
             settings.HotkeyVideoRegion, settings.HotkeyVideoFullScreen, settings.HotkeyVideoStart, settings.HotkeyVideoStop,
             settings.FfmpegPath, settings.Microphone, settings.RecordMicrophone, settings.RecordSystemAudio,
-            FrameRates.OrderBy(f => Math.Abs(f - settings.VideoFrameRate)).First());
+            FrameRates.OrderBy(f => Math.Abs(f - settings.VideoFrameRate)).First(),
+            settings.TranscribeMicrophone,
+            TranscriptionLanguages.Any(l => l.Code == settings.TranscriptionLanguage) ? settings.TranscriptionLanguage : "fr",
+            settings.TranscriptionModelPath);
     }
 
     /// <summary>Copies the fields, trimmed, into the settings.</summary>
@@ -67,6 +77,9 @@ public sealed record SettingsForm(
         settings.RecordMicrophone = RecordMicrophone;
         settings.RecordSystemAudio = RecordSystemAudio;
         settings.VideoFrameRate = VideoFrameRate;
+        settings.TranscribeMicrophone = TranscribeMicrophone;
+        settings.TranscriptionLanguage = TranscriptionLanguage;
+        settings.TranscriptionModelPath = TranscriptionModelPath.Trim();
     }
 }
 
@@ -89,6 +102,9 @@ public sealed class SettingsEditor(AppSettings settings, ISettingsStore store, I
         var ffmpegPath = form.FfmpegPath.Trim();
         if (ffmpegPath.Length > 0 && !fileSystem.File.Exists(ffmpegPath))
             return "Le fichier ffmpeg indiqué n'existe pas. Laissez le champ vide pour une détection automatique.";
+        var modelPath = form.TranscriptionModelPath.Trim();
+        if (modelPath.Length > 0 && !fileSystem.File.Exists(modelPath))
+            return "Le modèle de transcription indiqué n'existe pas. Laissez le champ vide pour utiliser celui livré avec LocalTake.";
 
         // A relative path would depend on the working directory, which is System32 when Windows starts the app.
         var folder = form.OutputFolder.Trim();

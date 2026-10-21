@@ -41,8 +41,9 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
     /// <param name="outputPath">The MP4 to write.</param>
     /// <param name="onUnexpectedExit">ffmpeg stopped on its own; called on a worker thread.</param>
     /// <param name="systemAudio">The capture feeding one of the inputs, freed once ffmpeg is done with it.</param>
+    /// <param name="microphoneTrackPath">A WAV file to write the microphone to, alone, for the transcription.</param>
     public static FfmpegVideoRecorder Start(string ffmpegPath, CaptureInputs inputs, string outputPath, Action<IVideoRecorder> onUnexpectedExit,
-        IDisposable? systemAudio = null)
+        IDisposable? systemAudio = null, string? microphoneTrackPath = null)
     {
         var start = new ProcessStartInfo(ffmpegPath)
         {
@@ -52,7 +53,7 @@ public sealed partial class FfmpegVideoRecorder : IVideoRecorder
             RedirectStandardError = true,
             StandardErrorEncoding = Encoding.UTF8
         };
-        foreach (var arg in RecordingCommand.Build(inputs, outputPath))
+        foreach (var arg in RecordingCommand.Build(inputs, outputPath, microphoneTrackPath))
             start.ArgumentList.Add(arg);
 
         var process = new Process { StartInfo = start, EnableRaisingEvents = true };

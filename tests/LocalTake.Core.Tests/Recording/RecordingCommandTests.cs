@@ -66,6 +66,26 @@ public sealed class RecordingCommandTests
     }
 
     [Fact]
+    public void A_microphone_track_is_a_second_output_with_the_microphone_alone_as_16_kHz_mono_wav()
+    {
+        // With the computer sound too, the video mixes both; the track keeps only the microphone, the first input.
+        var inputs = new CaptureInputs([["-i", "mic"]], ["-i", "screen"], TrailingAudioInputs: [["-i", "late"]], DownmixToStereo: true);
+
+        RecordingCommand.Build(inputs, "out.mp4", "mic.wav").ShouldBe(
+        [
+            .. RecordingCommand.Build(inputs, "out.mp4"),
+            "-map", "0:a", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "mic.wav"
+        ]);
+    }
+
+    [Fact]
+    public void A_microphone_track_needs_a_microphone()
+    {
+        Should.Throw<ArgumentException>(() =>
+            RecordingCommand.Build(new CaptureInputs([], ["-i", "screen"], TrailingAudioInputs: [["-i", "late"]]), "out.mp4", "mic.wav"));
+    }
+
+    [Fact]
     public void A_video_filter_is_applied_to_the_screen_stream()
     {
         var inputs = new CaptureInputs([], ["-f", "lavfi", "-i", "testsrc"], VideoFilter: "crop=10:10:0:0");

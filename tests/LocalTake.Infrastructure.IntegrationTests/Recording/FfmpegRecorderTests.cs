@@ -68,6 +68,42 @@ public sealed class FfmpegRecorderTests : IDisposable
     }
 
     [Fact]
+    public async Task The_microphone_track_is_a_16_kHz_mono_wav_in_time_with_the_video()
+    {
+        // The transcription's times are read from this track and shown against the video: a beep every second must
+        // start at the same time in both files.
+        var ffmpeg = RequireFfmpeg();
+        var output = _folder.File("track.mp4");
+        var track = _folder.File("track.wav");
+        var inputs = new CaptureInputs(
+            [["-re", "-f", "lavfi", "-i", "aevalsrc=if(lt(mod(t\\,1)\\,0.2)\\,0.5*sin(2*PI*880*t)\\,0):s=48000"]],
+            ["-re", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=30"]);
+
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, inputs, output, _ => { }, microphoneTrackPath: track);
+        (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        await Task.Delay(3500, TestContext.Current.CancellationToken);
+        (await recorder.StopAsync()).ShouldBeTrue();
+
+        var probe = await RunFfmpegAsync(ffmpeg, "-hide_banner", "-i", track);
+        probe.Output.ShouldContain("Audio: pcm_s16le");
+        probe.Output.ShouldContain("16000 Hz, mono");
+        var inTrack = await BeepStartsAsync(ffmpeg, track);
+        var inVideo = await BeepStartsAsync(ffmpeg, output);
+        inTrack.Count.ShouldBeGreaterThanOrEqualTo(2);
+        for (var i = 0; i < Math.Min(inTrack.Count, inVideo.Count); i++)
+            Math.Abs(inTrack[i] - inVideo[i]).ShouldBeLessThan(0.05, $"beep {i}: {inTrack[i]} s in the track, {inVideo[i]} s in the video");
+    }
+
+    /// <summary>Where each beep starts, in seconds of the file's timeline: the ends of the silences between them.</summary>
+    private static async Task<List<double>> BeepStartsAsync(string ffmpeg, string file)
+    {
+        var (_, output) = await RunFfmpegAsync(ffmpeg, "-hide_banner", "-i", file, "-map", "0:a:0", "-af",
+            "silencedetect=noise=-30dB:d=0.3", "-f", "null", "-");
+        return [.. System.Text.RegularExpressions.Regex.Matches(output, @"silence_end: ([\d.]+)")
+            .Select(m => double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture))];
+    }
+
+    [Fact]
     public async Task Kill_stops_at_once()
     {
         var ffmpeg = RequireFfmpeg();

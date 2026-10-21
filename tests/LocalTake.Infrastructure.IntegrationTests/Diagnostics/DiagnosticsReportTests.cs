@@ -4,6 +4,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using LocalTake.Infrastructure.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -18,6 +19,7 @@ public sealed class DiagnosticsReportTests : IDisposable
     private readonly IAudioDeviceLister _audio = Substitute.For<IAudioDeviceLister>();
     private readonly IScreenGrabber _grabber = Substitute.For<IScreenGrabber>();
     private readonly IGlobalHotkeys _hotkeys = Substitute.For<IGlobalHotkeys>();
+    private string? _modelError;
 
     public DiagnosticsReportTests()
     {
@@ -32,6 +34,8 @@ public sealed class DiagnosticsReportTests : IDisposable
         _grabber.Grab(Arg.Any<PixelRect>()).Returns(new PixelBuffer(64, 64, new byte[64 * 64 * 4]));
         _grabber.VisibleWindows().Returns([]);
         _hotkeys.Register(Arg.Any<Hotkey>(), Arg.Any<Action>()).Returns(true);
+        Directory.CreateDirectory(_temp.File("models"));
+        File.WriteAllText(_temp.File(Path.Combine("models", "ggml-small-q5_1.bin")), "");
     }
 
     public void Dispose() => _temp.Dispose();
@@ -42,7 +46,9 @@ public sealed class DiagnosticsReportTests : IDisposable
         paths.SettingsFile.Returns(_temp.File("settings.json"));
         paths.LogsFolder.Returns(_temp.Path);
         var locator = new FfmpegLocator(new FileSystem(), _temp.Path, null, "ffmpeg.exe", []);
-        var report = new DiagnosticsReport(paths, _settings, locator, _platform, _audio, _grabber, _hotkeys, NullLogger<DiagnosticsReport>.Instance);
+        var models = new TranscriptionModelLocator(new FileSystem(), [_temp.File("models")]);
+        var report = new DiagnosticsReport(paths, _settings, locator, _platform, _audio, _grabber, _hotkeys, models,
+            NullLogger<DiagnosticsReport>.Instance, _ => _modelError);
         using var output = new StringWriter();
         var code = await report.RunAsync(output);
         return (code, output.ToString());
@@ -57,6 +63,36 @@ public sealed class DiagnosticsReportTests : IDisposable
         output.ShouldContain("[ok]   ffmpeg");
         output.ShouldContain("[ok]   global shortcut: PrintScreen accepted");
         output.ShouldContain("Everything LocalTake needs is available.");
+    }
+
+    [Fact]
+    public async Task The_transcription_model_is_found_and_loaded()
+    {
+        var (_, output) = await Run();
+
+        output.ShouldContain("[ok]   transcription: " + _temp.File(Path.Combine("models", "ggml-small-q5_1.bin")));
+    }
+
+    [Fact]
+    public async Task A_missing_transcription_model_is_reported()
+    {
+        File.Delete(_temp.File(Path.Combine("models", "ggml-small-q5_1.bin")));
+
+        var (code, output) = await Run();
+
+        code.ShouldBe(2);
+        output.ShouldContain("[FAIL] transcription: FileNotFoundException: no Whisper model");
+    }
+
+    [Fact]
+    public async Task A_model_that_does_not_load_is_reported()
+    {
+        _modelError = "whisper.dll not found";
+
+        var (code, output) = await Run();
+
+        code.ShouldBe(2);
+        output.ShouldContain("does not load: whisper.dll not found");
     }
 
     [Fact]

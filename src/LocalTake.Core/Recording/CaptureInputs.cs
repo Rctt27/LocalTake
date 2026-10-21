@@ -1,7 +1,10 @@
 namespace LocalTake.Core.Recording;
 
 /// <summary>The ffmpeg inputs of a recording, as one platform captures the screen and the sound.</summary>
-/// <param name="AudioInputs">The arguments of each audio input, each ending with its "-i".</param>
+/// <param name="AudioInputs">
+/// The arguments of each audio input, each ending with its "-i". The microphone, when recorded, comes first: the
+/// transcription's track is read from input 0.
+/// </param>
 /// <param name="VideoInput">The arguments of the screen input, ending with its "-i".</param>
 /// <param name="VideoFilter">A filter for the screen stream, such as a crop when the input captures a whole display.</param>
 /// <param name="TrailingAudioInputs">

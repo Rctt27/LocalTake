@@ -42,6 +42,7 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 ### Vidéo
 
 - [ ] `Ctrl+Maj+Impr. écran` : zone, cadre rouge autour, barre dessous ; `Ctrl+R` démarre après 3 secondes.
+- [ ] La gauche de la barre est le bouton marche/arrêt : prête, elle montre ▶ « Prêt à enregistrer · Démarrer (Ctrl+R) » et un clic lance le compte à rebours ; pendant le compte à rebours, un point grisé et pas de clic ; pendant l'enregistrement, ■ avec la durée et « Arrêter (Ctrl+D) », et un clic arrête et enregistre la vidéo (y compris pendant « Démarrage… ») ; pendant « Finalisation… », pas de clic.
 - [ ] Micro et son du PC, sans le pilote TinyTake : `ffmpeg -i video.mp4` montre une piste audio, le son joué est synchrone avec l'image, et la fin de la phrase prononcée avant « Arrêter » est présente.
 - [ ] Son du PC sans rien qui joue : l'aperçu dure autant que l'enregistrement.
 - [ ] Casque USB débranché pendant l'enregistrement : la vidéo se finalise, le son du PC devient muet jusqu'à la fin.
@@ -54,10 +55,33 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 - [ ] « Refaire » : la vidéo part dans la Corbeille et un nouvel enregistrement commence.
 - [ ] « Annuler » pendant l'enregistrement : aucun fichier ne reste.
 
+### Sous-titres
+
+Avec le zip de la release (ou l'exe publié, avec un modèle `ggml-*.bin` dans un dossier `models` à côté).
+
+- [ ] Bascule « Sous-titres » : grisée quand le micro est coupé ou sans modèle, avec l'infobulle qui l'explique ; le choix est retenu d'une vidéo à l'autre.
+- [ ] Enregistrer une minute en parlant, avec « Sous-titres » : l'aperçu s'ouvre et lit la vidéo aussitôt ; le panneau de gauche montre « Transcription du micro… » avec sa progression, puis les blocs.
+- [ ] Les blocs font une ligne de 5 à 7 mots environ, coupée à un endroit naturel (jamais après « le », « de », « je »…) ; une pause d'une demi-seconde commence un nouveau bloc ; la vitesse de lecture s'affiche à côté des temps (orange au-delà de 15 car./s, rouge au-delà de 17).
+- [ ] Le sous-titre en cours s'affiche sur la vidéo, en bas de l'image (pas dans les bandes noires), sur un bandeau noir translucide, à une taille proportionnée à l'image ; rien entre deux blocs ; un texte corrigé s'y met à jour.
+- [ ] Pendant la lecture, le bloc surligné suit la voix ; entre deux phrases, c'est l'intervalle « aucun sous-titre » qui est surligné ; la liste défile pour le garder au milieu.
+- [ ] Clic sur la barre de défilement de la vidéo, `←` / `→` : le panneau se place aussitôt sur le bloc ou l'intervalle de ce moment.
+- [ ] Clic sur un bloc ou un intervalle : la vidéo y va.
+- [ ] Cliquer dans un texte met la lecture en pause ; `Espace` y tape une espace (sans relancer la vidéo) ; `Entrée` valide ; `Maj+Entrée` passe à la ligne ; `Échap` remet le texte d'avant.
+- [ ] Un début avant la fin du bloc précédent est refusé avec un message, et l'ancien temps revient. Raccourcir une fin fait apparaître un intervalle.
+- [ ] « + Ajouter » dans un intervalle, supprimer un bloc, `Ctrl+Z` / `Ctrl+Y` hors des champs.
+- [ ] Le `.srt` à côté de la vidéo reprend les modifications ; VLC l'affiche avec la vidéo, accents compris.
+- [ ] Sans la bascule « Sous-titres » : la fenêtre de lecture montre « Générer les sous-titres » en haut ; un clic ouvre le panneau avec la progression, puis les blocs ; le bouton disparaît pendant la transcription et quand il y a des sous-titres, et revient si rien n'a été entendu.
+- [ ] Fermer la fenêtre sans générer : `%LOCALAPPDATA%\LocalTake\work` est vide. Une vidéo avec un `.srt` vide affiche aussi le bouton.
+- [ ] Lancer un nouvel enregistrement pendant une transcription : elle s'interrompt (« en attente ») et reprend après.
+- [ ] « Supprimer » ou « Refaire » pendant la transcription : la vidéo et le `.srt` partent à la Corbeille, la transcription s'arrête.
+- [ ] Ne rien dire : « Aucune parole détectée », pas de `.srt`.
+- [ ] `ffmpeg -i video.mp4` : la vidéo n'a pas changé (une piste vidéo, une piste audio), et `%LOCALAPPDATA%\LocalTake\work` est vide après la transcription.
+
 ### Réglages
 
 - [ ] Saisie des raccourcis (dont `Impr. écran`), « Raccourcis de TinyTake », doublon refusé avec un message.
 - [ ] Dossier relatif refusé ; « Parcourir… » pour le dossier et ffmpeg ; un chemin ffmpeg inexistant est refusé.
+- [ ] Sous-titres : le modèle livré est affiché ; un modèle inexistant est refusé ; la langue est retenue.
 - [ ] « Lancer LocalTake au démarrage de Windows » : présent après redémarrage, puis désactivé.
 - [ ] « Quitter » pendant un enregistrement pose la question ; avec un éditeur non enregistré aussi.
 

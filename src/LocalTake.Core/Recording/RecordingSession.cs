@@ -5,6 +5,7 @@ using LocalTake.Core.Geometry;
 using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 
 namespace LocalTake.Core.Recording;
 
@@ -21,7 +22,8 @@ public sealed class RecordingSession(
     AppSettings settings, FfmpegLocator locator, IFfmpegPlatform platform, IAudioDeviceLister audioDevices,
     IAreaPicker picker, IScreen screen, IRecordingViewFactory views, IGlobalHotkeys sessionHotkeys,
     IVideoRecorderFactory recorders, OutputPathAllocator paths, FileCounter counter, IClipboard clipboard,
-    IUserDialogs dialogs, IUiThread uiThread, IFileSystem fileSystem, TimeProvider clock, HotkeyNaming hotkeyNaming)
+    IUserDialogs dialogs, IUiThread uiThread, IFileSystem fileSystem, MicrophoneTracks microphoneTracks, TimeProvider clock,
+    HotkeyNaming hotkeyNaming)
     : IRecordingStatus, IDisposable
 {
     private enum State { Idle, Selecting, Ready, Countdown, Recording, Finishing }
@@ -37,6 +39,12 @@ public sealed class RecordingSession(
     private State _state = State.Idle;
     private IRecordingView? _view;
     private IVideoRecorder? _recorder;
+
+    /// <summary>The current recorder's microphone track, for the transcription; null without one.</summary>
+    private string? _microphoneTrack;
+
+    /// <summary>The bar's subtitles toggle when the recording started: it is locked from then on.</summary>
+    private bool _transcribe;
     private Task _stopping = Task.CompletedTask;
 
     /// <summary>How long ffmpeg last took from its launch to capturing; it is launched that long before 0.</summary>
@@ -182,10 +190,13 @@ public sealed class RecordingSession(
                 ? AudioDevices.PickMicrophone(devices, settings.Microphone, platform.SystemAudioDevice)
                 : null;
             var systemAudio = settings.RecordSystemAudio && platform.CanRecordSystemAudio(devices);
-            var options = new VideoOptions(Math.Clamp(settings.VideoFrameRate, 5, 60), microphone, systemAudio);
+            var track = microphone is not null ? microphoneTracks.Allocate() : null;
+            var options = new VideoOptions(Math.Clamp(settings.VideoFrameRate, 5, 60), microphone, systemAudio, track);
             var path = paths.Next(settings.OutputFolder, settings.FileNamePattern, settings.Counter, ".mp4");
             // Taken now, so that an image saved meanwhile gets the next number instead of the same one.
             _reservedNumber = counter.Reserve();
+            _microphoneTrack = track;
+            _transcribe = settings.TranscribeMicrophone;
             _recorder = started = recorders.Start(_ffmpeg, _target, path, options,
                 recorder => uiThread.Post(() => OnUnexpectedExit(recorder)));
         }
@@ -194,6 +205,7 @@ public sealed class RecordingSession(
 #pragma warning restore CA1031
         {
             ReleaseNumber();
+            DeleteMicrophoneTrack();
             CloseUi();
             SetState(State.Idle);
             dialogs.ShowError("L'enregistrement n'a pas pu démarrer : " + ex.Message);
@@ -280,6 +292,8 @@ public sealed class RecordingSession(
     {
         SetState(State.Finishing);
         _view?.ShowFinishing();
+        var track = _microphoneTrack;
+        _microphoneTrack = null;
 
         var ok = false;
         string? error = null;
@@ -306,6 +320,8 @@ public sealed class RecordingSession(
         {
             ReleaseNumber();
             TryDelete(recorder.OutputPath);
+            if (track is not null)
+                TryDelete(track);
             var reason = error ?? (recorder.ErrorTail.Length > 0 ? recorder.ErrorTail : "ffmpeg n'a pas terminé le fichier.");
             dialogs.ShowError("La vidéo n'a pas pu être finalisée.\n\n" + reason);
             return;
@@ -324,7 +340,7 @@ public sealed class RecordingSession(
             {
             }
         }
-        VideoSaved?.Invoke(this, new VideoSavedEventArgs(recorder.OutputPath, _fullScreen));
+        VideoSaved?.Invoke(this, new VideoSavedEventArgs(recorder.OutputPath, _fullScreen, track, _transcribe));
     }
 
     private void OnUnexpectedExit(IVideoRecorder recorder)
@@ -354,6 +370,14 @@ public sealed class RecordingSession(
         TryDelete(recorder.OutputPath);
         recorder.Dispose();
         ReleaseNumber();
+        DeleteMicrophoneTrack();
+    }
+
+    private void DeleteMicrophoneTrack()
+    {
+        if (_microphoneTrack is { } track)
+            TryDelete(track);
+        _microphoneTrack = null;
     }
 
     private void ReleaseNumber()

@@ -12,11 +12,13 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using LocalTake.Infrastructure.Diagnostics;
 using LocalTake.Infrastructure.Logging;
 using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
 using LocalTake.Infrastructure.Settings;
+using LocalTake.Infrastructure.Transcription;
 using LocalTake.Platform.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -66,6 +68,8 @@ public partial class App : Application
             args.Handled = true;
         };
 
+        // Tracks of videos closed before their transcription: their players are gone with the previous run.
+        _services.GetRequiredService<MicrophoneTracks>().DeleteLeftovers();
         _services.GetRequiredService<TrayController>();
     }
 
@@ -108,10 +112,16 @@ public partial class App : Application
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp,
             (IGlobalHotkeys)new WindowsHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.Windows));
         services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
+        services.AddSingleton(sp => paths.CreateModelLocator(sp.GetRequiredService<IFileSystem>()));
+        services.AddSingleton<MicrophoneTracks>();
+        services.AddSingleton<SubtitleFile>();
+        services.AddSingleton<Transcriptions>();
 
         // Infrastructure
         services.AddSingleton<IAudioDeviceLister, FfmpegAudioDeviceLister>();
         services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
+        services.AddSingleton<ITranscriber, WhisperTranscriber>();
+        services.AddSingleton<IAudioExtractor, FfmpegAudioExtractor>();
         services.AddSingleton<DiagnosticsReport>();
 
         // Windows adapters

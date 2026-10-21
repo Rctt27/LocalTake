@@ -1,6 +1,7 @@
 name: Release
 
-# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and publishes it as a GitHub release.
+# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and publishes it as a GitHub release: a zip holding
+# LocalTake.exe, Whisper's native libraries and the transcription model.
 on:
   push:
     tags: ['v*.*.*']
@@ -11,6 +12,10 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # The Whisper model shipped with LocalTake: LocalTake itself never downloads anything. Pinned and checked.
+  WHISPER_MODELS_REVISION: 5359861c739e955e79d9a303bcbc70fb988958b1
+  WHISPER_MODEL: ggml-small-q5_1.bin
+  WHISPER_MODEL_SHA256: ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb
 
 jobs:
   windows:
@@ -20,14 +25,24 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
-      - name: Name the executable after the version
+      # LocalTake.exe, Whisper's native libraries in runtimes\win-x64, and the model in models: all three side by side.
+      - run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o build/LocalTake
+      - name: Add the Whisper model
         shell: bash
-        run: mv dist/LocalTake.exe "dist/LocalTake-${GITHUB_REF_NAME#v}-windows-x64.exe"
+        run: |
+          mkdir -p build/LocalTake/models
+          cd build/LocalTake/models
+          curl -sSfL -o "$WHISPER_MODEL" "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/$WHISPER_MODEL"
+          echo "$WHISPER_MODEL_SHA256  $WHISPER_MODEL" | sha256sum -c -
+      - name: Zip it, named after the version
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Compress-Archive -Path build/LocalTake -DestinationPath "dist/LocalTake-$($env:GITHUB_REF_NAME.TrimStart('v'))-windows-x64.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: dist/*.exe
+          path: dist/*.zip
 
   publish:
     needs: [windows]

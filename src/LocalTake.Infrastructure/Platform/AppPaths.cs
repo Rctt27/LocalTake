@@ -1,11 +1,14 @@
 using System.IO.Abstractions;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
+using LocalTake.Core.Transcription;
 
 namespace LocalTake.Infrastructure.Platform;
 
 /// <summary>Where LocalTake keeps its files, following each platform's conventions.</summary>
-public sealed record AppPaths(string SettingsFile, string LogsFolder, string DefaultOutputFolder) : IAppPaths
+/// <param name="ModelsFolders">Where to look for the transcription model: the one shipped with LocalTake comes first.</param>
+public sealed record AppPaths(
+    string SettingsFile, string LogsFolder, string DefaultOutputFolder, string WorkFolder, IReadOnlyList<string> ModelsFolders) : IAppPaths
 {
     private const string AppName = "LocalTake";
 
@@ -18,11 +21,15 @@ public sealed record AppPaths(string SettingsFile, string LogsFolder, string Def
         if (OperatingSystem.IsMacOS())
         {
             var library = Path.Combine(home, "Library");
+            var support = Path.Combine(library, "Application Support", AppName);
             return new AppPaths(
-                Path.Combine(library, "Application Support", AppName, "settings.json"),
+                Path.Combine(support, "settings.json"),
                 Path.Combine(library, "Logs", AppName),
                 // iCloud Drive syncs Desktop and Documents when asked to, never Pictures.
-                Path.Combine(home, "Pictures", AppName));
+                Path.Combine(home, "Pictures", AppName),
+                Path.Combine(library, "Caches", AppName),
+                // In the app bundle, Contents/Resources/models, next to the folder holding the assemblies.
+                [ShippedModels, Path.Combine(AppContext.BaseDirectory, "..", "Resources", "models"), Path.Combine(support, "models")]);
         }
 
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -36,8 +43,12 @@ public sealed record AppPaths(string SettingsFile, string LogsFolder, string Def
                     .OfType<string>()
                     .Where(root => root.Length > 0)])
             : Path.Combine(home, "Pictures", AppName);
-        return new AppPaths(Path.Combine(appData, AppName, "settings.json"), Path.Combine(localAppData, AppName, "logs"), outputFolder);
+        return new AppPaths(Path.Combine(appData, AppName, "settings.json"), Path.Combine(localAppData, AppName, "logs"), outputFolder,
+            Path.Combine(localAppData, AppName, "work"), [ShippedModels, Path.Combine(localAppData, AppName, "models")]);
     }
+
+    /// <summary>The release puts the model in a models folder next to LocalTake.</summary>
+    private static string ShippedModels => Path.Combine(AppContext.BaseDirectory, "models");
 
     /// <summary>
     /// Pictures\LocalTake, unless Pictures is synced by OneDrive: captures must stay on this computer.
@@ -57,4 +68,6 @@ public sealed record AppPaths(string SettingsFile, string LogsFolder, string Def
             fileSystem, AppContext.BaseDirectory, Environment.GetEnvironmentVariable("PATH"),
             OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg", wellKnown);
     }
+
+    public TranscriptionModelLocator CreateModelLocator(IFileSystem fileSystem) => new(fileSystem, ModelsFolders);
 }

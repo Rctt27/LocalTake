@@ -71,16 +71,22 @@ public sealed class JsonSettingsStoreTests : IDisposable
         s.EditorThickness.ShouldBe(6);
         s.EditorFontSize.ShouldBe(32);
         s.SchemaVersion.ShouldBe(1);
+        // Added after v0.1.0: an older file gets the defaults, transcription off.
+        s.TranscribeMicrophone.ShouldBeFalse();
+        s.TranscriptionLanguage.ShouldBe("fr");
+        s.TranscriptionModelPath.ShouldBe("");
     }
 
     [Fact]
-    public void A_saved_file_has_the_keys_of_v0_1_0_plus_the_schema_version()
+    public void A_saved_file_has_the_keys_of_v0_1_0_plus_the_schema_version_and_the_transcription()
     {
         _store.Save(_store.Load());
 
         var written = KeysOf(File.ReadAllText(_file));
         var legacy = KeysOf(File.ReadAllText(Path.Combine(Fixtures, "settings-v0.1.0-defaults.json")));
-        written.ShouldBe([.. legacy, "SchemaVersion"], ignoreOrder: true);
+        // Deliberate change: the transcription's three settings are new keys, which v0.1.0 files simply lack.
+        written.ShouldBe([.. legacy, "SchemaVersion", "TranscribeMicrophone", "TranscriptionLanguage", "TranscriptionModelPath"],
+            ignoreOrder: true);
     }
 
     [Fact]

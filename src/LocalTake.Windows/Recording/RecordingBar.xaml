@@ -16,6 +16,35 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <!-- The status and elapsed time, the bar's on/off button: Start when ready, Stop while recording. -->
+        <Style x:Key="StatusButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Box" Background="{TemplateBinding Background}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsEnabled" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Box" Property="Background" Value="#3C3C3C"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="True">
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="Glyph" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="14"/>
@@ -25,9 +54,18 @@
     </Window.Resources>
 
     <StackPanel Orientation="Horizontal" Margin="8,5" ToolTip="Glisser pour déplacer · invisible dans la vidéo">
-        <Ellipse x:Name="Dot" Width="12" Height="12" Fill="#E53935" VerticalAlignment="Center" Margin="2,0,8,0"/>
-        <TextBlock x:Name="StatusText" Foreground="#EEE" VerticalAlignment="Center" MinWidth="110"
-                   FontFamily="Segoe UI Semibold" Typography.NumeralAlignment="Tabular"/>
+        <Button x:Name="StatusButton" Style="{StaticResource StatusButton}" IsEnabled="False" Click="Status_Click">
+            <StackPanel Orientation="Horizontal">
+                <Grid Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <Ellipse x:Name="Dot" Fill="#E53935" Opacity="0.35" Visibility="Collapsed"/>
+                    <Polygon x:Name="PlayIcon" Points="1,0 12,6 1,12" Fill="#E53935" Visibility="Collapsed"/>
+                    <Rectangle x:Name="StopSquare" Fill="#E53935" RadiusX="2" RadiusY="2" Visibility="Collapsed"/>
+                </Grid>
+                <TextBlock x:Name="StatusText" Foreground="#EEE" VerticalAlignment="Center" MinWidth="110"
+                           FontFamily="Segoe UI Semibold" Typography.NumeralAlignment="Tabular"/>
+                <TextBlock x:Name="StatusHint" Foreground="#AAA" VerticalAlignment="Center" Margin="4,0,2,0" Visibility="Collapsed"/>
+            </StackPanel>
+        </Button>
 
         <ToggleButton x:Name="MicrophoneToggle" Style="{StaticResource AudioToggle}" Checked="Microphone_Changed" Unchecked="Microphone_Changed">
             <StackPanel Orientation="Horizontal">
@@ -43,12 +81,14 @@
                 <TextBlock x:Name="SystemAudioLabel" Text="Son du PC" VerticalAlignment="Center"/>
             </StackPanel>
         </ToggleButton>
+        <ToggleButton x:Name="TranscriptionToggle" Style="{StaticResource AudioToggle}" Checked="Transcription_Changed" Unchecked="Transcription_Changed">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7F0;"/>
+                <TextBlock x:Name="TranscriptionLabel" Text="Sous-titres" VerticalAlignment="Center"/>
+            </StackPanel>
+        </ToggleButton>
 
-        <Button x:Name="StartButton" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Click="Start_Click"
-                ToolTip="Lancer le compte à rebours de 3 secondes, puis l'enregistrement">●  Démarrer</Button>
-        <Button x:Name="StopButton" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Click="Stop_Click"
-                Visibility="Collapsed" ToolTip="Arrêter et enregistrer la vidéo">■  Arrêter</Button>
-        <Button x:Name="CancelButton" Style="{StaticResource ActionButton}" Margin="4,0,0,0" Click="Cancel_Click"
+        <Button x:Name="CancelButton" Style="{StaticResource ActionButton}" Margin="8,0,0,0" Click="Cancel_Click"
                 ToolTip="Abandonner : rien n'est enregistré">Annuler</Button>
     </StackPanel>
 </Window>

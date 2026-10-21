@@ -11,6 +11,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 
@@ -19,7 +20,7 @@ namespace LocalTake;
 /// <summary>What the settings window needs from the rest of the app.</summary>
 internal sealed record SettingsContext(
     AppSettings Settings, ISettingsStore Store, SettingsDefaults Defaults, FfmpegLocator Locator, IFfmpegPlatform Platform,
-    IAudioDeviceLister AudioDevices, IStartupRegistration Startup, SettingsEditor Editor);
+    IAudioDeviceLister AudioDevices, IStartupRegistration Startup, SettingsEditor Editor, TranscriptionModelLocator Models);
 
 public partial class SettingsWindow : Window
 {
@@ -67,6 +68,14 @@ public partial class SettingsWindow : Window
         SystemAudioBox.IsChecked = settings.RecordSystemAudio;
         FfmpegBox.TextChanged += (_, _) => UpdateFfmpegStatus();
         Loaded += (_, _) => LoadAudioDevices();
+
+        var form = SettingsForm.From(settings);
+        TranscribeBox.IsChecked = form.TranscribeMicrophone;
+        LanguageBox.ItemsSource = SettingsForm.TranscriptionLanguages.Select(l => new { l.Code, l.Name }).ToList();
+        LanguageBox.SelectedValue = form.TranscriptionLanguage;
+        ModelBox.Text = form.TranscriptionModelPath;
+        ModelBox.TextChanged += (_, _) => UpdateModelStatus();
+        UpdateModelStatus();
 
         MaxHeight = SystemParameters.WorkArea.Height * 0.95;
     }
@@ -122,6 +131,24 @@ public partial class SettingsWindow : Window
         SystemAudioBox.ToolTip = hasSystemAudio
             ? "Enregistre ce que joue la sortie audio par défaut."
             : $"Nécessite {_context.Platform.SystemAudioRequirement} : introuvable sur cet ordinateur.";
+    }
+
+    private void UpdateModelStatus()
+    {
+        var path = _context.Models.Find(ModelBox.Text.Trim());
+        ModelStatus.Text = path is not null
+            ? (string.IsNullOrWhiteSpace(ModelBox.Text) ? "Livré avec LocalTake : " + path : "Modèle trouvé.")
+            : "Modèle introuvable : les vidéos ne pourront pas être transcrites. Laissez le champ vide pour utiliser " +
+              "celui livré avec LocalTake (dossier « models » à côté de LocalTake.exe).";
+        ModelStatus.Foreground = path is not null ? System.Windows.Media.Brushes.DimGray : System.Windows.Media.Brushes.Firebrick;
+        TranscribeBox.IsEnabled = path is not null || TranscribeBox.IsChecked == true;
+    }
+
+    private void BrowseModel_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Filter = "Modèles Whisper|*.bin" };
+        if (dialog.ShowDialog(this) == true)
+            ModelBox.Text = dialog.FileName;
     }
 
     private void BrowseFfmpeg_Click(object sender, RoutedEventArgs e)
@@ -222,7 +249,8 @@ public partial class SettingsWindow : Window
             HotkeyRegionBox.Text, HotkeyWindowBox.Text, HotkeyFullScreenBox.Text, HotkeyLastRegionBox.Text,
             HotkeyVideoRegionBox.Text, HotkeyVideoFullScreenBox.Text, HotkeyVideoStartBox.Text, HotkeyVideoStopBox.Text,
             FfmpegBox.Text, (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone,
-            RecordMicrophoneBox.IsChecked == true, SystemAudioBox.IsChecked == true, (int)FrameRateBox.SelectedItem);
+            RecordMicrophoneBox.IsChecked == true, SystemAudioBox.IsChecked == true, (int)FrameRateBox.SelectedItem,
+            TranscribeBox.IsChecked == true, LanguageBox.SelectedValue as string ?? "fr", ModelBox.Text);
         if (_context.Editor.TryApply(form) is { } problem)
         {
             MessageBox.Show(this, problem, "LocalTake", MessageBoxButton.OK, MessageBoxImage.Warning);

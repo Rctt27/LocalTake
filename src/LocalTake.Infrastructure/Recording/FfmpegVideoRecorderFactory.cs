@@ -16,7 +16,7 @@ public sealed class FfmpegVideoRecorderFactory(IFfmpegPlatform platform, ISystem
         try
         {
             return FfmpegVideoRecorder.Start(ffmpegPath, platform.BuildInputs(area, options, capture?.Input), outputPath,
-                onUnexpectedExit, capture);
+                onUnexpectedExit, capture, options.MicrophoneTrackPath);
         }
         catch
         {

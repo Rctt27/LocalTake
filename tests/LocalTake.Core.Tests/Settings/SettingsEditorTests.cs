@@ -25,6 +25,8 @@ public sealed class SettingsEditorTests
         _settings.Format = "jpg";
         _settings.HotkeyLastRegion = "Ctrl+L";
         _settings.VideoFrameRate = 60;
+        _settings.TranscribeMicrophone = true;
+        _settings.TranscriptionLanguage = "auto";
         var copy = new AppSettings(SettingsDefaults.ForMacOS("/x"));
 
         SettingsForm.From(_settings).ApplyTo(copy);
@@ -33,6 +35,8 @@ public sealed class SettingsEditorTests
         copy.HotkeyLastRegion.ShouldBe("Ctrl+L");
         copy.HotkeyRegion.ShouldBe("PrintScreen");
         copy.VideoFrameRate.ShouldBe(60);
+        copy.TranscribeMicrophone.ShouldBeTrue();
+        copy.TranscriptionLanguage.ShouldBe("auto");
         copy.OutputFolder.ShouldBe(Folder);
     }
 
@@ -86,6 +90,27 @@ public sealed class SettingsEditorTests
         _fs.AddFile(ffmpeg, new MockFileData(""));
         _editor.TryApply(Form() with { FfmpegPath = " " + ffmpeg }).ShouldBeNull();
         _settings.FfmpegPath.ShouldBe(ffmpeg);
+    }
+
+    [Fact]
+    public void A_missing_transcription_model_is_refused() =>
+        _editor.TryApply(Form() with { TranscriptionModelPath = Path.Combine(Root, "model.bin") })
+            .ShouldBe("Le modèle de transcription indiqué n'existe pas. Laissez le champ vide pour utiliser celui livré avec LocalTake.");
+
+    [Fact]
+    public void An_existing_transcription_model_is_kept()
+    {
+        var model = Path.Combine(Root, "models", "ggml-base.bin");
+        _fs.AddFile(model, new MockFileData(""));
+        _editor.TryApply(Form() with { TranscriptionModelPath = model + " " }).ShouldBeNull();
+        _settings.TranscriptionModelPath.ShouldBe(model);
+    }
+
+    [Fact]
+    public void A_language_that_is_not_offered_shows_as_french()
+    {
+        _settings.TranscriptionLanguage = "xx";
+        Form().TranscriptionLanguage.ShouldBe("fr");
     }
 
     [Fact]

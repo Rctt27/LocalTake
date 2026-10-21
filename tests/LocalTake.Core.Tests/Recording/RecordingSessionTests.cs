@@ -5,6 +5,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 
@@ -15,6 +16,8 @@ public sealed class RecordingSessionTests
     private static readonly string Root = Path.Combine(Path.GetTempPath(), "LocalTakeSession");
     private static readonly string Out = Path.Combine(Root, "out");
     private static readonly string Ffmpeg = Path.Combine(Root, "bin", "ffmpeg.exe");
+    private static readonly string Models = Path.Combine(Root, "models");
+    private static readonly string Work = Path.Combine(Root, "work");
     private static readonly PixelRect VirtualScreen = new(0, 0, 1920, 1080);
 
     private readonly MockFileSystem _fs = new();
@@ -30,6 +33,7 @@ public sealed class RecordingSessionTests
     private readonly IUserDialogs _dialogs = Substitute.For<IUserDialogs>();
     private readonly FakeTimeProvider _clock = new();
     private readonly List<(string Path, bool FullScreen)> _saved = [];
+    private readonly List<(string? Track, bool Transcribe)> _savedTracks = [];
     private readonly RecordingSession _session;
     private bool _hasAudioOutput = true;
 
@@ -41,14 +45,22 @@ public sealed class RecordingSessionTests
         _lister.ListAsync(Arg.Any<string>()).Returns(["Mic A", "virtual-audio-capturer"]);
         _picker.PickAsync(false).Returns(new AreaSelection(new PixelRect(10, 20, 641, 481), new FakeImage()));
 
+        _fs.AddFile(Path.Combine(Models, "ggml-small-q5_1.bin"), new MockFileData(""));
+        var paths = Substitute.For<IAppPaths>();
+        paths.WorkFolder.Returns(Work);
+        var tracks = new MicrophoneTracks(_settings, new TranscriptionModelLocator(_fs, [Models]), paths, _fs);
         var counter = new FileCounter(_settings, _store);
         _session = new RecordingSession(
             _settings,
             new FfmpegLocator(_fs, Path.Combine(Root, "app"), null, "ffmpeg.exe", []),
             new DirectShowGdigrab(() => _hasAudioOutput), _lister, _picker, _screen, _views, _hotkeys, _recorders,
-            new OutputPathAllocator(_fs, _clock), counter, _clipboard, _dialogs, new ImmediateUiThread(), _fs, _clock,
+            new OutputPathAllocator(_fs, _clock), counter, _clipboard, _dialogs, new ImmediateUiThread(), _fs, tracks, _clock,
             HotkeyNaming.Windows);
-        _session.VideoSaved += (_, e) => _saved.Add((e.Path, e.FullScreen));
+        _session.VideoSaved += (_, e) =>
+        {
+            _saved.Add((e.Path, e.FullScreen));
+            _savedTracks.Add((e.MicrophoneTrackPath, e.Transcribe));
+        };
     }
 
     private FakeRecordingView View => _views.View!;
@@ -142,7 +154,9 @@ public sealed class RecordingSessionTests
 
         // ffmpeg is launched during the countdown and captures at once here: no "starting" after 0.
         View.Calls.ShouldBe(["ready Ctrl+R Ctrl+D", "countdown 3", "countdown 3", "countdown 2", "countdown 1", "recording"]);
-        _recorders.Options.ShouldBe(new VideoOptions(60, "Mic A", true));
+        // With a model, the microphone is also written alone, for subtitles now or from the player later.
+        _recorders.Options.ShouldBe(new VideoOptions(60, "Mic A", true, _recorders.Options!.MicrophoneTrackPath));
+        _recorders.Options.MicrophoneTrackPath.ShouldNotBeNull();
         _recorders.Area.ShouldBe(new PixelRect(10, 20, 640, 480));
         Recorder.OutputPath.ShouldBe(Path.Combine(Out, "Video_000008.mp4"));
         _settings.Counter.ShouldBe(9);
@@ -339,6 +353,97 @@ public sealed class RecordingSessionTests
         _settings.Counter.ShouldBe(8);
         _session.IsBusy.ShouldBeFalse();
         View.Closed.ShouldBeTrue();
+    }
+
+    // ---- Microphone track for the transcription ----------------------------------------------------------
+
+    /// <summary>The track ffmpeg was asked to write, created as ffmpeg would.</summary>
+    private string RecordedTrack()
+    {
+        var track = _recorders.Options!.MicrophoneTrackPath!;
+        _fs.AddFile(track, new MockFileData("RIFF"));
+        return track;
+    }
+
+    [Fact]
+    public async Task With_the_transcription_on_the_microphone_is_also_written_alone_and_given_with_the_video()
+    {
+        _settings.TranscribeMicrophone = true;
+        await RecordingAsync();
+        var track = RecordedTrack();
+        Path.GetDirectoryName(track).ShouldBe(Work);
+
+        var stop = _session.StopAsync();
+        Recorder.StopResult.SetResult(true);
+        await stop;
+
+        _savedTracks.ShouldBe([(track, true)]);
+        _fs.File.Exists(track).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Without_the_automatic_transcription_the_track_is_still_kept_for_the_player()
+    {
+        await RecordingAsync();
+        var track = RecordedTrack();
+
+        var stop = _session.StopAsync();
+        Recorder.StopResult.SetResult(true);
+        await stop;
+
+        _savedTracks.ShouldBe([(track, false)]);
+    }
+
+    [Fact]
+    public async Task The_choice_to_transcribe_is_the_one_made_when_the_recording_started()
+    {
+        _settings.TranscribeMicrophone = true;
+        await RecordingAsync();
+        RecordedTrack();
+        _settings.TranscribeMicrophone = false;
+
+        var stop = _session.StopAsync();
+        Recorder.StopResult.SetResult(true);
+        await stop;
+
+        _savedTracks.ShouldHaveSingleItem().Transcribe.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Without_the_microphone_there_is_nothing_to_transcribe()
+    {
+        _settings.TranscribeMicrophone = true;
+        _settings.RecordMicrophone = false;
+
+        await RecordingAsync();
+
+        _recorders.Options!.MicrophoneTrackPath.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Cancel_deletes_the_track_with_the_video()
+    {
+        _settings.TranscribeMicrophone = true;
+        await RecordingAsync();
+        var track = RecordedTrack();
+
+        _session.Cancel();
+
+        _fs.File.Exists(track).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_video_that_could_not_be_finished_takes_its_track_with_it()
+    {
+        _settings.TranscribeMicrophone = true;
+        await RecordingAsync();
+        var track = RecordedTrack();
+
+        var stop = _session.StopAsync();
+        Recorder.StopResult.SetResult(false);
+        await stop;
+
+        _fs.File.Exists(track).ShouldBeFalse();
     }
 
     [Fact]

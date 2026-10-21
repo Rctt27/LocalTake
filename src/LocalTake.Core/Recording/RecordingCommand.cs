@@ -1,3 +1,5 @@
+using LocalTake.Core.Transcription;
+
 namespace LocalTake.Core.Recording;
 
 /// <summary>The ffmpeg command line of a recording, whatever the platform's inputs.</summary>
@@ -6,9 +8,15 @@ public static class RecordingCommand
     /// <summary>ffmpeg prints this, at the info level, once every input is open and capturing.</summary>
     public const string CapturingLine = "Press [q] to stop";
 
-    public static IReadOnlyList<string> Build(CaptureInputs inputs, string outputPath)
+    /// <param name="microphoneTrackPath">
+    /// A WAV file to write the microphone to, alone, for the transcription; null for none. A second output of the same
+    /// ffmpeg: its times are the video's, and "q" finishes both files.
+    /// </param>
+    public static IReadOnlyList<string> Build(CaptureInputs inputs, string outputPath, string? microphoneTrackPath = null)
     {
         ArgumentNullException.ThrowIfNull(inputs);
+        if (microphoneTrackPath is not null && inputs.AudioInputs.Count == 0)
+            throw new ArgumentException("The microphone track needs a microphone.", nameof(microphoneTrackPath));
         // Each line tagged with its level: the info level announces when capture starts (CapturingLine).
         var args = new List<string> { "-hide_banner", "-loglevel", "level+info", "-nostats", "-y" };
 
@@ -55,6 +63,10 @@ public static class RecordingCommand
         if (inputs.DownmixToStereo)
             args.AddRange(["-ac", "2"]);
         args.AddRange(["-movflags", "+faststart", outputPath]);
+
+        // The microphone is the first audio input on every platform; 16 kHz mono PCM is what Whisper reads.
+        if (microphoneTrackPath is not null)
+            args.AddRange(["-map", "0:a", .. AudioExtraction.WhisperFormat, microphoneTrackPath]);
         return args;
     }
 }

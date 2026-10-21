@@ -39,4 +39,18 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
+  <!--
+    Whisper.net.Runtime brings the native libraries of every platform, which Whisper.net loads from runtimes\<rid> next
+    to the exe (a single-file exe cannot hold them): a published LocalTake keeps its own platform's only.
+  -->
+  <Target Name="KeepOnlyThisPlatformsWhisperRuntime" AfterTargets="Publish"
+          Condition="'$(RuntimeIdentifier)' != '' And Exists('$(PublishDir)runtimes')">
+    <ItemGroup>
+      <OtherWhisperRuntime Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)runtimes'))"
+                           Exclude="$(PublishDir)runtimes\$(RuntimeIdentifier)" />
+    </ItemGroup>
+    <RemoveDir Directories="@(OtherWhisperRuntime)" />
+    <Delete Files="$(PublishDir)ggml-metal.metal" />
+  </Target>
+
 </Project>

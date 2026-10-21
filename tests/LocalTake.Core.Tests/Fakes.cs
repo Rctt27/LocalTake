@@ -3,6 +3,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using Microsoft.Extensions.Time.Testing;
 
 namespace LocalTake.Core.Tests;
@@ -156,5 +157,59 @@ internal static class FakeTime
             clock.Advance(TimeSpan.FromMilliseconds(100));
         }
         await task;
+    }
+}
+
+internal sealed class FakeRecordingStatus : IRecordingStatus
+{
+    public bool IsBusy => IsRecording;
+    public bool IsRecording { get; private set; }
+    public event EventHandler? StateChanged;
+
+    public void Set(bool recording)
+    {
+        IsRecording = recording;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+/// <summary>Writes the WAV ffmpeg would extract, or fails as told.</summary>
+internal sealed class FakeAudioExtractor(System.IO.Abstractions.IFileSystem fileSystem) : IAudioExtractor
+{
+    public List<(string Video, string Audio)> Calls { get; } = [];
+    public Exception? Failure { get; set; }
+
+    public Task ExtractAsync(string videoPath, string audioPath, CancellationToken cancellationToken)
+    {
+        Calls.Add((videoPath, audioPath));
+        if (Failure is not null)
+            return Task.FromException(Failure);
+        fileSystem.File.WriteAllText(audioPath, "RIFF");
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Each transcription waits until the test completes, fails or cancels it.</summary>
+internal sealed class FakeTranscriber : ITranscriber
+{
+    public sealed record Call(
+        string AudioPath, string ModelPath, string Language, Action<double> OnProgress,
+        TaskCompletionSource<IReadOnlyList<TranscribedWord>> Result, CancellationToken Token)
+    {
+        public void Complete(params TranscribedWord[] words) => Result.SetResult(words);
+    }
+
+    public List<Call> Calls { get; } = [];
+
+    public Call Last => Calls[^1];
+
+    public Task<IReadOnlyList<TranscribedWord>> TranscribeAsync(
+        string audioPath, string modelPath, string language, Action<double> onProgress, CancellationToken cancellationToken)
+    {
+        // Continuations run inline: each step of the queue happens before the test's next line.
+        var result = new TaskCompletionSource<IReadOnlyList<TranscribedWord>>();
+        cancellationToken.Register(() => result.TrySetCanceled(cancellationToken));
+        Calls.Add(new Call(audioPath, modelPath, language, onProgress, result, cancellationToken));
+        return result.Task;
     }
 }

@@ -73,6 +73,15 @@ public sealed class AppSettings
 
     public int VideoFrameRate { get; set; } = 30;
 
+    /// <summary>The recording bar's third toggle: the microphone is transcribed into subtitles after the recording.</summary>
+    public bool TranscribeMicrophone { get; set; }
+
+    /// <summary>A Whisper language code such as "fr", or "auto" to detect it.</summary>
+    public string TranscriptionLanguage { get; set; } = "fr";
+
+    /// <summary>Empty: the model shipped in the models folder next to LocalTake.</summary>
+    public string TranscriptionModelPath { get; set; } = "";
+
     public PixelRect? LastRegion { get; set; }
 
     /// <summary>Next value of %NUM%.</summary>
