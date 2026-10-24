@@ -28,6 +28,8 @@ public sealed class RecordingSessionTests
     private readonly IScreen _screen = Substitute.For<IScreen>();
     private readonly FakeRecordingViewFactory _views = new();
     private readonly FakeHotkeys _hotkeys = new();
+    private readonly FakeHighlightInput _highlightInput = new();
+    private readonly FakeHighlightOverlayFactory _overlays = new();
     private readonly FakeRecorderFactory _recorders = new();
     private readonly IClipboard _clipboard = Substitute.For<IClipboard>();
     private readonly IUserDialogs _dialogs = Substitute.For<IUserDialogs>();
@@ -53,7 +55,8 @@ public sealed class RecordingSessionTests
         _session = new RecordingSession(
             _settings,
             new FfmpegLocator(_fs, Path.Combine(Root, "app"), null, "ffmpeg.exe", []),
-            new DirectShowGdigrab(() => _hasAudioOutput), _lister, _picker, _screen, _views, _hotkeys, _recorders,
+            new DirectShowGdigrab(() => _hasAudioOutput), _lister, _picker, _screen, _views, _hotkeys,
+            new Highlighter(_settings, _highlightInput, _overlays, new ImmediateUiThread(), _clock, HotkeyNaming.Windows), _recorders,
             new OutputPathAllocator(_fs, _clock), counter, _clipboard, _dialogs, new ImmediateUiThread(), _fs, tracks, _clock,
             HotkeyNaming.Windows);
         _session.VideoSaved += (_, e) =>
@@ -288,6 +291,62 @@ public sealed class RecordingSessionTests
         _session.IsReady.ShouldBeTrue();
         _recorders.Recorder.ShouldBeNull();
         View.Calls[^1].ShouldBe("ready Ctrl+R Ctrl+D");
+    }
+
+    [Fact]
+    public async Task Nothing_is_highlighted_while_the_bar_waits_for_Start()
+    {
+        await ReadyAsync();
+        _highlightInput.Registered.ShouldBeNull();
+        View.HighlightShown.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Recording_enables_the_highlighting_over_the_area()
+    {
+        await RecordingAsync();
+        _highlightInput.Registered.ShouldNotBeNull();
+        View.HighlightShortcut.ShouldBe("Ctrl+Space");
+        _overlays.Area.ShouldBe(new PixelRect(10, 20, 640, 480));
+    }
+
+    [Fact]
+    public async Task Stopping_ends_the_highlighting()
+    {
+        await RecordingAsync();
+        _ = _session.StopAsync();
+        _highlightInput.Unregistrations.ShouldBe(1);
+        _overlays.Overlay!.Disposed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Cancelling_ends_the_highlighting()
+    {
+        await RecordingAsync();
+        View.ClickCancel();
+        _highlightInput.Unregistrations.ShouldBe(1);
+        _overlays.Overlay!.Disposed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Stop_during_the_countdown_never_enables_the_highlighting()
+    {
+        await ReadyAsync();
+        var start = _session.StartAsync();
+        await _session.StopAsync();
+        await _clock.RunUntil(start);
+        _highlightInput.Registered.ShouldBeNull();
+        _overlays.Overlay.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task An_invalid_trigger_does_not_prevent_recording()
+    {
+        _settings.HighlightTrigger = "Foo";
+        await RecordingAsync();
+        View.Calls.ShouldContain("recording");
+        View.HighlightShown.ShouldBe(1);
+        View.HighlightShortcut.ShouldBeNull();
     }
 
     [Fact]

@@ -66,6 +66,10 @@ internal sealed class FakeRecordingView : IRecordingView
     public IReadOnlyCollection<string>? Devices { get; private set; }
     public bool Closed { get; private set; }
 
+    /// <summary>Kept apart from <see cref="Calls"/>: the trigger shown during the recording.</summary>
+    public string? HighlightShortcut { get; private set; }
+    public int HighlightShown { get; private set; }
+
     public event EventHandler? StartRequested;
     public event EventHandler? StopRequested;
     public event EventHandler? CancelRequested;
@@ -80,6 +84,13 @@ internal sealed class FakeRecordingView : IRecordingView
     public void ShowStarting() => Calls.Add("starting");
     public void ShowRecording() => Calls.Add("recording");
     public void ShowFinishing() => Calls.Add("finishing");
+
+    public void ShowHighlightShortcut(string? shortcut)
+    {
+        HighlightShortcut = shortcut;
+        HighlightShown++;
+    }
+
     public void Dispose() => Closed = true;
 }
 

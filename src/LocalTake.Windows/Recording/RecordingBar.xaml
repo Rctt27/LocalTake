@@ -66,6 +66,8 @@
                 <TextBlock x:Name="StatusHint" Foreground="#AAA" VerticalAlignment="Center" Margin="4,0,2,0" Visibility="Collapsed"/>
             </StackPanel>
         </Button>
+        <TextBlock x:Name="HighlightHint" Foreground="#AAA" VerticalAlignment="Center" Margin="2,0,8,0" Visibility="Collapsed"
+                   ToolTip="Une traînée jaune suit la souris tant que le déclencheur est maintenu ; elle apparaît dans la vidéo"/>
 
         <ToggleButton x:Name="MicrophoneToggle" Style="{StaticResource AudioToggle}" Checked="Microphone_Changed" Unchecked="Microphone_Changed">
             <StackPanel Orientation="Horizontal">

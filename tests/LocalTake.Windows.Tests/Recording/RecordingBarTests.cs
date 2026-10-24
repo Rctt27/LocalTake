@@ -81,6 +81,27 @@ public sealed class RecordingBarTests
         }
     });
 
+    [Fact]
+    public async Task The_highlight_shortcut_is_shown_while_recording_only()
+    {
+        var (shown, text, finishing, none) = await WithBar(bar =>
+        {
+            bar.ShowRecording();
+            bar.ShowHighlightShortcut("Ctrl+Space");
+            var shown = bar.HighlightHint.Visibility == Visibility.Visible;
+            var text = bar.HighlightHint.Text;
+            bar.ShowFinishing();
+            var finishing = bar.HighlightHint.Visibility == Visibility.Visible;
+            bar.ShowHighlightShortcut(null);
+            return (shown, text, finishing, bar.HighlightHint.Visibility == Visibility.Visible);
+        });
+
+        shown.ShouldBeTrue();
+        text.ShouldBe("Surligner : maintenir Ctrl+Space");
+        finishing.ShouldBeFalse();
+        none.ShouldBeFalse();
+    }
+
     private static void Click(RecordingBar bar) =>
         bar.StatusButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
 

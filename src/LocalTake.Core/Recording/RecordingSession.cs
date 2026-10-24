@@ -16,12 +16,12 @@ namespace LocalTake.Core.Recording;
 /// <remarks>
 /// After the selection, the bar waits in Ready, as in TinyTake: the countdown only starts from its Start button or the
 /// Start shortcut. The Start and Stop shortcuts are registered from Ready until the session ends, so that they do not
-/// steal those keys from other applications the rest of the time.
+/// steal those keys from other applications the rest of the time; the highlight trigger only while recording.
 /// </remarks>
 public sealed class RecordingSession(
     AppSettings settings, FfmpegLocator locator, IFfmpegPlatform platform, IAudioDeviceLister audioDevices,
     IAreaPicker picker, IScreen screen, IRecordingViewFactory views, IGlobalHotkeys sessionHotkeys,
-    IVideoRecorderFactory recorders, OutputPathAllocator paths, FileCounter counter, IClipboard clipboard,
+    Highlighter highlighter, IVideoRecorderFactory recorders, OutputPathAllocator paths, FileCounter counter, IClipboard clipboard,
     IUserDialogs dialogs, IUiThread uiThread, IFileSystem fileSystem, MicrophoneTracks microphoneTracks, TimeProvider clock,
     HotkeyNaming hotkeyNaming)
     : IRecordingStatus, IDisposable
@@ -268,6 +268,7 @@ public sealed class RecordingSession(
         DiscardRecorder();
         CloseUi();
         sessionHotkeys.Dispose();
+        highlighter.Dispose();
     }
 
     /// <summary>Keeps the shortcuts the system accepted, to show them on the bar.</summary>
@@ -395,7 +396,12 @@ public sealed class RecordingSession(
 
     private void SetState(State state)
     {
+        var previous = _state;
         _state = state;
+        if (state == State.Recording && previous != State.Recording)
+            _view?.ShowHighlightShortcut(highlighter.Enable(_target));
+        else if (previous == State.Recording && state != State.Recording)
+            highlighter.Disable();
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 

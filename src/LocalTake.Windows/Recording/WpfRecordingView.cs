@@ -39,6 +39,7 @@ internal sealed class WpfRecordingView : IRecordingView
     public void ShowCountdown(int seconds) => _bar.ShowCountdown(seconds);
     public void ShowStarting() => _bar.ShowStarting();
     public void ShowRecording() => _bar.ShowRecording();
+    public void ShowHighlightShortcut(string? shortcut) => _bar.ShowHighlightShortcut(shortcut);
 
     /// <summary>Nothing more is recorded: the frame goes at once.</summary>
     public void ShowFinishing()

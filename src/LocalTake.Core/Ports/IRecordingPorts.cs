@@ -29,6 +29,9 @@ public interface IRecordingView : IDisposable
     void ShowRecording();
 
     void ShowFinishing();
+
+    /// <summary>During the recording: the trigger to hold to highlight, or null when there is none.</summary>
+    void ShowHighlightShortcut(string? shortcut);
 }
 
 public interface IRecordingViewFactory

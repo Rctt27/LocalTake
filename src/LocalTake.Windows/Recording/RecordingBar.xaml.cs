@@ -149,9 +149,17 @@ public partial class RecordingBar : Window
         _timer.Start();
     }
 
+    /// <summary>During the recording: the trigger to hold to highlight, or null when there is none.</summary>
+    public void ShowHighlightShortcut(string? shortcut)
+    {
+        HighlightHint.Text = shortcut is null ? "" : $"Surligner : maintenir {shortcut}";
+        HighlightHint.Visibility = shortcut is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     public void ShowFinishing()
     {
         _timer.Stop();
+        HighlightHint.Visibility = Visibility.Collapsed;
         SetMode(StatusMode.Wait);
         CancelButton.IsEnabled = false;
         // Still the stop square, dimmed: the recording is over, its file is being finished.
