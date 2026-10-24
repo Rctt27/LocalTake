@@ -6,11 +6,13 @@ Outil de capture d'écran et d'enregistrement vidéo pour **Windows** et **macOS
 
 Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt27/LocalTake/releases).
 
-**Windows 10 (2004) ou 11** : `LocalTake-x.y.z-windows-x64.zip`, à extraire dans un dossier, puis lancer `LocalTake.exe`. Gardez ensemble ce qu'il contient : `LocalTake.exe`, le dossier `runtimes` (la bibliothèque de transcription) et le dossier `models` (le modèle de transcription). Il nécessite le [runtime .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) (« .NET Desktop Runtime »).
+**Windows 10 (2004) ou 11** : `LocalTake-x.y.z-windows-x64.zip`, à extraire dans un dossier, puis lancer `LocalTake.exe`. Gardez ensemble ce qu'il contient : `LocalTake.exe`, `ffmpeg.exe` (l'encodeur vidéo), le dossier `runtimes` (la bibliothèque de transcription) et le dossier `models` (le modèle de transcription). Rien d'autre à installer. Il nécessite le [runtime .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) (« .NET Desktop Runtime »).
 
-**macOS 14 (Sonoma) ou plus récent**, puce Apple ou Intel : `LocalTake-x.y.z-macos.zip`. Décompressez-le, glissez `LocalTake.app` dans Applications, puis ouvrez-le par **clic droit > Ouvrir** : l'app n'est pas signée par un développeur identifié, macOS le demande une fois (sinon : Réglages Système > Confidentialité et sécurité > « Ouvrir quand même »). L'icône de LocalTake se trouve dans la barre des menus. macOS demande ensuite deux autorisations, à accorder dans Réglages Système > Confidentialité et sécurité :
+**macOS 14 (Sonoma) ou plus récent**, puce Apple ou Intel : `LocalTake-x.y.z-macos.zip`. Décompressez-le, glissez `LocalTake.app` dans Applications, puis ouvrez-le par **clic droit > Ouvrir** : l'app n'est pas signée par un développeur identifié, macOS le demande une fois (sinon : Réglages Système > Confidentialité et sécurité > « Ouvrir quand même »). ffmpeg est inclus dans l'app : rien d'autre à installer. L'icône de LocalTake se trouve dans la barre des menus. macOS demande ensuite deux autorisations, à accorder dans Réglages Système > Confidentialité et sécurité :
 - **Enregistrement de l'écran**, à la première capture ; LocalTake doit être relancé après l'avoir accordée ;
 - **Micro**, à la première vidéo avec le micro.
+
+Les mises à jour gardent ces autorisations : l'app est toujours signée avec le même certificat (`docs/macos-signing.md`).
 
 ## Raccourcis par défaut
 
@@ -56,9 +58,9 @@ Ils s'affichent à gauche de la vidéo, bloc par bloc, avec les intervalles sans
 
 Les sous-titres sont enregistrés à chaque modification dans un fichier `.srt` du même nom que la vidéo, que les lecteurs (VLC, Lecteur multimédia…) affichent avec elle. La langue (français, anglais ou détection automatique) et un autre modèle Whisper (fichier `ggml-*.bin`) se choisissent dans les réglages.
 
-LocalTake ne télécharge pas ffmpeg, qu'il faut installer, ou dont on indique l'emplacement dans les réglages :
-- Windows : `winget install Gyan.FFmpeg` ; le son de l'ordinateur est capté directement depuis la sortie audio par défaut, sans pilote à installer ;
-- macOS : `brew install ffmpeg` ; le son de l'ordinateur passe par BlackHole (`brew install blackhole-2ch`), avec un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
+ffmpeg, qui encode les vidéos, est livré avec LocalTake (version épinglée ; LocalTake ne télécharge rien). Un autre ffmpeg peut être indiqué dans les réglages. Le son de l'ordinateur :
+- Windows : capté directement depuis la sortie audio par défaut, sans pilote à installer ;
+- macOS : il passe pour l'instant par BlackHole (`brew install blackhole-2ch`), avec un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
 
 ## Fichiers
 
@@ -94,3 +96,7 @@ L'app macOS se construit sur un Mac avec Xcode et le workload `macos` (voir CLAU
 ```
 dotnet build src/LocalTake.Mac
 ```
+
+## Licences
+
+LocalTake est livré avec ffmpeg (GPL v3), whisper.cpp et un modèle Whisper (MIT) : voir `THIRD-PARTY-NOTICES.md`, joint à chaque version.

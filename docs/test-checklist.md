@@ -43,6 +43,7 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 
 - [ ] `Ctrl+Maj+Impr. écran` : zone, cadre rouge autour, barre dessous ; `Ctrl+R` démarre après 3 secondes.
 - [ ] La gauche de la barre est le bouton marche/arrêt : prête, elle montre ▶ « Prêt à enregistrer · Démarrer (Ctrl+R) » et un clic lance le compte à rebours ; pendant le compte à rebours, un point grisé et pas de clic ; pendant l'enregistrement, ■ avec la durée et « Arrêter (Ctrl+D) », et un clic arrête et enregistre la vidéo (y compris pendant « Démarrage… ») ; pendant « Finalisation… », pas de clic.
+- [ ] Sur un PC sans ffmpeg installé : le zip extrait enregistre une vidéo (ffmpeg.exe est à côté de LocalTake.exe).
 - [ ] Micro et son du PC, sans le pilote TinyTake : `ffmpeg -i video.mp4` montre une piste audio, le son joué est synchrone avec l'image, et la fin de la phrase prononcée avant « Arrêter » est présente.
 - [ ] Son du PC sans rien qui joue : l'aperçu dure autant que l'enregistrement.
 - [ ] Casque USB débranché pendant l'enregistrement : la vidéo se finalise, le son du PC devient muet jusqu'à la fin.
@@ -104,10 +105,12 @@ Pour l'installer : décompresser `LocalTake-macos.zip`, glisser `LocalTake.app` 
 - [ ] L'icône de LocalTake est dans la barre des menus, en noir ou en blanc selon le thème, et pas dans le Dock.
 - [ ] Le menu de l'icône affiche « LocalTake » suivi de la version (grisé) et « Quitter LocalTake », qui ferme l'app.
 - [ ] Un second lancement, LocalTake déjà ouverte, ne crée pas de seconde icône.
-- [ ] `brew install ffmpeg` fonctionne (ou ffmpeg est déjà là : `ffmpeg -version`).
+- [ ] Sur un Mac sans Homebrew ni ffmpeg : l'app ne demande rien à installer (`/Applications/LocalTake.app/Contents/MacOS/ffmpeg -version` affiche ffmpeg 9.0.2).
 - [ ] LocalTake fermée, dans le Terminal : `open -a LocalTake --args --diagnostics`, puis `open ~/Library/Logs/LocalTake/diagnostics.txt` : renvoyez ce rapport. (Lancé ainsi, c'est bien LocalTake qui demande les autorisations ; lancé directement depuis `Contents/MacOS`, ce serait le Terminal.) À cette étape, « screen capture » et « computer sound » peuvent être en `[FAIL]` : c'est ce que les étapes suivantes traitent.
 
-Si la politique de votre entreprise bloque l'une de ces lignes (app non signée, Homebrew), on s'arrête là pour en reparler.
+Si la politique de votre entreprise bloque l'une de ces lignes (app non signée par un développeur identifié), on s'arrête là pour en reparler.
+
+- [ ] Mise à jour : après avoir installé une nouvelle version (signée avec le certificat LocalTake) par-dessus l'ancienne, l'Enregistrement de l'écran et le Micro n'ont pas à être redonnés.
 
 ### Étape 2 : capture de l'écran
 
@@ -150,9 +153,9 @@ Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"
 
 ### Étape 5 : vidéo
 
-Prérequis : `brew install ffmpeg` ; pour le son de l'ordinateur, `brew install blackhole-2ch`, puis un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
+Prérequis : pour le son de l'ordinateur (jusqu'à la capture sans pilote), `brew install blackhole-2ch`, puis un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
 
-- [ ] Avec deux écrans : `open -a LocalTake --args --diagnostics` ; la ligne « screens » de `diagnostics.txt` liste les écrans dans l'ordre où ffmpeg les numérote (« Capture screen 0 », « 1 »…, visibles avec `ffmpeg -f avfoundation -list_devices true -i ""`).
+- [ ] Avec deux écrans : `open -a LocalTake --args --diagnostics` ; la ligne « screens » de `diagnostics.txt` liste les écrans dans l'ordre où ffmpeg les numérote (« Capture screen 0 », « 1 »…, visibles avec `/Applications/LocalTake.app/Contents/MacOS/ffmpeg -f avfoundation -list_devices true -i ""`).
 - [ ] `Ctrl+Maj+4` (vidéo d'une zone) : la zone se choisit comme une capture ; un cadre rouge l'entoure ; la barre apparaît dessous (ou dessus), se déplace en la glissant, et ne prend pas le clavier à l'application filmée.
 - [ ] Première vidéo avec le micro : macOS demande l'autorisation Micro pour LocalTake ; la vidéo contient la voix, jusqu'au dernier mot avant « Arrêter ».
 - [ ] Avec BlackHole : le bouton « Son du Mac » est actif et le son de l'ordinateur est dans la vidéo ; sans BlackHole, il est grisé et son info-bulle dit quoi installer.

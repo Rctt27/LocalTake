@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-LocalTake is a tray (Windows) and menu bar (macOS) screen-capture and screen-recording tool, modelled on TinyTake, with every remote feature removed. **Captures must never leave the machine**: no network calls, no upload, no telemetry. This is also why the default Windows output folder avoids a OneDrive-synced Pictures folder (`AppPaths.WindowsOutputFolder`), why ffmpeg is never downloaded, why speech is transcribed on the machine with a Whisper model shipped in the release (never downloaded by the app), and why the log is a local file only.
+LocalTake is a tray (Windows) and menu bar (macOS) screen-capture and screen-recording tool, modelled on TinyTake, with every remote feature removed. **Captures must never leave the machine**: no network calls, no upload, no telemetry. This is also why the default Windows output folder avoids a OneDrive-synced Pictures folder (`AppPaths.WindowsOutputFolder`), why ffmpeg is never downloaded by the app (it ships with it, pinned and checked by SHA-256 in `build/fetch-ffmpeg.sh`), why speech is transcribed on the machine with a Whisper model shipped in the release (never downloaded by the app), and why the log is a local file only.
 
 UI strings are French; code and comments are English.
 
@@ -59,7 +59,7 @@ The UI on a real screen is verified by hand with `docs/test-checklist.md`. To ch
 
 - While the major version is 0 (initial development), MINOR is for new features and behaviour changes, including breaking ones; PATCH is for fixes only. 1.0.0 is decided by the user.
 - What counts as the public interface: the shortcuts, the settings in `settings.json` (an older file must keep loading) and the file names produced.
-- To release: bump `<Version>`, commit `Release vX.Y.Z`, tag `vX.Y.Z` on `main` and push both. `.github/workflows/release.yml` builds the Windows zip (exe, Whisper's `runtimes\win-x64`, the model in `models`, pinned by revision and SHA-256) and the macOS app (zipped, signed ad hoc, neither notarized nor signed with a Developer ID), and creates the GitHub release; it refuses a tag that does not match `<Version>`.
+- To release: bump `<Version>`, commit `Release vX.Y.Z`, tag `vX.Y.Z` on `main` and push both. `.github/workflows/release.yml` builds the Windows zip (exe, `ffmpeg.exe`, Whisper's `runtimes\win-x64`, the model in `models`, pinned by revision and SHA-256) and the macOS app (`build/package-macos.sh`: ffmpeg in `Contents/MacOS`, signed with the self-signed `LocalTake` certificate from the `MACOS_SIGNING_P12` / `MACOS_SIGNING_PASSWORD` secrets so that macOS keeps its permissions across versions, ad hoc without them; see `docs/macos-signing.md`; not notarized), both with `THIRD-PARTY-NOTICES.md` and `licenses/`, and creates the GitHub release, whose notes give ffmpeg's source (GPL); it refuses a tag that does not match `<Version>`.
 
 ## Architecture
 
@@ -102,7 +102,7 @@ Flow: `App` → `TrayController` (tray menu, global shortcuts) → `CaptureWorkf
 
 ### Video (`RecordingSession`, `Recording/`)
 
-- Recording shells out to an external ffmpeg (setting, then next to the app, then PATH, then Homebrew's folders on macOS, since an app started from the Finder does not get the shell's PATH).
+- Recording shells out to ffmpeg: the setting, then the one shipped with LocalTake (next to the exe; `Contents/MacOS` in the app bundle, `AppPaths.FfmpegDirectory`), then PATH, then Homebrew's folders for a development build on macOS (an app started from the Finder does not get the shell's PATH). The shipped one is ffmpeg 9.0.2, fetched by `build/fetch-ffmpeg.sh` (gyan.dev essentials on Windows; Martin Riedl's arm64 and amd64 builds merged with `lipo` on macOS), which also checks libx264 and the capture inputs; the CI tests run against it.
 - `IFfmpegPlatform` gives each OS its inputs; `RecordingCommand` adds the mapping and the encoding, common to all. Windows (`DirectShowGdigrab`): `gdigrab` takes physical virtual-desktop coordinates, DirectShow the microphone, and a named pipe the computer sound. macOS (`AvFoundation`): a whole display is recorded and cropped to the area (`-vf crop`); an area across two displays keeps the part on the display holding most of it. Width and height are even for H.264/yuv420p (`PixelRect.WithEvenSize`).
 - Nothing said while the counter runs may be cut, and the recording starts when the countdown reaches 0. ffmpeg takes a while to open its devices (about 0.3 to 0.8 s), so `RecordingSession` launches it that long before 0, as long as it took the previous time (0.7 s at first), and starts the counter as soon as ffmpeg prints "Press [q] to stop" (read through `-loglevel level+info`), even slightly before 0. If it is slower than that, the bar shows "Démarrage…" after 0 until then. Stop during the countdown discards the ffmpeg already launched. End: x264 runs with `-tune zerolatency`; with frame threads it held about 0.35 s of frames and `q` discarded the matching audio. The integration test `Stop_keeps_the_end_of_the_sound` guards this.
 - Stop sends `q` on ffmpeg's stdin, which writes the MP4 index. Killing the process leaves an unplayable file, so kill is only for cancel and failure, and the file is then deleted.
