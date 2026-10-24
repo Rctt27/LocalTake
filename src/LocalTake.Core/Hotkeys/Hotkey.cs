@@ -37,7 +37,10 @@ public readonly record struct Hotkey(HotkeyModifiers Modifiers, KeyCode Key)
     /// <summary>A key, with a modifier unless the key may be used alone.</summary>
     public bool IsValid => Key != KeyCode.None && (Modifiers != HotkeyModifiers.None || AllowedWithoutModifier(Key));
 
-    public static bool TryParse(string? text, out Hotkey hotkey)
+    public static bool TryParse(string? text, out Hotkey hotkey) => TryParse(text, out hotkey, allowPlainKey: false);
+
+    /// <param name="allowPlainKey">Accepts any key without a modifier, for a shortcut only registered briefly.</param>
+    public static bool TryParse(string? text, out Hotkey hotkey, bool allowPlainKey)
     {
         hotkey = default;
         if (string.IsNullOrWhiteSpace(text))
@@ -56,7 +59,7 @@ public readonly record struct Hotkey(HotkeyModifiers Modifiers, KeyCode Key)
         }
 
         var candidate = new Hotkey(modifiers, ParseKey(parts[^1]));
-        if (!candidate.IsValid)
+        if (candidate.Key == KeyCode.None || !(allowPlainKey || candidate.IsValid))
             return false;
         hotkey = candidate;
         return true;

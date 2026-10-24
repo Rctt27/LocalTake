@@ -80,4 +80,12 @@ public sealed class HotkeyTests
     [Fact]
     public void IsValid_rejects_a_plain_letter() =>
         new Hotkey(HotkeyModifiers.None, KeyCode.A).IsValid.ShouldBeFalse();
+
+    [Fact]
+    public void A_plain_key_is_only_parsed_when_allowed()
+    {
+        Hotkey.TryParse("Space", out _).ShouldBeFalse();
+        Hotkey.TryParse("Space", out var hotkey, allowPlainKey: true).ShouldBeTrue();
+        hotkey.ShouldBe(new Hotkey(HotkeyModifiers.None, KeyCode.Space));
+    }
 }
