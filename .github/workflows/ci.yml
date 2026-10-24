@@ -133,9 +133,17 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      # LocalTake.exe and Whisper's native libraries (runtimes\win-x64); without the model, which only releases ship.
+      # LocalTake.exe, Whisper's native libraries (runtimes\win-x64), ffmpeg.exe and the licence notices; without the
+      # model, which only releases ship.
       - name: Publish LocalTake.exe
         run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      - name: Add ffmpeg and the licence notices
+        shell: bash
+        run: |
+          bash build/fetch-ffmpeg.sh windows dist
+          cp THIRD-PARTY-NOTICES.md dist/
+          cp -r licenses dist/
+          test -f dist/LocalTake.exe && test -f dist/ffmpeg.exe && test -f dist/licenses/GPL-3.0.txt
       - uses: actions/upload-artifact@v4
         with:
           name: LocalTake-windows
