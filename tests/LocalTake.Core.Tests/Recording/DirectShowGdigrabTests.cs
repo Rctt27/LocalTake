@@ -17,6 +17,15 @@ public sealed class DirectShowGdigrabTests
             .FirstOrDefault(i => args.Skip(i).Take(sequence.Length).SequenceEqual(sequence), -1);
 
     [Fact]
+    public void The_install_hint_says_ffmpeg_comes_with_LocalTake()
+    {
+        var hint = new DirectShowGdigrab(() => true).InstallHint;
+        hint.ShouldContain("livré avec LocalTake");
+        hint.ShouldContain("ffmpeg.exe");
+        hint.ShouldNotContain("winget");
+    }
+
+    [Fact]
     public void The_computer_sound_is_read_from_the_pipe_after_the_screen()
     {
         // The capture starts when ffmpeg opens the pipe: after the screen, and with neither probed at length, the

@@ -16,8 +16,8 @@ public sealed partial class DirectShowGdigrab(Func<bool> hasAudioOutput) : IFfmp
 
     public string SystemAudioRequirement => "une sortie audio (haut-parleurs ou casque)";
 
-    public string InstallHint => "Installez-le avec la commande « winget install Gyan.FFmpeg », " +
-                                 "ou indiquez l'emplacement de ffmpeg.exe dans les réglages.";
+    public string InstallHint => "Il est livré avec LocalTake : extrayez de nouveau tout le zip, en gardant ffmpeg.exe à " +
+                                 "côté de LocalTake.exe, ou indiquez un autre ffmpeg dans les réglages.";
 
     public IReadOnlyList<string> ListDevicesArguments { get; } =
         ["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"];

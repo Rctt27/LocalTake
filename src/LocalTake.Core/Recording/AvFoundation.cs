@@ -16,8 +16,8 @@ public sealed partial class AvFoundation(Func<IReadOnlyList<PixelRect>> displays
 
     public string SystemAudioRequirement => "le pilote audio « BlackHole 2ch » (brew install blackhole-2ch)";
 
-    public string InstallHint => "Installez-le avec la commande « brew install ffmpeg », " +
-                                 "ou indiquez l'emplacement de ffmpeg dans les réglages.";
+    public string InstallHint => "Il est livré dans LocalTake.app : réinstallez l'app depuis la page des versions, " +
+                                 "ou indiquez un autre ffmpeg dans les réglages.";
 
     public IReadOnlyList<string> ListDevicesArguments { get; } = ["-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""];
 

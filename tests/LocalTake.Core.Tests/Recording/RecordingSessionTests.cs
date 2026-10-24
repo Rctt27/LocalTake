@@ -92,8 +92,9 @@ public sealed class RecordingSessionTests
         _settings.FfmpegPath = Path.Combine(Root, "missing.exe");
         await ReadyAsync();
 
+        // Deliberate change: ffmpeg now ships with LocalTake, so the message no longer says how to install it.
         _dialogs.Received(1).ShowWarning(Arg.Is<string>(m =>
-            m.StartsWith("ffmpeg est introuvable", StringComparison.Ordinal) && m.Contains("winget install Gyan.FFmpeg", StringComparison.Ordinal)));
+            m.StartsWith("ffmpeg est introuvable", StringComparison.Ordinal) && m.Contains("livré avec LocalTake", StringComparison.Ordinal)));
         _session.IsBusy.ShouldBeFalse();
         await _picker.DidNotReceiveWithAnyArgs().PickAsync(default);
     }

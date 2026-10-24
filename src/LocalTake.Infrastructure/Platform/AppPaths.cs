@@ -60,13 +60,30 @@ public sealed record AppPaths(
         return synced ? Path.Combine(userProfile, "Captures " + AppName) : Path.Combine(pictures, AppName);
     }
 
-    /// <summary>ffmpeg next to LocalTake, then on the PATH, then where package managers put it.</summary>
+    /// <summary>
+    /// The ffmpeg shipped with LocalTake (next to the exe, or in the app bundle's Contents/MacOS), then the PATH, then
+    /// where package managers put it, for a development build.
+    /// </summary>
     public static FfmpegLocator CreateFfmpegLocator(IFileSystem fileSystem)
     {
         string[] wellKnown = OperatingSystem.IsWindows() ? [] : ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
         return new FfmpegLocator(
-            fileSystem, AppContext.BaseDirectory, Environment.GetEnvironmentVariable("PATH"),
+            fileSystem, FfmpegDirectory(AppContext.BaseDirectory), Environment.GetEnvironmentVariable("PATH"),
             OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg", wellKnown);
+    }
+
+    /// <summary>
+    /// Where the shipped ffmpeg is: in a macOS app bundle the assemblies are in Contents/MonoBundle and the executables in
+    /// Contents/MacOS; anywhere else, next to the assemblies.
+    /// </summary>
+    public static string FfmpegDirectory(string baseDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(baseDirectory);
+        const string Assemblies = ".app/Contents/MonoBundle";
+        var trimmed = baseDirectory.TrimEnd('/');
+        return trimmed.EndsWith(Assemblies, StringComparison.Ordinal)
+            ? trimmed[..^"MonoBundle".Length] + "MacOS"
+            : baseDirectory;
     }
 
     public TranscriptionModelLocator CreateModelLocator(IFileSystem fileSystem) => new(fileSystem, ModelsFolders);

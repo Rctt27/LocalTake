@@ -18,6 +18,20 @@ public sealed class AppPathsTests
     public void Windows_output_folder_avoids_an_unknown_Pictures_folder() =>
         AppPaths.WindowsOutputFolder("", @"C:\Users\Me", []).ShouldBe(Path.Combine(@"C:\Users\Me", "Captures LocalTake"));
 
+    [Theory]
+    [InlineData("/Applications/LocalTake.app/Contents/MonoBundle/", "/Applications/LocalTake.app/Contents/MacOS")]
+    [InlineData("/Users/moi/Downloads/LocalTake 2.app/Contents/MonoBundle", "/Users/moi/Downloads/LocalTake 2.app/Contents/MacOS")]
+    [InlineData("/private/var/folders/ab/T/AppTranslocation/1234/d/LocalTake.app/Contents/MonoBundle/",
+        "/private/var/folders/ab/T/AppTranslocation/1234/d/LocalTake.app/Contents/MacOS")]
+    public void The_bundled_ffmpeg_is_found_wherever_the_app_is(string assemblies, string expected) =>
+        AppPaths.FfmpegDirectory(assemblies).ShouldBe(expected);
+
+    [Theory]
+    [InlineData(@"C:\Program Files\LocalTake\")]
+    [InlineData("/Users/moi/LocalTake/src/LocalTake.Mac/bin/Debug/net10.0-macos/osx-arm64/")]
+    public void Outside_a_bundle_the_assemblies_folder_is_searched(string assemblies) =>
+        AppPaths.FfmpegDirectory(assemblies).ShouldBe(assemblies);
+
     [Fact]
     public void The_current_platform_has_absolute_paths()
     {

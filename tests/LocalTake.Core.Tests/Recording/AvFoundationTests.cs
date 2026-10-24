@@ -64,7 +64,11 @@ public sealed class AvFoundationTests
     }
 
     [Fact]
-    public void The_install_hint_names_Homebrew() => _platform.InstallHint.ShouldContain("brew install ffmpeg");
+    public void The_install_hint_says_ffmpeg_comes_with_LocalTake()
+    {
+        _platform.InstallHint.ShouldContain("livré dans LocalTake.app");
+        _platform.InstallHint.ShouldNotContain("brew", Case.Insensitive);
+    }
 
     [Fact]
     public void The_computer_sound_needs_BlackHole()
