@@ -5,6 +5,8 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
+using LocalTake.Infrastructure.Transcription;
 using Microsoft.Extensions.Logging;
 
 namespace LocalTake.Infrastructure.Diagnostics;
@@ -13,7 +15,12 @@ namespace LocalTake.Infrastructure.Diagnostics;
 /// "LocalTake --diagnostics": checks what LocalTake needs from this computer, without opening any window, and prints
 /// the report (also written to the log). Meant to be attached to a bug report, on macOS especially.
 /// </summary>
+/// <param name="loadModel">
+/// Loads the transcription model, returning why it failed or null; Whisper's native library by default, which a
+/// published LocalTake finds in its runtimes folder.
+/// </param>
 /// <param name="displays">The screens as recording numbers them; macOS only, where they may not follow ffmpeg's order.</param>
+/// <param name="transcribes">False for an app that does not transcribe yet (macOS), which ships no model to check.</param>
 public sealed class DiagnosticsReport(
     IAppPaths paths,
     AppSettings settings,
@@ -22,8 +29,11 @@ public sealed class DiagnosticsReport(
     IAudioDeviceLister audio,
     IScreenGrabber grabber,
     IGlobalHotkeys hotkeys,
+    TranscriptionModelLocator models,
     ILogger<DiagnosticsReport> log,
-    IDisplays? displays = null)
+    Func<string, string?>? loadModel = null,
+    IDisplays? displays = null,
+    bool transcribes = true)
 {
     /// <returns>0 when every check passed, otherwise 2.</returns>
     public async Task<int> RunAsync(TextWriter output)
@@ -67,8 +77,8 @@ public sealed class DiagnosticsReport(
             var devices = await audio.ListAsync(ffmpeg);
 #pragma warning restore CA2007
             Check("audio inputs", () => devices.Count > 0 ? string.Join(", ", devices) : throw new InvalidOperationException("none listed"));
-            Check("computer sound", () => devices.Contains(platform.SystemAudioDevice)
-                ? platform.SystemAudioDevice
+            Check("computer sound", () => platform.CanRecordSystemAudio(devices)
+                ? "available"
                 : throw new InvalidOperationException("missing: " + platform.SystemAudioRequirement));
         }
 
@@ -84,6 +94,19 @@ public sealed class DiagnosticsReport(
         if (displays is not null)
             Check("screens", () => string.Join("; ", displays.Screens().Select((s, i) =>
                 string.Create(CultureInfo.InvariantCulture, $"{i} = {s.Width}×{s.Height} at {s.X},{s.Y}"))));
+
+        if (transcribes)
+        {
+            Check("transcription", () =>
+            {
+                var model = models.Find(settings.TranscriptionModelPath)
+                            ?? throw new FileNotFoundException("no Whisper model: the release ships one in a models folder next to LocalTake");
+                var error = (loadModel ?? WhisperTranscriber.CheckRuntime)(model);
+                return error is null
+                    ? $"{model} ({new FileInfo(model).Length / (1024 * 1024)} MB), language {settings.TranscriptionLanguage}"
+                    : throw new InvalidOperationException($"{model} does not load: {error}");
+            });
+        }
 
         Check("global shortcut", () =>
         {

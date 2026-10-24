@@ -10,7 +10,8 @@ public sealed record SettingsDefaults(
     string HotkeyVideoRegion,
     string HotkeyVideoFullScreen,
     string HotkeyVideoStart,
-    string HotkeyVideoStop)
+    string HotkeyVideoStop,
+    string HighlightTrigger)
 {
     /// <summary>The shortcuts of v0.1.0, built around Print Screen as in TinyTake.</summary>
     public static SettingsDefaults ForWindows(string outputFolder) => new(
@@ -22,7 +23,8 @@ public sealed record SettingsDefaults(
         HotkeyVideoRegion: "Ctrl+Shift+PrintScreen",
         HotkeyVideoFullScreen: "",
         HotkeyVideoStart: "Ctrl+R",
-        HotkeyVideoStop: "Ctrl+D");
+        HotkeyVideoStop: "Ctrl+D",
+        HighlightTrigger: "Ctrl+Space");
 
     /// <summary>
     /// A Mac has no Print Screen key, and Cmd+Shift+3/4/5 belong to macOS: Ctrl+Shift with a digit is free in macOS
@@ -37,5 +39,6 @@ public sealed record SettingsDefaults(
         HotkeyVideoRegion: "Ctrl+Shift+4",
         HotkeyVideoFullScreen: "",
         HotkeyVideoStart: "Ctrl+Shift+R",
-        HotkeyVideoStop: "Ctrl+Shift+D");
+        HotkeyVideoStop: "Ctrl+Shift+D",
+        HighlightTrigger: "Ctrl+Space");
 }

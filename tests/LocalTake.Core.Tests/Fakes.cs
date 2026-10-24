@@ -3,6 +3,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using Microsoft.Extensions.Time.Testing;
 
 namespace LocalTake.Core.Tests;
@@ -65,6 +66,10 @@ internal sealed class FakeRecordingView : IRecordingView
     public IReadOnlyCollection<string>? Devices { get; private set; }
     public bool Closed { get; private set; }
 
+    /// <summary>Kept apart from <see cref="Calls"/>: the trigger shown during the recording.</summary>
+    public string? HighlightShortcut { get; private set; }
+    public int HighlightShown { get; private set; }
+
     public event EventHandler? StartRequested;
     public event EventHandler? StopRequested;
     public event EventHandler? CancelRequested;
@@ -79,6 +84,13 @@ internal sealed class FakeRecordingView : IRecordingView
     public void ShowStarting() => Calls.Add("starting");
     public void ShowRecording() => Calls.Add("recording");
     public void ShowFinishing() => Calls.Add("finishing");
+
+    public void ShowHighlightShortcut(string? shortcut)
+    {
+        HighlightShortcut = shortcut;
+        HighlightShown++;
+    }
+
     public void Dispose() => Closed = true;
 }
 
@@ -126,12 +138,21 @@ internal sealed class FakeRecorderFactory : IVideoRecorderFactory
     public PixelRect? Area { get; private set; }
     public Exception? StartFailure { get; set; }
 
+    /// <summary>The clock whose time is noted at each launch, in <see cref="StartedAt"/>.</summary>
+    public TimeProvider Clock { get; set; } = TimeProvider.System;
+
+    public DateTimeOffset? StartedAt { get; private set; }
+
+    /// <summary>Forgets the last recorder, so that a test can wait for the next one.</summary>
+    public void Reset() => Recorder = null;
+
     public IVideoRecorder Start(string ffmpegPath, PixelRect area, string outputPath, VideoOptions options, Action<IVideoRecorder> onUnexpectedExit)
     {
         if (StartFailure is not null)
             throw StartFailure;
         Area = area;
         Options = options;
+        StartedAt = Clock.GetUtcNow();
         return Recorder = new FakeRecorder(outputPath) { OnUnexpectedExit = onUnexpectedExit };
     }
 }
@@ -147,5 +168,125 @@ internal static class FakeTime
             clock.Advance(TimeSpan.FromMilliseconds(100));
         }
         await task;
+    }
+}
+
+internal sealed class FakeRecordingStatus : IRecordingStatus
+{
+    public bool IsBusy => IsRecording;
+    public bool IsRecording { get; private set; }
+    public event EventHandler? StateChanged;
+
+    public void Set(bool recording)
+    {
+        IsRecording = recording;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+/// <summary>Writes the WAV ffmpeg would extract, or fails as told.</summary>
+internal sealed class FakeAudioExtractor(System.IO.Abstractions.IFileSystem fileSystem) : IAudioExtractor
+{
+    public List<(string Video, string Audio)> Calls { get; } = [];
+    public Exception? Failure { get; set; }
+
+    public Task ExtractAsync(string videoPath, string audioPath, CancellationToken cancellationToken)
+    {
+        Calls.Add((videoPath, audioPath));
+        if (Failure is not null)
+            return Task.FromException(Failure);
+        fileSystem.File.WriteAllText(audioPath, "RIFF");
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Each transcription waits until the test completes, fails or cancels it.</summary>
+internal sealed class FakeTranscriber : ITranscriber
+{
+    public sealed record Call(
+        string AudioPath, string ModelPath, string Language, Action<double> OnProgress,
+        TaskCompletionSource<IReadOnlyList<TranscribedWord>> Result, CancellationToken Token)
+    {
+        public void Complete(params TranscribedWord[] words) => Result.SetResult(words);
+    }
+
+    public List<Call> Calls { get; } = [];
+
+    public Call Last => Calls[^1];
+
+    public Task<IReadOnlyList<TranscribedWord>> TranscribeAsync(
+        string audioPath, string modelPath, string language, Action<double> onProgress, CancellationToken cancellationToken)
+    {
+        // Continuations run inline: each step of the queue happens before the test's next line.
+        var result = new TaskCompletionSource<IReadOnlyList<TranscribedWord>>();
+        cancellationToken.Register(() => result.TrySetCanceled(cancellationToken));
+        Calls.Add(new Call(audioPath, modelPath, language, onProgress, result, cancellationToken));
+        return result.Task;
+    }
+}
+
+internal sealed class FakeHighlightInput : IHighlightInput
+{
+    private Action? _pressed;
+
+    public HighlightTrigger? Registered { get; private set; }
+    public bool Refused { get; set; }
+    public int Unregistrations { get; private set; }
+    public bool IsHeld { get; set; }
+    public PixelPoint Cursor { get; set; }
+
+    public bool Register(HighlightTrigger trigger, Action pressed)
+    {
+        if (Refused)
+            return false;
+        Registered = trigger;
+        _pressed = pressed;
+        return true;
+    }
+
+    public void Unregister()
+    {
+        Unregistrations++;
+        Registered = null;
+        _pressed = null;
+    }
+
+    /// <summary>Presses the trigger, if it is registered.</summary>
+    public void Press() => _pressed?.Invoke();
+}
+
+internal sealed class FakeHighlightOverlay : IHighlightOverlay
+{
+    public List<IReadOnlyList<PixelPoint>> Draws { get; } = [];
+    public double Opacity { get; private set; }
+    public int OpacityChanges { get; private set; }
+    public bool Visible { get; private set; }
+    public bool Disposed { get; private set; }
+
+    public void Draw(IReadOnlyList<PixelPoint> points)
+    {
+        Draws.Add([.. points]);
+        Visible = true;
+    }
+
+    public void SetOpacity(double opacity)
+    {
+        Opacity = opacity;
+        OpacityChanges++;
+    }
+
+    public void Hide() => Visible = false;
+    public void Dispose() => Disposed = true;
+}
+
+internal sealed class FakeHighlightOverlayFactory : IHighlightOverlayFactory
+{
+    public FakeHighlightOverlay? Overlay { get; private set; }
+    public PixelRect? Area { get; private set; }
+
+    public IHighlightOverlay Create(PixelRect area)
+    {
+        Area = area;
+        return Overlay = new FakeHighlightOverlay();
     }
 }

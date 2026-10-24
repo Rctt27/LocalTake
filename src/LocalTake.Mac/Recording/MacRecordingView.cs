@@ -32,6 +32,11 @@ internal sealed class MacRecordingView : IRecordingView
     public void ShowStarting() => _bar.ShowStarting();
     public void ShowRecording() => _bar.ShowRecording();
 
+    /// <summary>No highlight on macOS yet (<see cref="NoHighlightInput"/>): never given a shortcut.</summary>
+    public void ShowHighlightShortcut(string? shortcut)
+    {
+    }
+
     /// <summary>Nothing more is recorded: the frame goes at once.</summary>
     public void ShowFinishing()
     {

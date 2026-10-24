@@ -12,3 +12,8 @@ shortcuts, ffmpeg arguments and settings files keep working as they did.
   must keep loading (see CLAUDE.md, "Versioning and releases").
 
 Do not regenerate them: they are the reference. A deliberate behaviour change is made in the test, with a comment.
+
+`speech/` holds audio for the transcription tests, not legacy behaviour:
+
+- `bonjour-fr.wav`: « Bonjour, ceci est un essai de transcription. », 16 kHz mono, spoken by Windows' French
+  synthetic voice (Microsoft Hortense).

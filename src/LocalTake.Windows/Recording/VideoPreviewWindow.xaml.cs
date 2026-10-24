@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using LocalTake.Core.Ports;
+using LocalTake.Core.Transcription;
 using Forms = System.Windows.Forms;
 
 namespace LocalTake;
@@ -17,7 +18,8 @@ namespace LocalTake;
 /// <summary>
 /// Opens when a recording is saved, as in TinyTake, and plays it straight away: seek bar with a frame preview on
 /// hover, 10-second jumps, replay at the end. The video is already in the output folder; the window only shows it,
-/// sends it to the Recycle Bin, or asks for a new take.
+/// sends it to the Recycle Bin, or asks for a new take. With a transcription, its subtitles are at the left, following
+/// the video and editable (<see cref="TranscriptPanel"/>).
 /// </summary>
 public partial class VideoPreviewWindow : Window
 {
@@ -43,12 +45,24 @@ public partial class VideoPreviewWindow : Window
     private bool _thumbnailFailed;
     private double _thumbnailSeconds = -1;
 
+    /// <summary>The microphone track recorded with the video, kept for "Générer les sous-titres"; deleted on closing.</summary>
+    private string? _microphoneTrack;
+    private readonly Transcriptions _transcriptions;
+    private bool _transcriptShown;
+
     /// <param name="fullScreen">How the video was recorded, which "Refaire" repeats.</param>
-    internal VideoPreviewWindow(string path, bool fullScreen, IShell shell, IFileTrash trash)
+    /// <param name="transcription">The transcription of its microphone, or null to show the .srt next to it, if any.</param>
+    /// <param name="microphoneTrack">
+    /// Without a transcription, the microphone track recorded with the video, which "Générer les sous-titres" uses.
+    /// </param>
+    internal VideoPreviewWindow(string path, bool fullScreen, IShell shell, IFileTrash trash, SubtitleFile subtitles,
+        Transcriptions transcriptions, TranscriptionJob? transcription, string? microphoneTrack = null)
     {
         InitializeComponent();
         _shell = shell;
         _trash = trash;
+        _transcriptions = transcriptions;
+        _microphoneTrack = microphoneTrack;
         Icon = AppIcon.ImageSource;
         _path = path;
         Title = "LocalTake — " + Path.GetFileName(path);
@@ -58,9 +72,61 @@ public partial class VideoPreviewWindow : Window
         _timer.Tick += (_, _) => ShowPosition();
         SeekBar.AddHandler(Thumb.DragStartedEvent, new DragStartedEventHandler((_, _) => _dragging = true));
         SeekBar.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler((_, _) => _dragging = false));
+        Transcript.Load(path, subtitles, transcriptions, transcription);
+        if (Transcript.HasSubtitles)
+            ShowTranscript();
+        Transcript.SubtitlesChanged += UpdateGenerateButton;
+        UpdateGenerateButton();
+        Transcript.SeekRequested += time => SeekTo(time.TotalSeconds);
+        Transcript.EditingStarted += PauseIfPlaying;
+        Transcript.CueShown += text =>
+        {
+            SubtitleText.Text = text ?? "";
+            SubtitleBand.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
+        };
+        VideoHost.SizeChanged += (_, _) => PlaceSubtitle();
+
         OpenMedia();
         Loaded += (_, _) => Play();
-        Closed += (_, _) => ReleaseMedia();
+        Closed += (_, _) =>
+        {
+            ReleaseMedia();
+            Transcript.Close(discard: false);
+            // Never used: the subtitles were not asked for.
+            if (_microphoneTrack is not null)
+                _transcriptions.DiscardTrack(_microphoneTrack);
+        };
+    }
+
+    private void UpdateGenerateButton()
+    {
+        GenerateButton.Visibility = Transcript.CanGenerate ? Visibility.Visible : Visibility.Collapsed;
+        GenerateButton.IsEnabled = _transcriptions.CanTranscribe;
+        GenerateButton.ToolTip = !GenerateButton.IsEnabled ? "Modèle de transcription introuvable : voir les réglages."
+            : _microphoneTrack is not null ? "Transcrire le micro de cette vidéo, sur cet ordinateur"
+            : "Transcrire le son de cette vidéo, sur cet ordinateur";
+    }
+
+    /// <summary>The track goes to the transcription, which deletes it once done.</summary>
+    private void Generate_Click(object sender, RoutedEventArgs e)
+    {
+        var track = _microphoneTrack;
+        _microphoneTrack = null;
+        Transcript.Generate(track);
+        ShowTranscript();
+    }
+
+    private void ShowTranscript()
+    {
+        if (_transcriptShown)
+            return;
+        _transcriptShown = true;
+        TranscriptColumn.Width = new GridLength(340);
+        TranscriptColumn.MinWidth = 220;
+        Transcript.Visibility = TranscriptSplitter.Visibility = Visibility.Visible;
+        // The highlighted subtitle follows the video closely.
+        _timer.Interval = TimeSpan.FromMilliseconds(100);
+        Width += 340;
     }
 
     /// <summary>A new recording must not capture this window's sound.</summary>
@@ -141,6 +207,7 @@ public partial class VideoPreviewWindow : Window
         SeekBar.Value = seconds;
         _updatingSeekBar = false;
         ElapsedText.Text = Format(seconds);
+        Transcript.ShowPosition(TimeSpan.FromSeconds(seconds));
     }
 
     private static string Format(double seconds)
@@ -155,7 +222,9 @@ public partial class VideoPreviewWindow : Window
         {
             SeekBar.Maximum = Player.NaturalDuration.TimeSpan.TotalSeconds;
             TotalText.Text = Format(SeekBar.Maximum);
+            Transcript.SetDuration(Player.NaturalDuration.TimeSpan);
         }
+        PlaceSubtitle();
         SeekBar.SmallChange = 1;
         SeekBar.LargeChange = JumpSeconds;
         if (!_sized)
@@ -182,6 +251,27 @@ public partial class VideoPreviewWindow : Window
         ReplayButton.Visibility = Visibility.Collapsed;
         ErrorText.Text = "L'aperçu ne peut pas lire cette vidéo, qui est pourtant enregistrée.\n\n" + e.ErrorException.Message;
         ErrorPanel.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    /// Puts the subtitle near the bottom of the picture, inside the black bars the player may leave around it, with a
+    /// font in proportion to the picture: about 4.5 % of its height, as on a television.
+    /// </summary>
+    private void PlaceSubtitle()
+    {
+        double width = VideoHost.ActualWidth, height = VideoHost.ActualHeight;
+        if (width <= 0 || height <= 0)
+            return;
+        double pictureWidth = width, pictureHeight = height;
+        if (Player.NaturalVideoWidth > 0 && Player.NaturalVideoHeight > 0)
+        {
+            var scale = Math.Min(width / Player.NaturalVideoWidth, height / Player.NaturalVideoHeight);
+            pictureWidth = Player.NaturalVideoWidth * scale;
+            pictureHeight = Player.NaturalVideoHeight * scale;
+        }
+        SubtitleText.FontSize = Math.Max(12, pictureHeight * 0.045);
+        SubtitleBand.MaxWidth = pictureWidth * 0.9;
+        SubtitleBand.Margin = new Thickness(0, 0, 0, (height - pictureHeight) / 2 + pictureHeight * 0.05);
     }
 
     /// <summary>
@@ -272,6 +362,14 @@ public partial class VideoPreviewWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        // In a subtitle field, keys type text: Space, the arrows and Escape belong to it.
+        if (Transcript.IsEditing)
+            return;
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key is Key.Z or Key.Y)
+        {
+            e.Handled = e.Key == Key.Z ? Transcript.Undo() : Transcript.Redo();
+            return;
+        }
         if (Keyboard.Modifiers != ModifierKeys.None)
             return;
         switch (e.Key)
@@ -362,12 +460,29 @@ public partial class VideoPreviewWindow : Window
                 Player.Pause();
                 return false;
             }
+            // The subtitles go with the video; the transcription stops, and its track is deleted.
+            Transcript.Close(discard: true);
+            TrashSubtitles();
             Close();
             return true;
         }
         finally
         {
             _discarding = false;
+        }
+    }
+
+    private void TrashSubtitles()
+    {
+        var subtitles = SubtitleFile.PathFor(_path);
+        try
+        {
+            if (File.Exists(subtitles))
+                _trash.MoveToTrash(subtitles);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            // The video is gone; a .srt left behind is harmless.
         }
     }
 

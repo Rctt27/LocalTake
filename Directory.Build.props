@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- The only source of the version (Semantic Versioning, see CLAUDE.md). -->
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Product>LocalTake</Product>
     <Authors>Rctt27</Authors>
     <Copyright>© Rctt27</Copyright>

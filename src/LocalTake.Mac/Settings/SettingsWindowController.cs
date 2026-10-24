@@ -303,10 +303,12 @@ internal sealed class SettingsWindowController : NSWindowController
             _folder.StringValue, _pattern.StringValue, SelectedFormat(), (int)_quality.IntValue, _copyPath.State == NSCellStateValue.On,
             AfterCaptureChoices[(int)Math.Max(0, _afterCapture.IndexOfSelectedItem)].Action,
             h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7],
-            _ffmpeg.StringValue,
+            // Neither the highlight nor the transcription is on macOS yet: their settings are kept as they are.
+            _context.Settings.HighlightTrigger, _ffmpeg.StringValue,
             _microphone.IndexOfSelectedItem > 0 ? _microphone.TitleOfSelectedItem ?? "" : "",
             _recordMicrophone.State == NSCellStateValue.On, _systemAudio.State == NSCellStateValue.On,
-            SettingsForm.FrameRates[(int)Math.Max(0, _frameRate.IndexOfSelectedItem)]);
+            SettingsForm.FrameRates[(int)Math.Max(0, _frameRate.IndexOfSelectedItem)],
+            _context.Settings.TranscribeMicrophone, _context.Settings.TranscriptionLanguage, _context.Settings.TranscriptionModelPath);
         if (_context.Editor.TryApply(form) is { } problem)
         {
             MacDialogs.Show(problem, NSAlertStyle.Warning);

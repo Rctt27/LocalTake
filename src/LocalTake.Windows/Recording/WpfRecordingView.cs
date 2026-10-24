@@ -5,6 +5,7 @@ using LocalTake.Core.Geometry;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 
 namespace LocalTake;
 
@@ -14,14 +15,15 @@ internal sealed class WpfRecordingView : IRecordingView
     private readonly RecordingBar _bar;
     private RecordingFrame? _frame;
 
-    public WpfRecordingView(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, PixelRect area, bool fullScreen)
+    public WpfRecordingView(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows,
+        bool canTranscribe, PixelRect area, bool fullScreen)
     {
         if (!fullScreen)
         {
             _frame = new RecordingFrame(area.ToRectangle(), windows);
             _frame.Show();
         }
-        _bar = new RecordingBar(settings, store, platform, windows);
+        _bar = new RecordingBar(settings, store, platform, windows, canTranscribe);
         _bar.StartRequested += () => StartRequested?.Invoke(this, EventArgs.Empty);
         _bar.StopRequested += () => StopRequested?.Invoke(this, EventArgs.Empty);
         _bar.CancelRequested += () => CancelRequested?.Invoke(this, EventArgs.Empty);
@@ -37,6 +39,7 @@ internal sealed class WpfRecordingView : IRecordingView
     public void ShowCountdown(int seconds) => _bar.ShowCountdown(seconds);
     public void ShowStarting() => _bar.ShowStarting();
     public void ShowRecording() => _bar.ShowRecording();
+    public void ShowHighlightShortcut(string? shortcut) => _bar.ShowHighlightShortcut(shortcut);
 
     /// <summary>Nothing more is recorded: the frame goes at once.</summary>
     public void ShowFinishing()
@@ -59,7 +62,9 @@ internal sealed class WpfRecordingView : IRecordingView
     }
 }
 
-internal sealed class WpfRecordingViewFactory(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows) : IRecordingViewFactory
+internal sealed class WpfRecordingViewFactory(
+    AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, MicrophoneTracks tracks) : IRecordingViewFactory
 {
-    public IRecordingView Show(PixelRect area, bool fullScreen) => new WpfRecordingView(settings, store, platform, windows, area, fullScreen);
+    public IRecordingView Show(PixelRect area, bool fullScreen) =>
+        new WpfRecordingView(settings, store, platform, windows, tracks.CanTranscribe, area, fullScreen);
 }

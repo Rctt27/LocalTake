@@ -17,6 +17,17 @@ internal static unsafe partial class Win32
     public const uint MOD_WIN = 0x8;
     public const uint MOD_NOREPEAT = 0x4000;
 
+    public const int WH_MOUSE_LL = 14;
+    public const int WM_XBUTTONDOWN = 0x020B;
+    public const int WM_XBUTTONUP = 0x020C;
+    public const uint XBUTTON1 = 1;
+    public const uint XBUTTON2 = 2;
+    public const int VK_SHIFT = 0x10;
+    public const int VK_CONTROL = 0x11;
+    public const int VK_MENU = 0x12;
+    public const int VK_LWIN = 0x5B;
+    public const int VK_RWIN = 0x5C;
+
     public const int GWL_EXSTYLE = -20;
     public const int WS_EX_TRANSPARENT = 0x20;
 
@@ -48,6 +59,22 @@ internal static unsafe partial class Win32
     public struct RECT
     {
         public int Left, Top, Right, Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X, Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public POINT pt;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public nuint dwExtraInfo;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -107,6 +134,24 @@ internal static unsafe partial class Win32
 
     [LibraryImport("user32.dll", SetLastError = true)]
     public static partial ushort RegisterClassExW(WNDCLASSEXW* lpwcx);
+
+    // user32 — input
+    [LibraryImport("user32.dll")]
+    public static partial short GetAsyncKeyState(int vKey);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetCursorPos(out POINT point);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    public static partial nint SetWindowsHookExW(int idHook, delegate* unmanaged<int, nint, nint, nint> lpfn, nint hmod, uint dwThreadId);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool UnhookWindowsHookEx(nint hhk);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint CallNextHookEx(nint hhk, int nCode, nint wParam, nint lParam);
 
     [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     public static partial nint CreateWindowExW(uint dwExStyle, string lpClassName, string lpWindowName, uint dwStyle,

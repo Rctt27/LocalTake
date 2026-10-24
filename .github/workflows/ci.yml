@@ -12,6 +12,8 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # The ggerganov/whisper.cpp revision the Whisper models are downloaded from.
+  WHISPER_MODELS_REVISION: 5359861c739e955e79d9a303bcbc70fb988958b1
 
 jobs:
   windows:
@@ -23,6 +25,15 @@ jobs:
           global-json-file: global.json
       - name: Install ffmpeg
         run: choco install ffmpeg --no-progress -y
+      # The smallest Whisper model, for the transcription tests (skipped without one). Pinned and checked.
+      - name: Download a Whisper model for the tests
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/ggml-tiny.bin"
+          echo "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin" > ggml-tiny.bin.sha256
+          if command -v sha256sum > /dev/null; then sha256sum -c ggml-tiny.bin.sha256; else shasum -a 256 -c ggml-tiny.bin.sha256; fi
+          echo "LOCALTAKE_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
       - name: Format
         run: dotnet format LocalTake.slnx --verify-no-changes
       - name: Build
@@ -45,6 +56,15 @@ jobs:
       - name: Install ffmpeg
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else sudo apt-get update && sudo apt-get install -y ffmpeg; fi
+      # The smallest Whisper model, for the transcription tests (skipped without one). Pinned and checked.
+      - name: Download a Whisper model for the tests
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/ggml-tiny.bin"
+          echo "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin" > ggml-tiny.bin.sha256
+          if command -v sha256sum > /dev/null; then sha256sum -c ggml-tiny.bin.sha256; else shasum -a 256 -c ggml-tiny.bin.sha256; fi
+          echo "LOCALTAKE_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
       - name: Core tests with coverage
         run: dotnet test --project tests/LocalTake.Core.Tests -c Release --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
       - name: Core coverage of at least 90 %
@@ -103,9 +123,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      # LocalTake.exe and Whisper's native libraries (runtimes\win-x64); without the model, which only releases ship.
       - name: Publish LocalTake.exe
         run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
       - uses: actions/upload-artifact@v4
         with:
           name: LocalTake-windows
-          path: dist/LocalTake.exe
+          path: dist/

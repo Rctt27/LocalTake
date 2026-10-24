@@ -6,7 +6,7 @@ Outil de capture d'écran et d'enregistrement vidéo pour **Windows** et **macOS
 
 Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt27/LocalTake/releases).
 
-**Windows 10 (2004) ou 11** : `LocalTake-x.y.z-windows-x64.exe`, à lancer tel quel. Il nécessite le [runtime .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) (« .NET Desktop Runtime »). L'icône de LocalTake se trouve dans la zone de notification ; un clic ouvre son menu.
+**Windows 10 (2004) ou 11** : `LocalTake-x.y.z-windows-x64.zip`, à extraire dans un dossier, puis lancer `LocalTake.exe`. Gardez ensemble ce qu'il contient : `LocalTake.exe`, le dossier `runtimes` (la bibliothèque de transcription) et le dossier `models` (le modèle de transcription). Il nécessite le [runtime .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) (« .NET Desktop Runtime »).
 
 **macOS 14 (Sonoma) ou plus récent**, puce Apple ou Intel : `LocalTake-x.y.z-macos.zip`. Décompressez-le, glissez `LocalTake.app` dans Applications, puis ouvrez-le par **clic droit > Ouvrir** : l'app n'est pas signée par un développeur identifié, macOS le demande une fois (sinon : Réglages Système > Confidentialité et sécurité > « Ouvrir quand même »). L'icône de LocalTake se trouve dans la barre des menus. macOS demande ensuite deux autorisations, à accorder dans Réglages Système > Confidentialité et sécurité :
 - **Enregistrement de l'écran**, à la première capture ; LocalTake doit être relancé après l'avoir accordée ;
@@ -21,8 +21,11 @@ Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt
 | Capturer tout l'écran | `Ctrl+Impr. écran` | `Ctrl+Maj+3` |
 | Vidéo d'une zone | `Ctrl+Maj+Impr. écran` | `Ctrl+Maj+4` |
 | Démarrer / arrêter l'enregistrement (actifs seulement pendant une vidéo) | `Ctrl+R` / `Ctrl+D` | `Ctrl+Maj+R` / `Ctrl+Maj+D` |
+| Surligner avec la souris (maintenir, seulement pendant l'enregistrement) | `Ctrl+Espace` | pas encore |
 
 Un Mac n'a pas de touche Impr. écran, et `Cmd+Maj+3/4/5` appartiennent à macOS. Les raccourcis se modifient dans les réglages, depuis l'icône LocalTake. On peut aussi y attribuer un raccourci à la capture de la dernière zone et à la vidéo de tout l'écran. Si le système refuse un raccourci, c'est qu'un autre outil l'utilise déjà (TinyTake, l'Outil Capture d'écran…).
+
+Tant que le raccourci de surlignage est maintenu, une traînée jaune translucide suit la souris et apparaît dans la vidéo ; elle s'estompe au relâchement. Il peut aussi être une touche seule (Espace, qui n'écrit alors plus rien pendant l'enregistrement) ou un bouton latéral de la souris : cliquez avec dans le champ des réglages. Les boutons supplémentaires des souris gaming s'associent à une touche `F13` à `F24` dans le logiciel du fabricant, puis à LocalTake.
 
 ## Éditeur
 
@@ -37,12 +40,24 @@ Outils : flèche, ligne, rectangle, ellipse, crayon, surligneur, texte, numéros
 
 ## Vidéo
 
-Enregistrement en MP4 d'une zone ou de tout l'écran. Une fois la zone choisie, une barre permet d'activer ou de couper le micro et le son de l'ordinateur, puis **Démarrer** lance un compte à rebours de 3 secondes. **Arrêter** enregistre la vidéo. Le cadre rouge et la barre restent invisibles dans la vidéo.
+Enregistrement en MP4 d'une zone ou de tout l'écran. Une fois la zone choisie, une barre permet d'activer ou de couper le micro et le son de l'ordinateur, puis un clic sur la gauche de la barre (▶ « Démarrer ») ou le raccourci de démarrage lance un compte à rebours de 3 secondes. Pendant l'enregistrement, la même zone affiche la durée : un clic dessus (■ « Arrêter ») ou le raccourci d'arrêt enregistre la vidéo. Le cadre rouge et la barre restent invisibles dans la vidéo.
 
 La vidéo s'ouvre ensuite dans un aperçu qui la lit aussitôt, avec l'image à chaque instant au survol de la barre de défilement. On peut l'afficher dans l'Explorateur ou le Finder, l'envoyer à la Corbeille, ou **Refaire** : la vidéo part à la Corbeille et un nouvel enregistrement commence de la même façon.
 
+### Sous-titres (Windows)
+
+La bascule **Sous-titres** de la barre d'enregistrement fait transcrire le micro dès la fin de l'enregistrement. Sans elle, le bouton **Générer les sous-titres**, en haut de la fenêtre de lecture, le fait après coup : il apparaît tant que la vidéo n'a pas de sous-titres, et transcrit la piste du micro gardée pendant que la fenêtre est ouverte, ou à défaut le son de la vidéo. La transcription se fait sur l'ordinateur, avec le modèle [Whisper](https://github.com/ggerganov/whisper.cpp) livré dans le dossier `models` : rien n'est envoyé. Elle prend environ un tiers de la durée de la vidéo, et attend la fin d'un enregistrement en cours.
+
+Les sous-titres sont découpés comme pour un tutoriel : une ligne de 42 caractères au plus (environ 5 à 7 mots), coupée à une fin de phrase, une virgule ou avant « et », « qui », « sur »…, jamais après un article, chaque bloc durant de 1 à 5 secondes ; un silence d'une demi-seconde termine un bloc. À côté des temps de chaque bloc, sa vitesse de lecture passe en orange au-delà de 15 caractères par seconde et en rouge au-delà de 17, avec l'explication en infobulle.
+
+Le sous-titre en cours s'affiche aussi sur la vidéo, en bas de l'image, sur un bandeau noir translucide qui le garde lisible quelle que soit l'image.
+
+Ils s'affichent à gauche de la vidéo, bloc par bloc, avec les intervalles sans sous-titre entre eux. Le bloc (ou l'intervalle) de l'instant lu est surligné et reste au milieu de la liste. Un clic sur un bloc y amène la vidéo ; modifier un texte ou un temps met la lecture en pause. `Entrée` valide, `Maj+Entrée` passe à la ligne, `Échap` annule, `Ctrl+Z` / `Ctrl+Y` défont et refont. « + Ajouter » crée un sous-titre dans un intervalle.
+
+Les sous-titres sont enregistrés à chaque modification dans un fichier `.srt` du même nom que la vidéo, que les lecteurs (VLC, Lecteur multimédia…) affichent avec elle. La langue (français, anglais ou détection automatique) et un autre modèle Whisper (fichier `ggml-*.bin`) se choisissent dans les réglages.
+
 LocalTake ne télécharge pas ffmpeg, qu'il faut installer, ou dont on indique l'emplacement dans les réglages :
-- Windows : `winget install Gyan.FFmpeg` ; le son de l'ordinateur utilise le pilote `virtual-audio-capturer` installé avec TinyTake (TinyTake Filter) ;
+- Windows : `winget install Gyan.FFmpeg` ; le son de l'ordinateur est capté directement depuis la sortie audio par défaut, sans pilote à installer ;
 - macOS : `brew install ffmpeg` ; le son de l'ordinateur passe par BlackHole (`brew install blackhole-2ch`), avec un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
 
 ## Fichiers
@@ -50,12 +65,15 @@ LocalTake ne télécharge pas ffmpeg, qu'il faut installer, ou dont on indique l
 | | Windows | macOS |
 | --- | --- | --- |
 | Captures | `Images\LocalTake`, ou `%USERPROFILE%\Captures LocalTake` si le dossier Images est synchronisé par OneDrive | `~/Pictures/LocalTake` |
+| Sous-titres | à côté de chaque vidéo, même nom en `.srt` | |
+| Modèle de transcription | `models` à côté de `LocalTake.exe`, sinon `%LOCALAPPDATA%\LocalTake\models` | |
+| Piste du micro en attente de transcription | `%LOCALAPPDATA%\LocalTake\work`, effacée une fois transcrite | |
 | Réglages | `%APPDATA%\LocalTake\settings.json` | `~/Library/Application Support/LocalTake/settings.json` |
 | Journal (7 jours) | `%LOCALAPPDATA%\LocalTake\logs` | `~/Library/Logs/LocalTake` |
 
 ## Un problème ?
 
-Le diagnostic vérifie, sans ouvrir de fenêtre, ce dont LocalTake a besoin : ffmpeg, les périphériques audio, la capture d'écran, les raccourcis, et sur Mac les écrans. Quittez LocalTake avant, sinon ses propres raccourcis apparaissent comme déjà pris. Dans un terminal :
+Le diagnostic vérifie, sans ouvrir de fenêtre, ce dont LocalTake a besoin : ffmpeg, les périphériques audio, la capture d'écran, la transcription, les raccourcis, et sur Mac les écrans. Quittez LocalTake avant, sinon ses propres raccourcis apparaissent comme déjà pris. Dans un terminal :
 - Windows : `LocalTake.exe --diagnostics` ;
 - macOS : `open -a LocalTake --args --diagnostics`, puis `open ~/Library/Logs/LocalTake/diagnostics.txt` (lancé directement depuis `Contents/MacOS`, il testerait les autorisations du Terminal plutôt que celles de LocalTake).
 

@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Abstractions;
+using System.IO.Pipes;
 using LocalTake.Core.Geometry;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
@@ -66,6 +68,43 @@ public sealed class FfmpegRecorderTests : IDisposable
     }
 
     [Fact]
+    public async Task The_microphone_track_is_a_16_kHz_mono_wav_in_time_with_the_video()
+    {
+        // The transcription's times are read from this track and shown against the video: a beep every second must
+        // start at the same time in both files.
+        var ffmpeg = RequireFfmpeg();
+        var output = _folder.File("track.mp4");
+        var track = _folder.File("track.wav");
+        var inputs = new CaptureInputs(
+            [["-re", "-f", "lavfi", "-i", "aevalsrc=if(lt(mod(t\\,1)\\,0.2)\\,0.5*sin(2*PI*880*t)\\,0):s=48000"]],
+            ["-re", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=30"]);
+
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, inputs, output, _ => { }, microphoneTrackPath: track);
+        (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        await Task.Delay(3500, TestContext.Current.CancellationToken);
+        (await recorder.StopAsync()).ShouldBeTrue();
+
+        var probe = await RunFfmpegAsync(ffmpeg, "-hide_banner", "-i", track);
+        probe.Output.ShouldContain("Audio: pcm_s16le");
+        // ffmpeg 5 writes "mono", 6.1 "1 channels".
+        probe.Output.ShouldMatch(@"16000 Hz, (mono|1 channels)");
+        var inTrack = await BeepStartsAsync(ffmpeg, track);
+        var inVideo = await BeepStartsAsync(ffmpeg, output);
+        inTrack.Count.ShouldBeGreaterThanOrEqualTo(2);
+        for (var i = 0; i < Math.Min(inTrack.Count, inVideo.Count); i++)
+            Math.Abs(inTrack[i] - inVideo[i]).ShouldBeLessThan(0.05, $"beep {i}: {inTrack[i]} s in the track, {inVideo[i]} s in the video");
+    }
+
+    /// <summary>Where each beep starts, in seconds of the file's timeline: the ends of the silences between them.</summary>
+    private static async Task<List<double>> BeepStartsAsync(string ffmpeg, string file)
+    {
+        var (_, output) = await RunFfmpegAsync(ffmpeg, "-hide_banner", "-i", file, "-map", "0:a:0", "-af",
+            "silencedetect=noise=-30dB:d=0.3", "-f", "null", "-");
+        return [.. System.Text.RegularExpressions.Regex.Matches(output, @"silence_end: ([\d.]+)")
+            .Select(m => double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture))];
+    }
+
+    [Fact]
     public async Task Kill_stops_at_once()
     {
         var ffmpeg = RequireFfmpeg();
@@ -98,14 +137,143 @@ public sealed class FfmpegRecorderTests : IDisposable
         var factory = new FfmpegVideoRecorderFactory(platform);
         using var recorder = factory.Start(ffmpeg, new PixelRect(0, 0, 320, 240), _folder.File("factory.mp4"), new VideoOptions(30, null, false), _ => { });
         (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        // A few frames first: a video stopped before its first frame is a failure.
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         (await recorder.StopAsync()).ShouldBeTrue();
         platform.Area.ShouldBe(new PixelRect(0, 0, 320, 240));
+    }
+
+    private static CaptureInputs WithPipe(TestPipe pipe) =>
+        new([], ["-re", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=30"], TrailingAudioInputs: [pipe.Input], DownmixToStereo: true);
+
+    [Fact]
+    public async Task Piped_raw_audio_is_recorded()
+    {
+        var ffmpeg = RequireFfmpeg();
+        var output = _folder.File("piped.mp4");
+        var pipe = new TestPipe(feedFor: null);
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, WithPipe(pipe), output, _ => { }, pipe);
+        (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        await Task.Delay(1500, TestContext.Current.CancellationToken);
+        (await recorder.StopAsync()).ShouldBeTrue();
+
+        pipe.Disposed.ShouldBeTrue();
+        var probe = await RunFfmpegAsync(ffmpeg, "-hide_banner", "-i", output, "-f", "null", "-");
+        probe.Output.ShouldContain("Audio: aac");
+    }
+
+    [Fact]
+    public async Task Stop_finishes_the_file_when_the_computer_sound_stops_coming()
+    {
+        // On "q", ffmpeg waits for its input threads, and the one reading an empty pipe never returns: the recorder
+        // closes the pipe, which ends that input.
+        var ffmpeg = RequireFfmpeg();
+        var output = _folder.File("starved.mp4");
+        var pipe = new TestPipe(TimeSpan.FromSeconds(1));
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, WithPipe(pipe), output, _ => { }, pipe);
+        (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        await Task.Delay(2500, TestContext.Current.CancellationToken);
+
+        var watch = Stopwatch.StartNew();
+        (await recorder.StopAsync()).ShouldBeTrue();
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
+        var probe = await RunFfmpegAsync(ffmpeg, "-hide_banner", "-i", output, "-f", "null", "-");
+        probe.Output.ShouldContain("Video: h264");
+    }
+
+    [Theory]
+    [InlineData("[warning] Finishing stream 0:0 without any data written to it.", true)]
+    [InlineData("[vost#0:0/libx264 @ 000001c2] [warning] Finishing stream without any data written to it.", true)]
+    [InlineData("[warning] Finishing stream 0:1 without any data written to it.", false)]
+    [InlineData("[aost#0:1/aac @ 000001c2] [warning] Finishing stream without any data written to it.", false)]
+    public void An_empty_video_is_recognised_in_old_and_new_ffmpeg_wordings(string line, bool noVideo) =>
+        FfmpegVideoRecorder.SaysNoVideoWasWritten(line).ShouldBe(noVideo);
+
+    [Fact]
+    public async Task A_video_is_saved_only_when_it_has_frames()
+    {
+        // A pipe silent from the start: ffmpeg 5 holds every frame waiting for the sound, and closing the pipe gets an
+        // MP4 without a single frame, with exit code 0. That must not count as a saved video. Whatever this ffmpeg does
+        // with it, Stop must say saved exactly when the file has frames.
+        var ffmpeg = RequireFfmpeg();
+        var output = _folder.File("empty.mp4");
+        var pipe = new TestPipe(TimeSpan.Zero);
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, WithPipe(pipe), output, _ => { }, pipe);
+        await Task.Delay(1500, TestContext.Current.CancellationToken);
+
+        var watch = Stopwatch.StartNew();
+        var saved = await recorder.StopAsync();
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
+        var (_, frames) = await RunFfmpegAsync(ffmpeg, "-v", "error", "-i", output, "-map", "0:v:0?", "-c", "copy", "-f", "framecrc", "-");
+        var hasFrames = frames.Split('\n').Any(l => l.StartsWith("0,", StringComparison.Ordinal));
+        saved.ShouldBe(hasFrames, "ffmpeg said:\n" + recorder.ErrorTail);
+    }
+
+    [Fact]
+    public async Task The_computer_sound_is_freed_only_once_ffmpeg_has_finished()
+    {
+        var ffmpeg = RequireFfmpeg();
+        var capture = new FakeCapture();
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, TestSources(audio: true), _folder.File("freed.mp4"), _ => { }, capture);
+        (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        capture.Disposed.ShouldBeFalse();
+        // A few frames first: a video stopped before its first frame is a failure.
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+        (await recorder.StopAsync()).ShouldBeTrue();
+        capture.Disposed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Kill_frees_the_computer_sound()
+    {
+        var ffmpeg = RequireFfmpeg();
+        var capture = new FakeCapture();
+        using var recorder = FfmpegVideoRecorder.Start(ffmpeg, TestSources(audio: false), _folder.File("killed2.mp4"), _ => { }, capture);
+        await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+        recorder.Kill();
+        capture.Disposed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task The_factory_pipes_the_computer_sound_of_its_source()
+    {
+        var ffmpeg = RequireFfmpeg();
+        var platform = new TestSourcePlatform();
+        var source = new FakeSource();
+        var factory = new FfmpegVideoRecorderFactory(platform, source);
+        using var recorder = factory.Start(ffmpeg, new PixelRect(0, 0, 320, 240), _folder.File("sound.mp4"), new VideoOptions(30, null, true), _ => { });
+        platform.SystemAudio.ShouldBeSameAs(source.Capture!.Input);
+        (await recorder.Capturing.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)).ShouldBeTrue();
+        // A few frames first: a video stopped before its first frame is a failure.
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+        (await recorder.StopAsync()).ShouldBeTrue();
+        source.Capture.Disposed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Without_the_computer_sound_the_factory_captures_nothing()
+    {
+        var source = new FakeSource();
+        var factory = new FfmpegVideoRecorderFactory(new TestSourcePlatform(), source);
+        Should.Throw<Win32Exception>(() => factory.Start(_folder.File("not-ffmpeg.exe"), new PixelRect(0, 0, 320, 240),
+            _folder.File("x.mp4"), new VideoOptions(30, null, false), _ => { }));
+        source.Capture.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_failed_launch_frees_the_computer_sound()
+    {
+        var source = new FakeSource();
+        var factory = new FfmpegVideoRecorderFactory(new TestSourcePlatform(), source);
+        Should.Throw<Win32Exception>(() => factory.Start(_folder.File("not-ffmpeg.exe"), new PixelRect(0, 0, 320, 240),
+            _folder.File("x.mp4"), new VideoOptions(30, null, true), _ => { }));
+        source.Capture!.Disposed.ShouldBeTrue();
     }
 
     [Fact]
     public async Task The_audio_device_lister_returns_an_empty_list_when_ffmpeg_cannot_run()
     {
-        var lister = new FfmpegAudioDeviceLister(new DirectShowGdigrab());
+        var lister = new FfmpegAudioDeviceLister(new DirectShowGdigrab(() => true));
         (await lister.ListAsync(_folder.File("not-ffmpeg.exe"))).ShouldBeEmpty();
     }
 
@@ -160,10 +328,87 @@ public sealed class FfmpegRecorderTests : IDisposable
             return [];
         }
 
-        public CaptureInputs BuildInputs(PixelRect area, VideoOptions options)
+        public bool CanRecordSystemAudio(IReadOnlyCollection<string> devices) => false;
+
+        public PipedAudio? SystemAudio { get; private set; }
+
+        public CaptureInputs BuildInputs(PixelRect area, VideoOptions options, PipedAudio? systemAudio)
         {
             Area = area;
+            SystemAudio = systemAudio;
             return TestSources(audio: false);
+        }
+    }
+
+    private sealed class FakeCapture : ISystemAudioCapture
+    {
+        public PipedAudio Input { get; } = new(@"\\.\pipe\_none", new RawAudioFormat("f32le", 48000, 2));
+
+        public bool Disposed { get; private set; }
+
+        public void Dispose() => Disposed = true;
+    }
+
+    private sealed class FakeSource : ISystemAudioSource
+    {
+        public FakeCapture? Capture { get; private set; }
+
+        public bool IsAvailable() => true;
+
+        public ISystemAudioCapture Start() => Capture = new FakeCapture();
+    }
+
+    /// <summary>The ffmpeg end of a capture: a pipe that ffmpeg reads, fed with silence for a while or until the end.</summary>
+    private sealed class TestPipe : IDisposable
+    {
+        private readonly NamedPipeServerStream _server;
+        private readonly CancellationTokenSource _stop = new();
+
+        public TestPipe(TimeSpan? feedFor)
+        {
+            // Elsewhere .NET's named pipes are Unix sockets, which ffmpeg cannot open by that name.
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "ffmpeg reads Windows named pipes only.");
+            var name = "localtake-test-" + Guid.NewGuid().ToString("N");
+            Path = @"\\.\pipe\" + name;
+            _server = new NamedPipeServerStream(name, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            _ = Task.Run(() => ServeAsync(feedFor));
+        }
+
+        public string Path { get; }
+
+        public bool Disposed { get; private set; }
+
+        public IReadOnlyList<string> Input =>
+            ["-f", "f32le", "-ar", "48000", "-ac", "2", "-probesize", "32", "-analyzeduration", "0", "-i", Path];
+
+        private async Task ServeAsync(TimeSpan? feedFor)
+        {
+            try
+            {
+                await _server.WaitForConnectionAsync(_stop.Token);
+                // 20 ms of stereo float silence every 20 ms, as a capture would write it.
+                var chunk = new byte[48000 / 50 * 8];
+                var clock = Stopwatch.StartNew();
+                while (feedFor is null || clock.Elapsed < feedFor)
+                {
+                    await _server.WriteAsync(chunk, _stop.Token);
+                    await Task.Delay(20, _stop.Token);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException)
+            {
+                // ffmpeg closed the pipe, or the test is over.
+            }
+        }
+
+        public void Dispose()
+        {
+            if (Disposed)
+                return;
+            Disposed = true;
+            _stop.Cancel();
+            _server.Dispose();
+            _stop.Dispose();
         }
     }
 }

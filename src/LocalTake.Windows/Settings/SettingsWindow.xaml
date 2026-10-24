@@ -116,6 +116,39 @@
             </Grid>
         </GroupBox>
 
+        <GroupBox Header="Sous-titres">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Column="0" Grid.ColumnSpan="3">
+                    <CheckBox x:Name="TranscribeBox" Content="Transcrire le micro en sous-titres après l'enregistrement"/>
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" TextWrapping="Wrap"
+                               Text="La transcription se fait sur cet ordinateur, sans rien envoyer. Les sous-titres s'affichent à côté de la vidéo pour être corrigés, et sont enregistrés dans un fichier .srt du même nom. Le choix se change aussi sur la barre d'enregistrement."/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Style="{StaticResource Label}" Text="Langue" Margin="0,10,10,0"/>
+                <ComboBox x:Name="LanguageBox" Grid.Row="1" Grid.Column="1" Width="200" HorizontalAlignment="Left" Margin="0,10,0,0"
+                          DisplayMemberPath="Name" SelectedValuePath="Code"/>
+
+                <TextBlock Grid.Row="2" Style="{StaticResource Label}" Text="Modèle" Margin="0,10,10,0"/>
+                <TextBox x:Name="ModelBox" Grid.Row="2" Grid.Column="1" Padding="4,3" Margin="0,10,0,0"
+                         ToolTip="Un modèle Whisper (fichier .bin). Laisser vide pour celui livré avec LocalTake."/>
+                <Button Grid.Row="2" Grid.Column="2" Content="Parcourir…" Padding="10,3" Margin="6,10,0,0" Click="BrowseModel_Click"/>
+                <TextBlock x:Name="ModelStatus" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource Hint}" Margin="0,4,0,0"
+                           TextWrapping="Wrap"/>
+            </Grid>
+        </GroupBox>
+
         <GroupBox Header="Raccourcis clavier">
             <StackPanel>
                 <Grid>
@@ -124,6 +157,8 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -148,12 +183,18 @@
                     <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="Démarrer l'enregistrement"/>
                     <TextBox x:Name="HotkeyVideoStartBox" Grid.Row="6" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
                     <TextBlock Grid.Row="7" Style="{StaticResource Label}" Text="Arrêter l'enregistrement"/>
-                    <TextBox x:Name="HotkeyVideoStopBox" Grid.Row="7" Grid.Column="1" Style="{StaticResource HotkeyBox}"/>
+                    <TextBox x:Name="HotkeyVideoStopBox" Grid.Row="7" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
+                    <TextBlock Grid.Row="8" Style="{StaticResource Label}" Text="Surligner (maintenir)"/>
+                    <TextBox x:Name="HighlightTriggerBox" Grid.Row="8" Grid.Column="1" Style="{StaticResource HotkeyBox}"
+                             ToolTip="Cliquez puis appuyez sur la touche ou la combinaison à maintenir, ou cliquez avec un bouton latéral de la souris. Retour arrière : aucun surlignage."/>
+                    <TextBlock x:Name="HighlightWarning" Grid.Row="9" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,4,0,0"
+                               TextWrapping="Wrap" Visibility="Collapsed"
+                               Text="Pendant l'enregistrement, cette touche n'écrira plus rien dans les applications."/>
                 </Grid>
                 <DockPanel Margin="0,8,0,0">
                     <Button DockPanel.Dock="Right" Content="Raccourcis de TinyTake" Padding="10,3" Click="DefaultHotkeys_Click"/>
                     <TextBlock Style="{StaticResource Hint}" Margin="0,0,10,0"
-                               Text="Cliquez dans un champ puis appuyez sur la combinaison. Retour arrière : aucun raccourci. Démarrer et Arrêter ne sont actifs que pendant une vidéo."/>
+                               Text="Cliquez dans un champ puis appuyez sur la combinaison. Retour arrière : aucun raccourci. Démarrer, Arrêter et Surligner ne sont actifs que pendant une vidéo."/>
                 </DockPanel>
             </StackPanel>
         </GroupBox>

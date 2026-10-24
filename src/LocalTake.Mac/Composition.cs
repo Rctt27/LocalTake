@@ -5,6 +5,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using LocalTake.Infrastructure.Diagnostics;
 using LocalTake.Infrastructure.Logging;
 using LocalTake.Infrastructure.Platform;
@@ -53,11 +54,19 @@ internal static class Composition
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp,
             (IGlobalHotkeys)new MacHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.MacOS));
         services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
+        // Not on macOS yet: no trigger is registered, so recordings show no highlight.
+        services.AddSingleton<IHighlightInput, NoHighlightInput>();
+        services.AddSingleton<IHighlightOverlayFactory, NoHighlightOverlayFactory>();
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<Highlighter>(sp, HotkeyNaming.MacOS));
+        // No transcription on macOS yet: the release ships no model, so no microphone track is ever written.
+        services.AddSingleton(sp => paths.CreateModelLocator(sp.GetRequiredService<IFileSystem>()));
+        services.AddSingleton<MicrophoneTracks>();
 
         // Infrastructure
         services.AddSingleton<IAudioDeviceLister, FfmpegAudioDeviceLister>();
         services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
-        services.AddSingleton<DiagnosticsReport>();
+        // The app does not transcribe yet: there is no model to check.
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<DiagnosticsReport>(sp, false));
 
         // macOS adapters
         services.AddSingleton<IUiThread>(new MainThread());

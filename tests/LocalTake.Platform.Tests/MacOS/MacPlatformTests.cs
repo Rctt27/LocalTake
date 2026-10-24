@@ -32,11 +32,21 @@ public sealed class MacPlatformTests
     public void Every_default_macOS_shortcut_can_be_registered()
     {
         var d = SettingsDefaultsFor();
-        foreach (var text in new[] { d.HotkeyRegion, d.HotkeyWindow, d.HotkeyFullScreen, d.HotkeyVideoRegion, d.HotkeyVideoStart, d.HotkeyVideoStop })
+        foreach (var text in new[] { d.HotkeyRegion, d.HotkeyWindow, d.HotkeyFullScreen, d.HotkeyVideoRegion, d.HotkeyVideoStart, d.HotkeyVideoStop, d.HighlightTrigger })
         {
             Hotkey.TryParse(text, out var hotkey).ShouldBeTrue();
             MacKeys.TryGetKeyCode(hotkey.Key, out _).ShouldBeTrue(text);
         }
+    }
+
+    [Fact]
+    public void A_shortcut_can_be_registered_with_a_release_action()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
+        Hotkey.TryParse("Ctrl+Alt+Shift+F19", out var hotkey).ShouldBeTrue();
+        using var hotkeys = new MacHotkeys(new ImmediateUiThread());
+        hotkeys.Register(hotkey, () => { }, () => { }).ShouldBeTrue();
+        hotkeys.UnregisterAll();
     }
 
     [Fact]

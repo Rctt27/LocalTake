@@ -11,6 +11,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using Forms = System.Windows.Forms;
 
 namespace LocalTake;
@@ -28,6 +29,8 @@ internal sealed class TrayController : IDisposable
     private readonly Func<SettingsWindow> _createSettingsWindow;
     private readonly IShell _shell;
     private readonly IFileTrash _trash;
+    private readonly Transcriptions _transcriptions;
+    private readonly SubtitleFile _subtitles;
 
     private readonly Forms.ToolStripMenuItem _regionItem;
     private readonly Forms.ToolStripMenuItem _windowItem;
@@ -41,8 +44,11 @@ internal sealed class TrayController : IDisposable
 
     public TrayController(
         AppSettings settings, CaptureWorkflow captures, RecordingSession video, IGlobalHotkeys hotkeys, TrayIcon tray,
-        IEditorLauncher editor, IUserDialogs dialogs, Func<SettingsWindow> createSettingsWindow, IShell shell, IFileTrash trash)
+        IEditorLauncher editor, IUserDialogs dialogs, Func<SettingsWindow> createSettingsWindow, IShell shell, IFileTrash trash,
+        Transcriptions transcriptions, SubtitleFile subtitles)
     {
+        _transcriptions = transcriptions;
+        _subtitles = subtitles;
         _shell = shell;
         _trash = trash;
         _settings = settings;
@@ -76,7 +82,7 @@ internal sealed class TrayController : IDisposable
         AddItem(menu, "Quitter", Quit);
 
         _video.StateChanged += (_, _) => UpdateVideoState();
-        _video.VideoSaved += (_, e) => OpenVideoPreview(e.Path, e.FullScreen);
+        _video.VideoSaved += (_, e) => OpenVideoPreview(e.Path, e.FullScreen, e.MicrophoneTrackPath, e.Transcribe);
 
         var failures = RegisterHotkeys();
         if (failures.Count > 0)
@@ -132,10 +138,16 @@ internal sealed class TrayController : IDisposable
             _ = _video.ToggleAsync(fullScreen, fromMenu);
     }
 
-    /// <summary>As in TinyTake, a saved video opens in a player rather than in a notification.</summary>
-    private void OpenVideoPreview(string path, bool fullScreen)
+    /// <summary>
+    /// As in TinyTake, a saved video opens in a player rather than in a notification. Its microphone is transcribed
+    /// meanwhile, when the bar's toggle asked for it: the subtitles appear in the player once ready. Otherwise the player
+    /// keeps the track for its "Générer les sous-titres" button.
+    /// </summary>
+    private void OpenVideoPreview(string path, bool fullScreen, string? microphoneTrack, bool transcribe)
     {
-        var preview = new VideoPreviewWindow(path, fullScreen, _shell, _trash);
+        var transcription = microphoneTrack is not null && transcribe ? _transcriptions.Enqueue(path, microphoneTrack) : null;
+        var preview = new VideoPreviewWindow(path, fullScreen, _shell, _trash, _subtitles, _transcriptions, transcription,
+            transcription is null ? microphoneTrack : null);
         preview.RetakeRequested += () => Retake(preview, fullScreen);
         preview.Show();
         preview.Activate();

@@ -25,7 +25,14 @@ public sealed class AppPathsTests
         Path.IsPathFullyQualified(paths.SettingsFile).ShouldBeTrue();
         Path.IsPathFullyQualified(paths.LogsFolder).ShouldBeTrue();
         Path.IsPathFullyQualified(paths.DefaultOutputFolder).ShouldBeTrue();
+        Path.IsPathFullyQualified(paths.WorkFolder).ShouldBeTrue();
         Path.GetFileName(paths.SettingsFile).ShouldBe("settings.json");
+    }
+
+    [Fact]
+    public void The_model_shipped_next_to_LocalTake_is_looked_for_first()
+    {
+        AppPaths.ForCurrentPlatform().ModelsFolders[0].ShouldBe(Path.Combine(AppContext.BaseDirectory, "models"));
     }
 
     [Fact]

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal :** une vraie app Mac en C# (barre des menus, capture, éditeur, vidéo avec lecteur intégré, réglages) sur le cœur commun, livrée en v0.3.0.
+**Goal :** une vraie app Mac en C# (barre des menus, capture, éditeur, vidéo avec lecteur intégré, réglages) sur le cœur commun, livrée en v0.5.0 (la v0.4.0 est sortie pour Windows seul, avec le surlignage à la souris).
 
 **Architecture :**
 - `LocalTake.Mac` (`net10.0-macos`, AppKit et AVKit) ne contient que des vues et des adaptateurs écrits avec les bindings Apple de .NET.
@@ -306,6 +306,16 @@ Les quatre réglages « Après une capture » sont couverts.
   - « Afficher dans le Finder » ;
   - « Supprimer » : le lecteur est mis en pause et libéré (`Player = null`) avant `IFileTrash` ;
   - « Refaire ».
+- Sous-titres (ajouté le 2026-10-21, voir `2026-10-21-transcription.md`) : le cœur et l'infrastructure les font déjà
+  (`Transcriptions`, `SubtitleDocument`, `WhisperTranscriber`, piste du micro écrite par ffmpeg, `AvFoundation` met le
+  micro en premier). Le Mac ajoute :
+  - la bascule « Sous-titres » sur la barre (`MicrophoneTracks.CanTranscribe`) et ses réglages ;
+  - à gauche de l'`AVPlayerView`, le panneau des sous-titres, sur le modèle de `TranscriptPanel` : lignes des blocs et
+    des intervalles (`SubtitleDocument.Timeline`), ligne active selon `IndexAt` mise à jour par un
+    `AddPeriodicTimeObserver` de 0,1 s et à chaque saut, centrée sauf après un clic dans le panneau ; un champ en cours
+    d'édition met la lecture en pause ;
+  - le modèle dans `Contents/Resources/models` (déjà cherché par `AppPaths`), et `runtimes/macos-arm64` de Whisper.net
+    dans le bundle (le chargeur de Whisper.net les cherche à côté des assemblies : à vérifier dans le bundle signé).
 
 - [ ] **Step 1 : écrire les tests qui échouent**
 
@@ -364,12 +374,14 @@ Run : `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c 
 
 - [ ] **Step 4 : commit** — `Add the settings window on macOS`
 
-### Task 7: Release v0.3.0
+### Task 7: Release v0.5.0
+
+(v0.3.0 est sortie le 2026-10-22 pour Windows seul, avec les sous-titres : l'app Mac prend la version suivante.)
 
 **Files:**
 - Modify :
   - `.github/workflows/release.yml` : job `macos`, identique au build CI, qui produit `LocalTake-<version>-macos.zip` ; `publish` dépend de `windows` et de `macos` ;
-  - `Directory.Build.props` : `<Version>0.3.0</Version>` ;
+  - `Directory.Build.props` : `<Version>0.5.0</Version>` ;
   - `README.md` : section macOS (installation, clic droit > Ouvrir, autorisations, `brew install ffmpeg`, BlackHole, `--diagnostics`) ;
   - `CLAUDE.md` : app Mac, `LocalTake.Mac.slnx`, version de Xcode ;
   - `docs/test-checklist.md` : checklist macOS complète, regroupant les checklists des tâches 1 à 6.
@@ -378,8 +390,23 @@ Run : `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c 
 
 - [ ] **Step 2 : vérifier** — CI verte sur les quatre jobs.
 
-- [ ] **Step 3 : commit** — `Prepare LocalTake 0.3.0 for Windows and macOS`
+- [ ] **Step 3 : commit** — `Prepare LocalTake 0.5.0 for Windows and macOS`
 
 - [ ] **Step 4 : remettre la main à l'utilisateur**
 
-Il déroule la checklist macOS complète. La fusion et le tag `v0.3.0` se font seulement avec son accord explicite.
+Il déroule la checklist macOS complète. La fusion et le tag `v0.5.0` se font seulement avec son accord explicite.
+
+## Surlignage à la souris (ajouté le 2026-10-24)
+
+Le cœur est prêt (`Highlighter`, `HighlightTrail`, `HighlightTrigger`, ports `IHighlightInput` et
+`IHighlightOverlayFactory`) et `MacHotkeys.Register(hotkey, pressed, released)` signale déjà le relâchement. Il reste,
+pour l'app macOS :
+- `MacHighlightInput` : appui et relâchement par Carbon (sans permission Accessibilité), `IsHeld` tenu par ces deux
+  événements, position par `CGEventGetLocation(CGEventCreate(0))` convertie en pixels physiques (facteur de l'écran).
+  Bouton latéral : moniteur global `NSEvent` (`otherMouseDown/Up`), sans permission mais sans pouvoir avaler le clic ;
+  l'avaler demanderait un `CGEventTap`, donc la permission Accessibilité.
+- Overlay : `NSWindow` sans bordure, transparente, `ignoresMouseEvents`, au-dessus des fenêtres, `sharingType` par
+  défaut pour qu'AVFoundation la capture (la barre, elle, est en `.none`).
+- Vérifier si macOS garde `Ctrl+Espace` (« Sélectionner la source de saisie précédente ») quand il y a plusieurs
+  sources de saisie ; si oui, passer le défaut macOS (`SettingsDefaults.ForMacOS`) à `Ctrl+Shift+Space`.
+- Spec : `docs/superpowers/specs/2026-10-24-mouse-highlight-design.md`.

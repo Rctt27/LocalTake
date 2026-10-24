@@ -5,6 +5,7 @@ using LocalTake.Core.Geometry;
 using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 
 namespace LocalTake.Core.Recording;
 
@@ -15,18 +16,22 @@ namespace LocalTake.Core.Recording;
 /// <remarks>
 /// After the selection, the bar waits in Ready, as in TinyTake: the countdown only starts from its Start button or the
 /// Start shortcut. The Start and Stop shortcuts are registered from Ready until the session ends, so that they do not
-/// steal those keys from other applications the rest of the time.
+/// steal those keys from other applications the rest of the time; the highlight trigger only while recording.
 /// </remarks>
 public sealed class RecordingSession(
     AppSettings settings, FfmpegLocator locator, IFfmpegPlatform platform, IAudioDeviceLister audioDevices,
     IAreaPicker picker, IScreen screen, IRecordingViewFactory views, IGlobalHotkeys sessionHotkeys,
-    IVideoRecorderFactory recorders, OutputPathAllocator paths, FileCounter counter, IClipboard clipboard,
-    IUserDialogs dialogs, IUiThread uiThread, IFileSystem fileSystem, TimeProvider clock, HotkeyNaming hotkeyNaming)
+    Highlighter highlighter, IVideoRecorderFactory recorders, OutputPathAllocator paths, FileCounter counter, IClipboard clipboard,
+    IUserDialogs dialogs, IUiThread uiThread, IFileSystem fileSystem, MicrophoneTracks microphoneTracks, TimeProvider clock,
+    HotkeyNaming hotkeyNaming)
     : IRecordingStatus, IDisposable
 {
     private enum State { Idle, Selecting, Ready, Countdown, Recording, Finishing }
 
     private const int CountdownSeconds = 3;
+
+    /// <summary>How long ffmpeg takes to capture before it has done it once: the time to open its devices.</summary>
+    private static readonly TimeSpan DefaultStartupTime = TimeSpan.FromSeconds(0.7);
 
     /// <summary>Should ffmpeg never announce that it captures, the counter starts anyway after this.</summary>
     private static readonly TimeSpan CaptureStartTimeout = TimeSpan.FromSeconds(5);
@@ -34,7 +39,16 @@ public sealed class RecordingSession(
     private State _state = State.Idle;
     private IRecordingView? _view;
     private IVideoRecorder? _recorder;
+
+    /// <summary>The current recorder's microphone track, for the transcription; null without one.</summary>
+    private string? _microphoneTrack;
+
+    /// <summary>The bar's subtitles toggle when the recording started: it is locked from then on.</summary>
+    private bool _transcribe;
     private Task _stopping = Task.CompletedTask;
+
+    /// <summary>How long ffmpeg last took from its launch to capturing; it is launched that long before 0.</summary>
+    private TimeSpan _startupTime = DefaultStartupTime;
 
     private string _ffmpeg = "";
     private PixelRect _target;
@@ -124,7 +138,11 @@ public sealed class RecordingSession(
             view.SetAudioDevices([.. devices]);
     }
 
-    /// <summary>Start button or shortcut: 3, 2, 1, then ffmpeg starts.</summary>
+    /// <summary>
+    /// Start button or shortcut: 3, 2, 1, then the recording. ffmpeg takes a while to open its inputs, so it is launched
+    /// that long before the end of the countdown, and the counter starts when it actually captures: at 0, what is said
+    /// is recorded.
+    /// </summary>
     public async Task StartAsync()
     {
         if (_state != State.Ready || _view is not { } view)
@@ -135,6 +153,10 @@ public sealed class RecordingSession(
 
         // Usually listed long ago; at worst ffmpeg's own timeout applies.
         var devices = await _devices;
+        if (session != _session || _state != State.Countdown)
+            return;
+        var countdown = TimeSpan.FromSeconds(CountdownSeconds);
+        var launching = LaunchAsync(countdown - (_startupTime < countdown ? _startupTime : countdown), session, devices, view);
         for (var seconds = CountdownSeconds; seconds > 0; seconds--)
         {
             if (session != _session || _state != State.Countdown)
@@ -142,8 +164,24 @@ public sealed class RecordingSession(
             view.ShowCountdown(seconds);
             await Task.Delay(TimeSpan.FromSeconds(1), clock);
         }
-        if (session != _session || _state != State.Countdown)
+        if (await launching is not { } started || session != _session || _state != State.Countdown)
             return;
+
+        // Slower than last time: Stop already works, and the counter waits for the devices, so that the first words
+        // are not lost. Should ffmpeg never announce it, the counter starts anyway.
+        view.ShowStarting();
+        SetState(State.Recording);
+        await Task.WhenAny(started.Capturing, Task.Delay(CaptureStartTimeout, clock));
+        if (_recorder == started && _view == view && _state == State.Recording)
+            view.ShowRecording();
+    }
+
+    /// <summary>Launches ffmpeg after the delay, unless the countdown was abandoned; null when nothing was launched.</summary>
+    private async Task<IVideoRecorder?> LaunchAsync(TimeSpan delay, int session, IReadOnlyList<string> devices, IRecordingView view)
+    {
+        await Task.Delay(delay, clock);
+        if (session != _session || _state != State.Countdown)
+            return null;
 
         IVideoRecorder started;
         try
@@ -151,11 +189,14 @@ public sealed class RecordingSession(
             var microphone = settings.RecordMicrophone
                 ? AudioDevices.PickMicrophone(devices, settings.Microphone, platform.SystemAudioDevice)
                 : null;
-            var systemAudio = settings.RecordSystemAudio && (devices.Count == 0 || devices.Contains(platform.SystemAudioDevice));
-            var options = new VideoOptions(Math.Clamp(settings.VideoFrameRate, 5, 60), microphone, systemAudio);
+            var systemAudio = settings.RecordSystemAudio && platform.CanRecordSystemAudio(devices);
+            var track = microphone is not null ? microphoneTracks.Allocate() : null;
+            var options = new VideoOptions(Math.Clamp(settings.VideoFrameRate, 5, 60), microphone, systemAudio, track);
             var path = paths.Next(settings.OutputFolder, settings.FileNamePattern, settings.Counter, ".mp4");
             // Taken now, so that an image saved meanwhile gets the next number instead of the same one.
             _reservedNumber = counter.Reserve();
+            _microphoneTrack = track;
+            _transcribe = settings.TranscribeMicrophone;
             _recorder = started = recorders.Start(_ffmpeg, _target, path, options,
                 recorder => uiThread.Post(() => OnUnexpectedExit(recorder)));
         }
@@ -164,19 +205,26 @@ public sealed class RecordingSession(
 #pragma warning restore CA1031
         {
             ReleaseNumber();
+            DeleteMicrophoneTrack();
             CloseUi();
             SetState(State.Idle);
-            dialogs.ShowError("ffmpeg n'a pas pu démarrer : " + ex.Message);
-            return;
+            dialogs.ShowError("L'enregistrement n'a pas pu démarrer : " + ex.Message);
+            return null;
         }
+        _ = StartCounterOnCaptureAsync(started, clock.GetTimestamp(), session, view);
+        return started;
+    }
 
-        // Recording from now on, so that Stop finishes the file; but the devices take about 0.3 s to open, and the
-        // counter only starts once they capture, so that the first words are not lost.
-        view.ShowStarting();
+    /// <summary>Ends the countdown as soon as ffmpeg captures, and remembers how long that took for the next one.</summary>
+    private async Task StartCounterOnCaptureAsync(IVideoRecorder started, long launchedAt, int session, IRecordingView view)
+    {
+        if (!await started.Capturing)
+            return;
+        _startupTime = clock.GetElapsedTime(launchedAt);
+        if (_recorder != started || _view != view || session != _session || _state != State.Countdown)
+            return;
         SetState(State.Recording);
-        await Task.WhenAny(started.Capturing, Task.Delay(CaptureStartTimeout, clock));
-        if (_recorder == started && _view == view && _state == State.Recording)
-            view.ShowRecording();
+        view.ShowRecording();
     }
 
     /// <summary>
@@ -189,6 +237,8 @@ public sealed class RecordingSession(
         {
             case State.Countdown when _view is { } view:
                 _session++;
+                // ffmpeg may already be launched: what it captured before 0 is not kept.
+                DiscardRecorder();
                 view.ShowReady(_startShortcut, _stopShortcut);
                 SetState(State.Ready);
                 return Task.CompletedTask;
@@ -218,6 +268,7 @@ public sealed class RecordingSession(
         DiscardRecorder();
         CloseUi();
         sessionHotkeys.Dispose();
+        highlighter.Dispose();
     }
 
     /// <summary>Keeps the shortcuts the system accepted, to show them on the bar.</summary>
@@ -242,6 +293,8 @@ public sealed class RecordingSession(
     {
         SetState(State.Finishing);
         _view?.ShowFinishing();
+        var track = _microphoneTrack;
+        _microphoneTrack = null;
 
         var ok = false;
         string? error = null;
@@ -268,6 +321,8 @@ public sealed class RecordingSession(
         {
             ReleaseNumber();
             TryDelete(recorder.OutputPath);
+            if (track is not null)
+                TryDelete(track);
             var reason = error ?? (recorder.ErrorTail.Length > 0 ? recorder.ErrorTail : "ffmpeg n'a pas terminé le fichier.");
             dialogs.ShowError("La vidéo n'a pas pu être finalisée.\n\n" + reason);
             return;
@@ -286,7 +341,7 @@ public sealed class RecordingSession(
             {
             }
         }
-        VideoSaved?.Invoke(this, new VideoSavedEventArgs(recorder.OutputPath, _fullScreen));
+        VideoSaved?.Invoke(this, new VideoSavedEventArgs(recorder.OutputPath, _fullScreen, track, _transcribe));
     }
 
     private void OnUnexpectedExit(IVideoRecorder recorder)
@@ -316,6 +371,14 @@ public sealed class RecordingSession(
         TryDelete(recorder.OutputPath);
         recorder.Dispose();
         ReleaseNumber();
+        DeleteMicrophoneTrack();
+    }
+
+    private void DeleteMicrophoneTrack()
+    {
+        if (_microphoneTrack is { } track)
+            TryDelete(track);
+        _microphoneTrack = null;
     }
 
     private void ReleaseNumber()
@@ -333,7 +396,12 @@ public sealed class RecordingSession(
 
     private void SetState(State state)
     {
+        var previous = _state;
         _state = state;
+        if (state == State.Recording && previous != State.Recording)
+            _view?.ShowHighlightShortcut(highlighter.Enable(_target));
+        else if (previous == State.Recording && state != State.Recording)
+            highlighter.Disable();
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 

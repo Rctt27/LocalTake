@@ -29,6 +29,9 @@ public interface IRecordingView : IDisposable
     void ShowRecording();
 
     void ShowFinishing();
+
+    /// <summary>During the recording: the trigger to hold to highlight, or null when there is none.</summary>
+    void ShowHighlightShortcut(string? shortcut);
 }
 
 public interface IRecordingViewFactory
@@ -65,6 +68,25 @@ public interface IVideoRecorderFactory
     /// exposed as an event: ffmpeg can fail before a subscriber would be attached.
     /// </param>
     IVideoRecorder Start(string ffmpegPath, PixelRect area, string outputPath, VideoOptions options, Action<IVideoRecorder> onUnexpectedExit);
+}
+
+/// <summary>What the computer plays, on a platform where LocalTake captures it itself instead of ffmpeg (Windows).</summary>
+public interface ISystemAudioSource
+{
+    /// <summary>Whether there is an audio output to capture.</summary>
+    bool IsAvailable();
+
+    /// <summary>
+    /// Opens the default output and a pipe for ffmpeg. Capture starts when ffmpeg opens the pipe: sound captured
+    /// before ffmpeg reads would come out ahead of the picture.
+    /// </summary>
+    ISystemAudioCapture Start();
+}
+
+/// <summary>The computer sound of one recording, written to a pipe until disposed.</summary>
+public interface ISystemAudioCapture : IDisposable
+{
+    PipedAudio Input { get; }
 }
 
 public interface IAudioDeviceLister
