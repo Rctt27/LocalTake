@@ -165,6 +165,8 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Style="{StaticResource Label}" Text="Capturer une zone"/>
                     <TextBox x:Name="HotkeyRegionBox" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
@@ -181,12 +183,18 @@
                     <TextBlock Grid.Row="6" Style="{StaticResource Label}" Text="Démarrer l'enregistrement"/>
                     <TextBox x:Name="HotkeyVideoStartBox" Grid.Row="6" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
                     <TextBlock Grid.Row="7" Style="{StaticResource Label}" Text="Arrêter l'enregistrement"/>
-                    <TextBox x:Name="HotkeyVideoStopBox" Grid.Row="7" Grid.Column="1" Style="{StaticResource HotkeyBox}"/>
+                    <TextBox x:Name="HotkeyVideoStopBox" Grid.Row="7" Grid.Column="1" Style="{StaticResource HotkeyBox}" Margin="0,0,0,6"/>
+                    <TextBlock Grid.Row="8" Style="{StaticResource Label}" Text="Surligner (maintenir)"/>
+                    <TextBox x:Name="HighlightTriggerBox" Grid.Row="8" Grid.Column="1" Style="{StaticResource HotkeyBox}"
+                             ToolTip="Cliquez puis appuyez sur la touche ou la combinaison à maintenir, ou cliquez avec un bouton latéral de la souris. Retour arrière : aucun surlignage."/>
+                    <TextBlock x:Name="HighlightWarning" Grid.Row="9" Grid.Column="1" Style="{StaticResource Hint}" Margin="0,4,0,0"
+                               TextWrapping="Wrap" Visibility="Collapsed"
+                               Text="Pendant l'enregistrement, cette touche n'écrira plus rien dans les applications."/>
                 </Grid>
                 <DockPanel Margin="0,8,0,0">
                     <Button DockPanel.Dock="Right" Content="Raccourcis de TinyTake" Padding="10,3" Click="DefaultHotkeys_Click"/>
                     <TextBlock Style="{StaticResource Hint}" Margin="0,0,10,0"
-                               Text="Cliquez dans un champ puis appuyez sur la combinaison. Retour arrière : aucun raccourci. Démarrer et Arrêter ne sont actifs que pendant une vidéo."/>
+                               Text="Cliquez dans un champ puis appuyez sur la combinaison. Retour arrière : aucun raccourci. Démarrer, Arrêter et Surligner ne sont actifs que pendant une vidéo."/>
                 </DockPanel>
             </StackPanel>
         </GroupBox>

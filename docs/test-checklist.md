@@ -54,6 +54,12 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 - [ ] « Supprimer » pendant la lecture : la vidéo part dans la Corbeille (et peut en être restaurée).
 - [ ] « Refaire » : la vidéo part dans la Corbeille et un nouvel enregistrement commence.
 - [ ] « Annuler » pendant l'enregistrement : aucun fichier ne reste.
+- [ ] Pendant l'enregistrement, la barre montre « Surligner : maintenir Ctrl+Space ». Maintenir `Ctrl+Espace` en survolant un bouton : une traînée jaune translucide suit la souris, rien n'est tapé dans l'application ; au relâchement, elle s'estompe en une demi-seconde environ.
+- [ ] Lâcher `Ctrl` avant `Espace` : la traînée s'estompe tout de suite. `Espace` seul tape un espace dans un formulaire de la démo.
+- [ ] Pendant le compte à rebours et après « Arrêter », `Ctrl+Espace` ne surligne pas.
+- [ ] Dans le MP4 : la traînée est visible et son fondu fluide (`ffmpeg -i video.mp4 -vf fps=10 images/%03d.png`).
+- [ ] Deux écrans et 150 % : la traînée est sous la souris, de la même épaisseur apparente ; hors de la zone, rien ne s'affiche.
+- [ ] Réglages : un bouton latéral de souris cliqué dans « Surligner (maintenir) » donne `XButton1`/`XButton2` ; en enregistrement, il surligne et un navigateur ne fait pas « Précédent ». `Espace` seul est accepté, avec l'avertissement sous le champ.
 
 ### Sous-titres
 
@@ -79,7 +85,7 @@ Avec le zip de la release (ou l'exe publié, avec un modèle `ggml-*.bin` dans u
 
 ### Réglages
 
-- [ ] Saisie des raccourcis (dont `Impr. écran`), « Raccourcis de TinyTake », doublon refusé avec un message.
+- [ ] Saisie des raccourcis (dont `Impr. écran`), « Raccourcis de TinyTake », doublon refusé avec un message (y compris le surlignage identique à Démarrer).
 - [ ] Dossier relatif refusé ; « Parcourir… » pour le dossier et ffmpeg ; un chemin ffmpeg inexistant est refusé.
 - [ ] Sous-titres : le modèle livré est affiché ; un modèle inexistant est refusé ; la langue est retenue.
 - [ ] « Lancer LocalTake au démarrage de Windows » : présent après redémarrage, puis désactivé.

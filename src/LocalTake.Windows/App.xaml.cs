@@ -85,7 +85,7 @@ public partial class App : Application
     }
 
     /// <summary>The composition root: the core's use cases with the Windows adapters.</summary>
-    private static ServiceCollection ConfigureServices(System.Windows.Threading.Dispatcher dispatcher)
+    internal static ServiceCollection ConfigureServices(System.Windows.Threading.Dispatcher dispatcher)
     {
         var paths = AppPaths.ForCurrentPlatform();
         var defaults = SettingsDefaults.ForWindows(paths.DefaultOutputFolder);
@@ -112,6 +112,9 @@ public partial class App : Application
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp,
             (IGlobalHotkeys)new WindowsHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.Windows));
         services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
+        // The highlight trigger is registered only while recording, like Start and Stop.
+        services.AddSingleton<IHighlightInput>(sp => new WindowsHighlightInput(sp.GetRequiredService<IUiThread>()));
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<Highlighter>(sp, HotkeyNaming.Windows));
         services.AddSingleton(sp => paths.CreateModelLocator(sp.GetRequiredService<IFileSystem>()));
         services.AddSingleton<MicrophoneTracks>();
         services.AddSingleton<SubtitleFile>();
@@ -139,6 +142,7 @@ public partial class App : Application
         services.AddSingleton<IClipboard, WpfClipboard>();
         services.AddSingleton<IImageCodec, WpfImageCodec>();
         services.AddSingleton<IRecordingViewFactory, WpfRecordingViewFactory>();
+        services.AddSingleton<IHighlightOverlayFactory, HighlightOverlayFactory>();
         services.AddSingleton<IGlobalHotkeys>(sp => new WindowsHotkeys(sp.GetRequiredService<IUiThread>()));
         services.AddSingleton<TrayIcon>();
         services.AddSingleton<INotifications>(sp => sp.GetRequiredService<TrayIcon>());

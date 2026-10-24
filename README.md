@@ -21,8 +21,11 @@ L'icône de LocalTake se trouve dans la zone de notification ; un clic ouvre son
 | Capturer tout l'écran | `Ctrl+Impr. écran` |
 | Vidéo d'une zone | `Ctrl+Maj+Impr. écran` |
 | Démarrer / arrêter l'enregistrement (actifs seulement pendant une vidéo) | `Ctrl+R` / `Ctrl+D` |
+| Surligner avec la souris (maintenir, seulement pendant l'enregistrement) | `Ctrl+Espace` |
 
 Ils se modifient dans les réglages, depuis l'icône LocalTake. On peut aussi y attribuer un raccourci à la capture de la dernière zone et à la vidéo de tout l'écran. Si Windows refuse un raccourci, c'est qu'un autre outil l'utilise déjà (TinyTake, l'Outil Capture d'écran…).
+
+Tant que le raccourci de surlignage est maintenu, une traînée jaune translucide suit la souris et apparaît dans la vidéo ; elle s'estompe au relâchement. Il peut aussi être une touche seule (Espace, qui n'écrit alors plus rien pendant l'enregistrement) ou un bouton latéral de la souris : cliquez avec dans le champ des réglages. Les boutons supplémentaires des souris gaming s'associent à une touche `F13` à `F24` dans le logiciel du fabricant, puis à LocalTake.
 
 ## Éditeur
 

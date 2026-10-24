@@ -57,6 +57,12 @@ public partial class SettingsWindow : Window
             box.PreviewKeyDown += HotkeyBox_PreviewKeyDown;
             box.PreviewKeyUp += HotkeyBox_PreviewKeyUp;
         }
+        HighlightTriggerBox.Text = settings.HighlightTrigger;
+        HighlightTriggerBox.PreviewKeyDown += HotkeyBox_PreviewKeyDown;
+        HighlightTriggerBox.PreviewKeyUp += HotkeyBox_PreviewKeyUp;
+        HighlightTriggerBox.PreviewMouseDown += HighlightTriggerBox_PreviewMouseDown;
+        HighlightTriggerBox.TextChanged += (_, _) => UpdateHighlightWarning();
+        UpdateHighlightWarning();
 
         StartupBox.IsChecked = _context.Startup.IsEnabled;
         UpdateQualityState();
@@ -176,11 +182,28 @@ public partial class SettingsWindow : Window
 
         e.Handled = true;
         var box = (TextBox)sender;
+        // The highlight trigger is only registered while recording: any key may be held alone, Space included.
+        var plainKeyAllowed = box == HighlightTriggerBox;
         if (key is Key.Back or Key.Delete && modifiers == ModifierKeys.None)
             box.Text = "";
-        else if (!WpfKeyMap.IsModifierKey(key) && new Hotkey(WpfKeyMap.ToModifiers(modifiers), WpfKeyMap.ToKeyCode(key)) is { IsValid: true } hotkey)
+        else if (!WpfKeyMap.IsModifierKey(key) && new Hotkey(WpfKeyMap.ToModifiers(modifiers), WpfKeyMap.ToKeyCode(key)) is var hotkey
+                 && hotkey.Key != KeyCode.None && (hotkey.IsValid || plainKeyAllowed))
             box.Text = hotkey.ToString();
     }
+
+    /// <summary>A side mouse button can be the highlight trigger: clicking with it in the field chooses it.</summary>
+    private void HighlightTriggerBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton is not (MouseButton.XButton1 or MouseButton.XButton2))
+            return;
+        e.Handled = true;
+        HighlightTriggerBox.Text = e.ChangedButton.ToString();
+    }
+
+    private void UpdateHighlightWarning() =>
+        HighlightWarning.Visibility = HighlightTrigger.TryParse(HighlightTriggerBox.Text, out var trigger) && trigger.BlocksTyping
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
     /// <summary>Windows only reports Print Screen when it is released.</summary>
     private void HotkeyBox_PreviewKeyUp(object sender, KeyEventArgs e)
@@ -203,6 +226,7 @@ public partial class SettingsWindow : Window
         HotkeyVideoFullScreenBox.Text = defaults.HotkeyVideoFullScreen;
         HotkeyVideoStartBox.Text = defaults.HotkeyVideoStart;
         HotkeyVideoStopBox.Text = defaults.HotkeyVideoStop;
+        HighlightTriggerBox.Text = defaults.HighlightTrigger;
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -248,7 +272,7 @@ public partial class SettingsWindow : Window
             Enum.Parse<AfterCaptureAction>((string)((ComboBoxItem)AfterCaptureBox.SelectedItem).Tag),
             HotkeyRegionBox.Text, HotkeyWindowBox.Text, HotkeyFullScreenBox.Text, HotkeyLastRegionBox.Text,
             HotkeyVideoRegionBox.Text, HotkeyVideoFullScreenBox.Text, HotkeyVideoStartBox.Text, HotkeyVideoStopBox.Text,
-            _settings.HighlightTrigger, FfmpegBox.Text, (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone,
+            HighlightTriggerBox.Text, FfmpegBox.Text, (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone,
             RecordMicrophoneBox.IsChecked == true, SystemAudioBox.IsChecked == true, (int)FrameRateBox.SelectedItem,
             TranscribeBox.IsChecked == true, LanguageBox.SelectedValue as string ?? "fr", ModelBox.Text);
         if (_context.Editor.TryApply(form) is { } problem)
