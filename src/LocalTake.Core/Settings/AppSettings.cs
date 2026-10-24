@@ -61,6 +61,9 @@ public sealed class AppSettings
     public string HotkeyVideoStart { get; set; }
     public string HotkeyVideoStop { get; set; }
 
+    /// <summary>Held during a recording to highlight with the mouse: a shortcut, a plain key, or XButton1/XButton2.</summary>
+    public string HighlightTrigger { get; set; } = "Ctrl+Space";
+
     /// <summary>Empty: ffmpeg next to LocalTake, then on the PATH.</summary>
     public string FfmpegPath { get; set; } = "";
 

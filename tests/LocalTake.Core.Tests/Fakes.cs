@@ -213,3 +213,69 @@ internal sealed class FakeTranscriber : ITranscriber
         return result.Task;
     }
 }
+
+internal sealed class FakeHighlightInput : IHighlightInput
+{
+    private Action? _pressed;
+
+    public HighlightTrigger? Registered { get; private set; }
+    public bool Refused { get; set; }
+    public int Unregistrations { get; private set; }
+    public bool IsHeld { get; set; }
+    public PixelPoint Cursor { get; set; }
+
+    public bool Register(HighlightTrigger trigger, Action pressed)
+    {
+        if (Refused)
+            return false;
+        Registered = trigger;
+        _pressed = pressed;
+        return true;
+    }
+
+    public void Unregister()
+    {
+        Unregistrations++;
+        Registered = null;
+        _pressed = null;
+    }
+
+    /// <summary>Presses the trigger, if it is registered.</summary>
+    public void Press() => _pressed?.Invoke();
+}
+
+internal sealed class FakeHighlightOverlay : IHighlightOverlay
+{
+    public List<IReadOnlyList<PixelPoint>> Draws { get; } = [];
+    public double Opacity { get; private set; }
+    public int OpacityChanges { get; private set; }
+    public bool Visible { get; private set; }
+    public bool Disposed { get; private set; }
+
+    public void Draw(IReadOnlyList<PixelPoint> points)
+    {
+        Draws.Add([.. points]);
+        Visible = true;
+    }
+
+    public void SetOpacity(double opacity)
+    {
+        Opacity = opacity;
+        OpacityChanges++;
+    }
+
+    public void Hide() => Visible = false;
+    public void Dispose() => Disposed = true;
+}
+
+internal sealed class FakeHighlightOverlayFactory : IHighlightOverlayFactory
+{
+    public FakeHighlightOverlay? Overlay { get; private set; }
+    public PixelRect? Area { get; private set; }
+
+    public IHighlightOverlay Create(PixelRect area)
+    {
+        Area = area;
+        return Overlay = new FakeHighlightOverlay();
+    }
+}
