@@ -49,6 +49,16 @@ public sealed class MacPlatformTests : IDisposable
     }
 
     [Fact]
+    public void A_shortcut_can_be_registered_with_a_release_action()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
+        Hotkey.TryParse("Ctrl+Alt+Shift+F19", out var hotkey).ShouldBeTrue();
+        using var hotkeys = new MacHotkeys(new ImmediateUiThread());
+        hotkeys.Register(hotkey, () => { }, () => { }).ShouldBeTrue();
+        hotkeys.UnregisterAll();
+    }
+
+    [Fact]
     public void A_shortcut_can_be_registered_and_released()
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");

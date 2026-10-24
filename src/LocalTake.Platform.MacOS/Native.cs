@@ -217,6 +217,7 @@ internal static unsafe partial class Carbon
 
     public const uint kEventClassKeyboard = 0x6B657962; // 'keyb'
     public const uint kEventHotKeyPressed = 5;
+    public const uint kEventHotKeyReleased = 6;
     public const uint kEventParamDirectObject = 0x2D2D2D2D; // '----'
     public const uint typeEventHotKeyID = 0x686B6964; // 'hkid'
 
@@ -251,6 +252,9 @@ internal static unsafe partial class Carbon
 
     [LibraryImport(Library)]
     public static partial int UnregisterEventHotKey(nint hotKeyRef);
+
+    [LibraryImport(Library)]
+    public static partial uint GetEventKind(nint evt);
 
     [LibraryImport(Library)]
     public static partial int GetEventParameter(nint evt, uint name, uint type, nint outActualType, nuint bufferSize, nint outActualSize, void* outData);

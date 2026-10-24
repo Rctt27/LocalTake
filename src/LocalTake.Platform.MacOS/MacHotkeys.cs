@@ -113,12 +113,13 @@ public static class MacKeys
 
 /// <summary>
 /// System-wide shortcuts through Carbon's RegisterEventHotKey, which, unlike event taps, needs no Accessibility
-/// permission. Carbon delivers them on the main thread through the application's run loop.
+/// permission. Carbon delivers them on the main thread through the application's run loop, released as well as
+/// pressed, which the highlight trigger needs to know how long it is held.
 /// </summary>
 public sealed unsafe class MacHotkeys : IGlobalHotkeys
 {
     private const uint Signature = 0x4C54616B; // 'LTak'
-    private static readonly Dictionary<uint, Action> Actions = [];
+    private static readonly Dictionary<uint, (Action Pressed, Action Released)> Actions = [];
     private static readonly Lock Gate = new();
     private static bool _handlerInstalled;
     private static uint _nextId = 1;
@@ -132,7 +133,10 @@ public sealed unsafe class MacHotkeys : IGlobalHotkeys
         InstallHandler();
     }
 
-    public bool Register(Hotkey hotkey, Action action)
+    public bool Register(Hotkey hotkey, Action action) => Register(hotkey, action, static () => { });
+
+    /// <param name="released">Runs on the UI thread when the shortcut's key is released.</param>
+    public bool Register(Hotkey hotkey, Action pressed, Action released)
     {
         if (!MacKeys.TryGetKeyCode(hotkey.Key, out var code))
             return false;
@@ -144,7 +148,7 @@ public sealed unsafe class MacHotkeys : IGlobalHotkeys
         if (status != 0)
             return false;
         lock (Gate)
-            Actions[id] = () => _uiThread.Post(action);
+            Actions[id] = (() => _uiThread.Post(pressed), () => _uiThread.Post(released));
         _registered[id] = reference;
         return true;
     }
@@ -168,8 +172,12 @@ public sealed unsafe class MacHotkeys : IGlobalHotkeys
         {
             if (_handlerInstalled)
                 return;
-            var spec = new Carbon.EventTypeSpec { EventClass = Carbon.kEventClassKeyboard, EventKind = Carbon.kEventHotKeyPressed };
-            var status = Carbon.InstallEventHandler(Carbon.GetApplicationEventTarget(), &OnHotKey, 1, &spec, 0, out _);
+            var specs = stackalloc Carbon.EventTypeSpec[]
+            {
+                new() { EventClass = Carbon.kEventClassKeyboard, EventKind = Carbon.kEventHotKeyPressed },
+                new() { EventClass = Carbon.kEventClassKeyboard, EventKind = Carbon.kEventHotKeyReleased }
+            };
+            var status = Carbon.InstallEventHandler(Carbon.GetApplicationEventTarget(), &OnHotKey, 2, specs, 0, out _);
             if (status != 0)
                 throw new InvalidOperationException("Carbon refused the shortcut handler: " + status);
             _handlerInstalled = true;
@@ -183,10 +191,12 @@ public sealed unsafe class MacHotkeys : IGlobalHotkeys
         if (Carbon.GetEventParameter(evt, Carbon.kEventParamDirectObject, Carbon.typeEventHotKeyID, 0,
                 (nuint)sizeof(Carbon.EventHotKeyID), 0, &id) != 0 || id.Signature != Signature)
             return -9874; // eventNotHandledErr
-        Action? action;
+        (Action Pressed, Action Released) actions;
+        bool found;
         lock (Gate)
-            Actions.TryGetValue(id.Id, out action);
-        action?.Invoke();
+            found = Actions.TryGetValue(id.Id, out actions);
+        if (found)
+            (Carbon.GetEventKind(evt) == Carbon.kEventHotKeyReleased ? actions.Released : actions.Pressed)();
         return 0;
     }
 }

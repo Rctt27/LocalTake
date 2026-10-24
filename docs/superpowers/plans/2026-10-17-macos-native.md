@@ -395,3 +395,18 @@ Run : `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c 
 - [ ] **Step 4 : remettre la main à l'utilisateur**
 
 Il déroule la checklist macOS complète. La fusion et le tag `v0.4.0` se font seulement avec son accord explicite.
+
+## Surlignage à la souris (ajouté le 2026-10-24)
+
+Le cœur est prêt (`Highlighter`, `HighlightTrail`, `HighlightTrigger`, ports `IHighlightInput` et
+`IHighlightOverlayFactory`) et `MacHotkeys.Register(hotkey, pressed, released)` signale déjà le relâchement. Il reste,
+pour l'app macOS :
+- `MacHighlightInput` : appui et relâchement par Carbon (sans permission Accessibilité), `IsHeld` tenu par ces deux
+  événements, position par `CGEventGetLocation(CGEventCreate(0))` convertie en pixels physiques (facteur de l'écran).
+  Bouton latéral : moniteur global `NSEvent` (`otherMouseDown/Up`), sans permission mais sans pouvoir avaler le clic ;
+  l'avaler demanderait un `CGEventTap`, donc la permission Accessibilité.
+- Overlay : `NSWindow` sans bordure, transparente, `ignoresMouseEvents`, au-dessus des fenêtres, `sharingType` par
+  défaut pour qu'AVFoundation la capture (la barre, elle, est en `.none`).
+- Vérifier si macOS garde `Ctrl+Espace` (« Sélectionner la source de saisie précédente ») quand il y a plusieurs
+  sources de saisie ; si oui, passer le défaut macOS (`SettingsDefaults.ForMacOS`) à `Ctrl+Shift+Space`.
+- Spec : `docs/superpowers/specs/2026-10-24-mouse-highlight-design.md`.
