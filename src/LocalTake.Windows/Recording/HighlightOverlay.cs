@@ -19,7 +19,7 @@ internal sealed class HighlightOverlay : Form, IHighlightOverlay
     internal static readonly Color Ink = Color.FromArgb(255, 212, 0);
 
     /// <summary>The stroke width at 100 %, scaled by the monitor's DPI.</summary>
-    internal const float Thickness = 18;
+    internal const float Thickness = 14.4f;
 
     private readonly Rectangle _bounds;
     private Point[] _points = [];

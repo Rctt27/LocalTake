@@ -104,8 +104,13 @@ public sealed class HighlighterTests
         HoldAt(new PixelPoint(100, 100));
         Release();
 
+        // The trail stays 300 ms as it is, then fades out in 500 ms.
         Advance(TimeSpan.FromMilliseconds(250));
-        Overlay.Opacity.ShouldBeInRange(0.05, 0.15);
+        Overlay.Opacity.ShouldBe(HighlightTrail.FullOpacity);
+        Overlay.Visible.ShouldBeTrue();
+
+        Advance(TimeSpan.FromMilliseconds(300));
+        Overlay.Opacity.ShouldBeInRange(0.03, 0.09);
         Overlay.Visible.ShouldBeTrue();
 
         Advance(TimeSpan.FromMilliseconds(300));

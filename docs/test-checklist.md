@@ -54,7 +54,7 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 - [ ] « Supprimer » pendant la lecture : la vidéo part dans la Corbeille (et peut en être restaurée).
 - [ ] « Refaire » : la vidéo part dans la Corbeille et un nouvel enregistrement commence.
 - [ ] « Annuler » pendant l'enregistrement : aucun fichier ne reste.
-- [ ] Pendant l'enregistrement, la barre montre « Surligner : maintenir Ctrl+Space ». Maintenir `Ctrl+Espace` en survolant un bouton : une traînée jaune translucide suit la souris, rien n'est tapé dans l'application ; au relâchement, elle s'estompe en une demi-seconde environ.
+- [ ] Pendant l'enregistrement, la barre montre « Surligner : maintenir Ctrl+Space ». Maintenir `Ctrl+Espace` en survolant un bouton : une traînée jaune translucide suit la souris, rien n'est tapé dans l'application ; au relâchement, elle reste 0,3 s puis s'estompe en une demi-seconde environ ; un texte surligné reste lisible.
 - [ ] Lâcher `Ctrl` avant `Espace` : la traînée s'estompe tout de suite. `Espace` seul tape un espace dans un formulaire de la démo.
 - [ ] Pendant le compte à rebours et après « Arrêter », `Ctrl+Espace` ne surligne pas.
 - [ ] Dans le MP4 : la traînée est visible et son fondu fluide (`ffmpeg -i video.mp4 -vf fps=10 images/%03d.png`).

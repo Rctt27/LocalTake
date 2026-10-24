@@ -44,12 +44,16 @@ public sealed class HighlightTrailTests
         trail.Points[^1].ShouldBe(new PixelPoint(HighlightTrail.MaxPoints * 2, 0));
     }
 
+    [Fact]
+    public void The_trail_is_light_enough_to_read_through() => HighlightTrail.FullOpacity.ShouldBe(0.25);
+
     [Theory]
-    [InlineData(0, 0.4)]
-    [InlineData(250, 0.1)]
-    [InlineData(500, 0)]
+    [InlineData(0, 0.25)]
+    [InlineData(300, 0.25)]
+    [InlineData(550, 0.0625)]
+    [InlineData(800, 0)]
     [InlineData(2000, 0)]
-    public void The_fade_is_fast_then_gentle(int milliseconds, double opacity) =>
+    public void The_trail_stays_300_ms_then_fades_fast_then_gently(int milliseconds, double opacity) =>
         HighlightTrail.FadeOpacity(TimeSpan.FromMilliseconds(milliseconds)).ShouldBe(opacity, 1e-9);
 
     [Fact]

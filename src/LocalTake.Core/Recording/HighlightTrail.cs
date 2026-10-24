@@ -8,14 +8,17 @@ namespace LocalTake.Core.Recording;
 /// </summary>
 public sealed class HighlightTrail
 {
-    /// <summary>The overlay's opacity while the trigger is held: the trail stays translucent over what it marks.</summary>
-    public const double FullOpacity = 0.4;
+    /// <summary>The overlay's opacity while the trigger is held: light enough to read the text it marks.</summary>
+    public const double FullOpacity = 0.25;
 
     /// <summary>About half a minute of continuous movement; beyond that the oldest quarter goes.</summary>
     public const int MaxPoints = 2000;
 
     /// <summary>Pixels the mouse must move before a point is added.</summary>
     public const int MinStep = 2;
+
+    /// <summary>How long the trail stays as it is once released, before it fades.</summary>
+    public static readonly TimeSpan FadeDelay = TimeSpan.FromMilliseconds(300);
 
     public static readonly TimeSpan FadeDuration = TimeSpan.FromMilliseconds(500);
 
@@ -46,10 +49,13 @@ public sealed class HighlightTrail
         return true;
     }
 
-    /// <summary>Fast at first, then gentle: an ease-out from <see cref="FullOpacity"/> to 0 over <see cref="FadeDuration"/>.</summary>
+    /// <summary>
+    /// <see cref="FullOpacity"/> for <see cref="FadeDelay"/>, then fast at first and gentle at the end: an ease-out to 0
+    /// over <see cref="FadeDuration"/>.
+    /// </summary>
     public static double FadeOpacity(TimeSpan sinceRelease)
     {
-        var remaining = 1 - Math.Clamp(sinceRelease / FadeDuration, 0, 1);
+        var remaining = 1 - Math.Clamp((sinceRelease - FadeDelay) / FadeDuration, 0, 1);
         return FullOpacity * remaining * remaining;
     }
 }

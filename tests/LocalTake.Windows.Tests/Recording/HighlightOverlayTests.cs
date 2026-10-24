@@ -29,7 +29,8 @@ public sealed class HighlightOverlayTests : IDisposable
         overlay.Draw([new PixelPoint(10, 50), new PixelPoint(190, 50)]);
 
         overlay.Visible.ShouldBeTrue();
-        overlay.Opacity.ShouldBe(0.4, 0.01);
+        overlay.Opacity.ShouldBe(HighlightTrail.FullOpacity, 0.01);
+        HighlightOverlay.Thickness.ShouldBe(14.4f);
         const int expected = Native.WS_EX_TRANSPARENT | Native.WS_EX_NOACTIVATE | Native.WS_EX_LAYERED;
         (Native.GetWindowLong(overlay.Handle, Native.GWL_EXSTYLE) & expected).ShouldBe(expected);
         Native.GetWindowDisplayAffinity(overlay.Handle, out var affinity).ShouldBeTrue();
@@ -126,7 +127,8 @@ public sealed class HighlightOverlayTests : IDisposable
                 for (var x = 0; x < area.Width; x++)
                 {
                     var i = (y * area.Width + x) * 3;
-                    if (frame[i] > 60 && frame[i + 1] > 45 && frame[i + 2] < 40)
+                    // 25 % of #FFD400 over black is about (64, 53, 0).
+                    if (frame[i] > 40 && frame[i + 1] > 30 && frame[i + 2] < 30)
                         count++;
                 }
             }
