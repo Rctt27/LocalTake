@@ -10,7 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LocalTake.Core\LocalTake.Core.csproj" />
+    <!-- WhisperRuntimes only concerns this project: Core stays one build, shared with the projects that do not set it. -->
+    <ProjectReference Include="..\LocalTake.Core\LocalTake.Core.csproj" GlobalPropertiesToRemove="WhisperRuntimes" />
   </ItemGroup>
 
   <ItemGroup>
