@@ -27,7 +27,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LocalTake.Core\LocalTake.Core.csproj" />
-    <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" />
+    <!-- No transcription on macOS yet: none of Whisper's native libraries in the bundle. -->
+    <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" AdditionalProperties="WhisperRuntimes=false" />
     <ProjectReference Include="..\LocalTake.Platform.MacOS\LocalTake.Platform.MacOS.csproj" />
   </ItemGroup>
 
