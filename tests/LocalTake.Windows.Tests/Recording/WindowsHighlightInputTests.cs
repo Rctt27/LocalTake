@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Input;
 using LocalTake.Core.Geometry;
 using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
@@ -9,14 +11,19 @@ namespace LocalTake.Windows.Tests.Recording;
 
 /// <summary>
 /// The trigger is pressed with SendInput, which goes through RegisterHotKey and low-level hooks like a real key. The
-/// input is registered on the STA thread, whose dispatcher pumps the messages both need.
+/// input is registered on the STA thread, whose dispatcher pumps the messages both need. The keys are held system-wide
+/// and a window is shown under the cursor: these tests run apart from the others.
 /// </summary>
+[Collection(ScreenRecordings.Name)]
 public sealed partial class WindowsHighlightInputTests : IDisposable
 {
     private const ushort VkShift = 0x10, VkControl = 0x11, VkMenu = 0x12, VkF23 = 0x86;
     private const uint InputMouse = 0, InputKeyboard = 1, KeyUp = 0x2, MouseXDown = 0x80, MouseXUp = 0x100, XButton2 = 2;
 
     private readonly WindowsHighlightInput _input = Sta.Run(() => new WindowsHighlightInput(new ImmediateUiThread())).GetAwaiter().GetResult();
+
+    /// <summary>Whether a side button was sent: only then is it released at the end, as it would otherwise reach the desktop.</summary>
+    private bool _mouseUsed;
 
     public void Dispose()
     {
@@ -83,6 +90,63 @@ public sealed partial class WindowsHighlightInputTests : IDisposable
         _input.IsHeld.ShouldBeFalse();
     }
 
+    /// <summary>
+    /// The recording can end while the side button is held: its release must still be swallowed, or the window under
+    /// the cursor, a browser, goes back a page. The hook goes once the button is released.
+    /// </summary>
+    [Fact]
+    public async Task A_side_button_released_after_unregistering_is_still_swallowed()
+    {
+        var ups = 0;
+        var window = await Sta.Run(() =>
+        {
+            var w = new Window
+            {
+                WindowStyle = WindowStyle.None,
+                ResizeMode = ResizeMode.NoResize,
+                Left = 0,
+                Top = 0,
+                Width = 200,
+                Height = 200,
+                Topmost = true,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                Background = System.Windows.Media.Brushes.Gray
+            };
+            w.PreviewMouseUp += (_, e) =>
+            {
+                if (e.ChangedButton == MouseButton.XButton2)
+                    ups++;
+            };
+            w.Show();
+            Sta.DoEvents();
+            return w;
+        });
+        GetCursorPos(out var before).ShouldBeTrue();
+        try
+        {
+            SetCursorPos(20, 20).ShouldBeTrue();
+            (await RegisterAsync("XButton2", () => { })).ShouldBeTrue();
+            Mouse(MouseXDown);
+            await Pump();
+            await Sta.Run(_input.Unregister);
+
+            Mouse(MouseXUp);
+            await Pump();
+            ups.ShouldBe(0);
+
+            Mouse(MouseXDown);
+            Mouse(MouseXUp);
+            await Pump();
+            ups.ShouldBe(1);
+        }
+        finally
+        {
+            SetCursorPos(before.X, before.Y);
+            await Sta.Run(window.Close);
+        }
+    }
+
     [Fact]
     public async Task Unregistering_frees_the_shortcut()
     {
@@ -117,14 +181,18 @@ public sealed partial class WindowsHighlightInputTests : IDisposable
             Send(new Input { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KeyboardInput { Vk = key, Flags = down ? 0 : KeyUp } } });
     }
 
-    private static void Mouse(uint flags) =>
+    private void Mouse(uint flags)
+    {
+        _mouseUsed = true;
         Send(new Input { Type = InputMouse, Union = new InputUnion { Mouse = new MouseInput { MouseData = XButton2, Flags = flags } } });
+    }
 
     /// <summary>Lets nothing stay pressed after a test, whatever failed.</summary>
-    private static void Release()
+    private void Release()
     {
         Keys(down: false, VkF23, VkShift, VkMenu, VkControl);
-        Mouse(MouseXUp);
+        if (_mouseUsed)
+            Mouse(MouseXUp);
     }
 
     private static unsafe void Send(Input input)
