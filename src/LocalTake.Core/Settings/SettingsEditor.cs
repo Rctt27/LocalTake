@@ -18,6 +18,7 @@ public sealed record SettingsForm(
     string HotkeyVideoFullScreen,
     string HotkeyVideoStart,
     string HotkeyVideoStop,
+    string HighlightTrigger,
     string FfmpegPath,
     string Microphone,
     bool RecordMicrophone,
@@ -37,7 +38,7 @@ public sealed record SettingsForm(
     public IEnumerable<string> Hotkeys =>
     [
         HotkeyRegion, HotkeyWindow, HotkeyFullScreen, HotkeyLastRegion, HotkeyVideoRegion, HotkeyVideoFullScreen,
-        HotkeyVideoStart, HotkeyVideoStop
+        HotkeyVideoStart, HotkeyVideoStop, HighlightTrigger
     ];
 
     public static SettingsForm From(AppSettings settings)
@@ -47,7 +48,7 @@ public sealed record SettingsForm(
             settings.OutputFolder, settings.FileNamePattern, settings.Format, settings.JpegQuality, settings.CopyPathAfterSave,
             settings.AfterCapture, settings.HotkeyRegion, settings.HotkeyWindow, settings.HotkeyFullScreen, settings.HotkeyLastRegion,
             settings.HotkeyVideoRegion, settings.HotkeyVideoFullScreen, settings.HotkeyVideoStart, settings.HotkeyVideoStop,
-            settings.FfmpegPath, settings.Microphone, settings.RecordMicrophone, settings.RecordSystemAudio,
+            settings.HighlightTrigger, settings.FfmpegPath, settings.Microphone, settings.RecordMicrophone, settings.RecordSystemAudio,
             FrameRates.OrderBy(f => Math.Abs(f - settings.VideoFrameRate)).First(),
             settings.TranscribeMicrophone,
             TranscriptionLanguages.Any(l => l.Code == settings.TranscriptionLanguage) ? settings.TranscriptionLanguage : "fr",
@@ -72,6 +73,7 @@ public sealed record SettingsForm(
         settings.HotkeyVideoFullScreen = HotkeyVideoFullScreen.Trim();
         settings.HotkeyVideoStart = HotkeyVideoStart.Trim();
         settings.HotkeyVideoStop = HotkeyVideoStop.Trim();
+        settings.HighlightTrigger = HighlightTrigger.Trim();
         settings.FfmpegPath = FfmpegPath.Trim();
         settings.Microphone = Microphone;
         settings.RecordMicrophone = RecordMicrophone;

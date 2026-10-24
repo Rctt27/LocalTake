@@ -9,7 +9,7 @@ public sealed class SettingsDefaultsTests
     private static IEnumerable<string> Shortcuts(SettingsDefaults d) =>
     [
         d.HotkeyRegion, d.HotkeyWindow, d.HotkeyFullScreen, d.HotkeyLastRegion, d.HotkeyVideoRegion,
-        d.HotkeyVideoFullScreen, d.HotkeyVideoStart, d.HotkeyVideoStop
+        d.HotkeyVideoFullScreen, d.HotkeyVideoStart, d.HotkeyVideoStop, d.HighlightTrigger
     ];
 
     [Fact]
@@ -42,6 +42,14 @@ public sealed class SettingsDefaultsTests
         var defaults = mac ? SettingsDefaults.ForMacOS("x") : SettingsDefaults.ForWindows("x");
         var assigned = Shortcuts(defaults).Where(s => s.Length > 0).ToList();
         assigned.Distinct().Count().ShouldBe(assigned.Count);
+    }
+
+    [Fact]
+    public void Both_platforms_highlight_with_Ctrl_Space()
+    {
+        SettingsDefaults.ForWindows("x").HighlightTrigger.ShouldBe("Ctrl+Space");
+        SettingsDefaults.ForMacOS("x").HighlightTrigger.ShouldBe("Ctrl+Space");
+        new AppSettings(SettingsDefaults.ForWindows("x")).HighlightTrigger.ShouldBe("Ctrl+Space");
     }
 
     [Fact]

@@ -41,7 +41,7 @@ public sealed class MacPlatformTests : IDisposable
     public void Every_default_macOS_shortcut_can_be_registered()
     {
         var d = SettingsDefaultsFor();
-        foreach (var text in new[] { d.HotkeyRegion, d.HotkeyWindow, d.HotkeyFullScreen, d.HotkeyVideoRegion, d.HotkeyVideoStart, d.HotkeyVideoStop })
+        foreach (var text in new[] { d.HotkeyRegion, d.HotkeyWindow, d.HotkeyFullScreen, d.HotkeyVideoRegion, d.HotkeyVideoStart, d.HotkeyVideoStop, d.HighlightTrigger })
         {
             Hotkey.TryParse(text, out var hotkey).ShouldBeTrue();
             MacKeys.TryGetKeyCode(hotkey.Key, out _).ShouldBeTrue(text);

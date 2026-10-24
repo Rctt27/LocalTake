@@ -32,6 +32,7 @@ public sealed class AppSettings
         HotkeyVideoFullScreen = defaults.HotkeyVideoFullScreen;
         HotkeyVideoStart = defaults.HotkeyVideoStart;
         HotkeyVideoStop = defaults.HotkeyVideoStop;
+        HighlightTrigger = defaults.HighlightTrigger;
     }
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -62,7 +63,7 @@ public sealed class AppSettings
     public string HotkeyVideoStop { get; set; }
 
     /// <summary>Held during a recording to highlight with the mouse: a shortcut, a plain key, or XButton1/XButton2.</summary>
-    public string HighlightTrigger { get; set; } = "Ctrl+Space";
+    public string HighlightTrigger { get; set; }
 
     /// <summary>Empty: ffmpeg next to LocalTake, then on the PATH.</summary>
     public string FfmpegPath { get; set; } = "";

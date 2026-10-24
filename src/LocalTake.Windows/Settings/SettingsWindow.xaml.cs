@@ -248,7 +248,7 @@ public partial class SettingsWindow : Window
             Enum.Parse<AfterCaptureAction>((string)((ComboBoxItem)AfterCaptureBox.SelectedItem).Tag),
             HotkeyRegionBox.Text, HotkeyWindowBox.Text, HotkeyFullScreenBox.Text, HotkeyLastRegionBox.Text,
             HotkeyVideoRegionBox.Text, HotkeyVideoFullScreenBox.Text, HotkeyVideoStartBox.Text, HotkeyVideoStopBox.Text,
-            FfmpegBox.Text, (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone,
+            _settings.HighlightTrigger, FfmpegBox.Text, (MicrophoneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.Microphone,
             RecordMicrophoneBox.IsChecked == true, SystemAudioBox.IsChecked == true, (int)FrameRateBox.SelectedItem,
             TranscribeBox.IsChecked == true, LanguageBox.SelectedValue as string ?? "fr", ModelBox.Text);
         if (_context.Editor.TryApply(form) is { } problem)

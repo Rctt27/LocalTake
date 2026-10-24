@@ -27,6 +27,7 @@ public sealed class SettingsEditorTests
         _settings.VideoFrameRate = 60;
         _settings.TranscribeMicrophone = true;
         _settings.TranscriptionLanguage = "auto";
+        _settings.HighlightTrigger = "XButton2";
         var copy = new AppSettings(SettingsDefaults.ForMacOS("/x"));
 
         SettingsForm.From(_settings).ApplyTo(copy);
@@ -37,6 +38,7 @@ public sealed class SettingsEditorTests
         copy.VideoFrameRate.ShouldBe(60);
         copy.TranscribeMicrophone.ShouldBeTrue();
         copy.TranscriptionLanguage.ShouldBe("auto");
+        copy.HighlightTrigger.ShouldBe("XButton2");
         copy.OutputFolder.ShouldBe(Folder);
     }
 
@@ -52,6 +54,17 @@ public sealed class SettingsEditorTests
         _settings.OutputFolder.ShouldBe(Folder);
         _fs.Directory.Exists(Folder).ShouldBeTrue();
         _store.Received(1).Save(_settings);
+    }
+
+    [Fact]
+    public void The_highlight_trigger_cannot_reuse_a_session_shortcut() =>
+        _editor.TryApply(Form() with { HighlightTrigger = "Ctrl+R" }).ShouldBe("Le raccourci Ctrl+R est attribué deux fois.");
+
+    [Fact]
+    public void The_highlight_trigger_is_saved_trimmed()
+    {
+        _editor.TryApply(Form() with { HighlightTrigger = " XButton1 " }).ShouldBeNull();
+        _settings.HighlightTrigger.ShouldBe("XButton1");
     }
 
     [Fact]
