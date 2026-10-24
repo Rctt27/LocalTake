@@ -20,6 +20,7 @@ namespace LocalTake.Windows.Tests.Recording;
 /// A window at the top left of the main screen turns from black to white while a beep plays, recorded as the app
 /// records: in the video, the beep must start when the picture turns white. Needs ffmpeg and an audio output.
 /// </summary>
+[Collection(ScreenRecordings.Name)]
 public sealed partial class SyncTests : IDisposable
 {
     private static readonly PixelRect Area = new(0, 0, 320, 240);
