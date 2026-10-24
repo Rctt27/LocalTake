@@ -25,15 +25,23 @@ public sealed class HighlightTrailTests
         trail.Points.Count.ShouldBe(2);
     }
 
+    /// <summary>
+    /// The oldest quarter goes at once rather than one point per frame: each drop repaints the whole overlay, so it
+    /// happens every 500 points instead of on every frame once the limit is reached.
+    /// </summary>
     [Fact]
-    public void Oldest_points_go_beyond_the_limit()
+    public void Oldest_points_go_by_the_quarter_beyond_the_limit()
     {
         var trail = new HighlightTrail();
         trail.Begin(new PixelPoint(0, 0));
-        for (var i = 1; i <= HighlightTrail.MaxPoints; i++)
+        for (var i = 1; i < HighlightTrail.MaxPoints; i++)
             trail.Add(new PixelPoint(i * 2, 0));
         trail.Points.Count.ShouldBe(HighlightTrail.MaxPoints);
-        trail.Points[0].ShouldBe(new PixelPoint(2, 0));
+
+        trail.Add(new PixelPoint(HighlightTrail.MaxPoints * 2, 0));
+        trail.Points.Count.ShouldBe(HighlightTrail.MaxPoints - HighlightTrail.MaxPoints / 4 + 1);
+        trail.Points[0].ShouldBe(new PixelPoint(HighlightTrail.MaxPoints / 4 * 2, 0));
+        trail.Points[^1].ShouldBe(new PixelPoint(HighlightTrail.MaxPoints * 2, 0));
     }
 
     [Theory]

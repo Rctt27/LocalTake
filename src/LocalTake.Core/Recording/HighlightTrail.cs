@@ -11,7 +11,7 @@ public sealed class HighlightTrail
     /// <summary>The overlay's opacity while the trigger is held: the trail stays translucent over what it marks.</summary>
     public const double FullOpacity = 0.4;
 
-    /// <summary>About half a minute of continuous movement; beyond that the oldest part goes.</summary>
+    /// <summary>About half a minute of continuous movement; beyond that the oldest quarter goes.</summary>
     public const int MaxPoints = 2000;
 
     /// <summary>Pixels the mouse must move before a point is added.</summary>
@@ -40,8 +40,9 @@ public sealed class HighlightTrail
                 return false;
         }
         _points.Add(at);
+        // A quarter at once: dropping the head repaints the whole overlay, which must stay rare.
         if (_points.Count > MaxPoints)
-            _points.RemoveAt(0);
+            _points.RemoveRange(0, MaxPoints / 4);
         return true;
     }
 
