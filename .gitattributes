@@ -3,3 +3,5 @@
 *.png binary
 *.icns binary
 *.wav binary
+# Shell scripts run with bash on every runner, the Windows one included: LF only.
+*.sh text eol=lf

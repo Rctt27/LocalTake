@@ -23,8 +23,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - name: Install ffmpeg
-        run: choco install ffmpeg --no-progress -y
+      # The ffmpeg LocalTake ships: the tests run against it.
+      - name: Fetch the shipped ffmpeg
+        shell: bash
+        run: |
+          bash build/fetch-ffmpeg.sh windows "$RUNNER_TEMP/ffmpeg"
+          echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
       # The smallest Whisper model, for the transcription tests (skipped without one). Pinned and checked.
       - name: Download a Whisper model for the tests
         shell: bash
@@ -53,9 +57,15 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      # On macOS, the ffmpeg LocalTake ships, which the tests then run against; Linux has no LocalTake app.
       - name: Install ffmpeg
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else sudo apt-get update && sudo apt-get install -y ffmpeg; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            bash build/fetch-ffmpeg.sh macos "$RUNNER_TEMP/ffmpeg"
+            echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
+          else
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
       # The smallest Whisper model, for the transcription tests (skipped without one). Pinned and checked.
       - name: Download a Whisper model for the tests
         shell: bash
