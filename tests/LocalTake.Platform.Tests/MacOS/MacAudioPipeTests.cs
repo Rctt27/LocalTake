@@ -119,6 +119,29 @@ public sealed class MacAudioPipeTests : IDisposable
         File.Exists(pipe.Input.PipePath).ShouldBeFalse();
     }
 
+    /// <summary>At the end of a recording: ffmpeg sees the end of its input, and nothing is left in the folder.</summary>
+    [Fact]
+    public async Task Disposing_after_ffmpeg_opened_ends_its_stream_and_removes_the_fifo()
+    {
+        var pipe = NewPipe();
+        await using var reader = await OpenAsync(pipe);
+        pipe.Write(Now(), Enumerable.Repeat((byte)7, 480 * Format.BlockAlign).ToArray());
+
+        var clock = Stopwatch.StartNew();
+        pipe.Dispose();
+        clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(1));
+        File.Exists(pipe.Input.PipePath).ShouldBeFalse();
+
+        // What was written still arrives, then the end of the stream: a read of 0 bytes.
+        var buffer = new byte[65536];
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        int read;
+        var total = 0;
+        while ((read = await reader.ReadAsync(buffer, timeout.Token)) > 0)
+            total += read;
+        total.ShouldBeGreaterThanOrEqualTo(480 * Format.BlockAlign);
+    }
+
     [Fact]
     public async Task ffmpeg_reads_the_pipe()
     {
