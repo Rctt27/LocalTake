@@ -11,6 +11,7 @@ using LocalTake.Infrastructure.Logging;
 using LocalTake.Infrastructure.Platform;
 using LocalTake.Infrastructure.Recording;
 using LocalTake.Infrastructure.Settings;
+using LocalTake.Infrastructure.Transcription;
 using LocalTake.Mac.Adapters;
 using LocalTake.Mac.Capture;
 using LocalTake.Mac.Editor;
@@ -58,15 +59,18 @@ internal static class Composition
         services.AddSingleton<IHighlightInput>(sp => new MacHighlightInput(sp.GetRequiredService<IUiThread>()));
         services.AddSingleton<IHighlightOverlayFactory, MacHighlightOverlayFactory>();
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<Highlighter>(sp, HotkeyNaming.MacOS));
-        // No transcription on macOS yet: the release ships no model, so no microphone track is ever written.
         services.AddSingleton(sp => paths.CreateModelLocator(sp.GetRequiredService<IFileSystem>()));
         services.AddSingleton<MicrophoneTracks>();
+        services.AddSingleton<SubtitleFile>();
+        services.AddSingleton<Transcriptions>();
 
         // Infrastructure
         services.AddSingleton<IAudioDeviceLister, FfmpegAudioDeviceLister>();
         services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
         // The Mac's sound, captured by LocalTake itself and piped to ffmpeg.
         services.AddSingleton<ISystemAudioSource, MacSystemAudio>();
+        services.AddSingleton<ITranscriber, WhisperTranscriber>();
+        services.AddSingleton<IAudioExtractor, FfmpegAudioExtractor>();
         services.AddSingleton<DiagnosticsReport>();
 
         // macOS adapters

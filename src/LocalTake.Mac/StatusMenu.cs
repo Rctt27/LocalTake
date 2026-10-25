@@ -6,6 +6,7 @@ using LocalTake.Core.Hotkeys;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using LocalTake.Mac.Adapters;
 using LocalTake.Mac.Editor;
 using LocalTake.Mac.Platform;
@@ -30,6 +31,8 @@ internal sealed class StatusMenu : IDisposable
     private readonly INotifications _notifications;
     private readonly RecordingSession _video;
     private readonly IFileTrash _trash;
+    private readonly SubtitleFile _subtitles;
+    private readonly Transcriptions _transcriptions;
     private readonly List<VideoPreviewWindowController> _previews = [];
     private readonly Func<SettingsWindowController> _createSettingsWindow;
     private SettingsWindowController? _settingsWindow;
@@ -45,7 +48,7 @@ internal sealed class StatusMenu : IDisposable
 
     public StatusMenu(AppSettings settings, CaptureWorkflow captures, IGlobalHotkeys hotkeys, IUserDialogs dialogs, IShell shell,
         MacEditorLauncher editor, INotifications notifications, RecordingSession video, IFileTrash trash,
-        Func<SettingsWindowController> createSettingsWindow)
+        SubtitleFile subtitles, Transcriptions transcriptions, Func<SettingsWindowController> createSettingsWindow)
     {
         _settings = settings;
         _captures = captures;
@@ -56,6 +59,8 @@ internal sealed class StatusMenu : IDisposable
         _notifications = notifications;
         _video = video;
         _trash = trash;
+        _subtitles = subtitles;
+        _transcriptions = transcriptions;
         _createSettingsWindow = createSettingsWindow;
 
         var menu = new NSMenu { AutoEnablesItems = false };
@@ -93,7 +98,7 @@ internal sealed class StatusMenu : IDisposable
         _statusItem.Menu = menu;
 
         _video.StateChanged += (_, _) => UpdateVideoState();
-        _video.VideoSaved += (_, e) => OpenVideoPreview(e.Path, e.FullScreen);
+        _video.VideoSaved += (_, e) => OpenVideoPreview(e.Path, e.FullScreen, e.MicrophoneTrackPath, e.Transcribe);
 
         var failures = RegisterHotkeys();
         if (failures.Count > 0)
@@ -173,10 +178,15 @@ internal sealed class StatusMenu : IDisposable
         await _video.ToggleAsync(fullScreen, fromMenu).ConfigureAwait(true);
     }
 
-    /// <summary>As in TinyTake, a saved video opens in a player rather than in a notification.</summary>
-    private void OpenVideoPreview(string path, bool fullScreen)
+    /// <summary>
+    /// As in TinyTake, a saved video opens in a player rather than in a notification; its microphone is transcribed
+    /// straight away when asked, otherwise the track waits for the player's "Générer les sous-titres".
+    /// </summary>
+    private void OpenVideoPreview(string path, bool fullScreen, string? microphoneTrack, bool transcribe)
     {
-        var preview = new VideoPreviewWindowController(path, _shell, _trash);
+        var transcription = microphoneTrack is not null && transcribe ? _transcriptions.Enqueue(path, microphoneTrack) : null;
+        var preview = new VideoPreviewWindowController(path, _shell, _trash, _subtitles, _transcriptions, transcription,
+            transcription is null ? microphoneTrack : null);
         _previews.Add(preview);
         preview.RetakeRequested += (_, _) => Retake(preview, fullScreen);
         preview.Closed += (_, _) =>

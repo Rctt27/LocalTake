@@ -1,5 +1,6 @@
 using AppKit;
 using Foundation;
+using LocalTake.Core.Transcription;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -21,6 +22,8 @@ internal sealed class AppDelegate : NSApplicationDelegate
         if (log.IsEnabled(LogLevel.Information))
             log.LogInformation("LocalTake {Version} started", Version);
 
+        // The microphone tracks of a previous run, closed before they were transcribed.
+        _services.GetRequiredService<MicrophoneTracks>().DeleteLeftovers();
         _services.GetRequiredService<StatusMenu>();
     }
 
