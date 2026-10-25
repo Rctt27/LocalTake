@@ -36,10 +36,39 @@ public sealed class AudioTimelineTests
     public void Audio_already_covered_by_silence_is_trimmed()
     {
         var timeline = new AudioTimeline(Format, T0);
-        timeline.PadTo(T0 + Ms(260)).Length.ShouldBe(480 * 8);
-        var bytes = timeline.Place(T0 + Ms(5), Frames(480));
+        timeline.PadTo(T0 + Ms(270)).Length.ShouldBe(960 * 8);
+        var bytes = timeline.Place(T0 + Ms(5), Frames(960));
         bytes.Length.ShouldBe(240 * 8);
-        timeline.FramesWritten.ShouldBe(720);
+        timeline.FramesWritten.ShouldBe(1200);
+    }
+
+    /// <summary>
+    /// Timestamps jitter, and the audio device's clock drifts from the host's: within the tolerance, packets follow one
+    /// another, with neither an inserted zero nor a dropped frame (each would click).
+    /// </summary>
+    [Fact]
+    public void Jittered_packets_stay_back_to_back()
+    {
+        var timeline = new AudioTimeline(Format, T0);
+        timeline.Place(T0, Frames(480)).Length.ShouldBe(480 * 8);
+        var late = timeline.Place(T0 + Ms(10) + TimeSpan.FromTicks(400), Frames(480));
+        late.ShouldAllBe(b => b == 7);
+        late.Length.ShouldBe(480 * 8);
+        var early = timeline.Place(T0 + Ms(20) - Ms(4), Frames(480));
+        early.ShouldAllBe(b => b == 7);
+        early.Length.ShouldBe(480 * 8);
+        timeline.FramesWritten.ShouldBe(1440);
+    }
+
+    [Fact]
+    public void A_packet_far_from_the_stream_is_appended_and_counted()
+    {
+        var timeline = new AudioTimeline(Format, T0);
+        timeline.Place(T0, Frames(480));
+        timeline.Place(T0 + TimeSpan.FromSeconds(10), Frames(480)).Length.ShouldBe(480 * 8);
+        timeline.Place(T0 - TimeSpan.FromSeconds(10), Frames(480)).Length.ShouldBe(480 * 8);
+        timeline.FramesWritten.ShouldBe(1440);
+        timeline.Reanchors.ShouldBe(2);
     }
 
     [Fact]
@@ -56,7 +85,7 @@ public sealed class AudioTimelineTests
     {
         var timeline = new AudioTimeline(Format, T0);
         timeline.Place(T0 - Ms(20), Frames(480)).ShouldBeEmpty();
-        timeline.Place(T0 - Ms(5), Frames(480)).Length.ShouldBe(240 * 8);
+        timeline.Place(T0 - Ms(15), Frames(960)).Length.ShouldBe(240 * 8);
     }
 
     [Fact]
