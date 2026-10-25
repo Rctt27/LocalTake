@@ -159,6 +159,7 @@ Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"
 - [ ] Première vidéo avec le micro : macOS demande l'autorisation Micro pour LocalTake ; la vidéo contient la voix, jusqu'au dernier mot avant « Arrêter ».
 - [ ] Son du Mac sans pilote : sur un Mac sans BlackHole, le bouton « Son du Mac » est actif ; une vidéo ou une musique jouée pendant l'enregistrement s'entend dans le MP4.
 - [ ] Synchronisation du son du Mac : `FFMPEG=/Applications/LocalTake.app/Contents/MacOS/ffmpeg bash build/sync-check.sh clip ~/Desktop/sync.mp4` (depuis le dépôt), lire `sync.mp4` en plein écran dans QuickTime, l'enregistrer avec LocalTake (vidéo de tout l'écran, son du Mac seul, micro coupé), puis `FFMPEG=… bash build/sync-check.sh measure <la vidéo>` : chaque écart est dans ±0,1 s. Sinon, noter l'écart moyen affiché et le signaler.
+- [ ] Pas de craquements : une musique jouée pendant 1 minute d'enregistrement s'entend sans clics ni grésillements dans le MP4 (le journal ne doit pas signaler de paquets « appended »).
 - [ ] Silence : 10 s enregistrées sans rien jouer, avec le micro et le son du Mac : la piste dure autant que la vidéo et la voix garde son niveau.
 - [ ] Capture du son en échec (le journal `~/Library/Logs/LocalTake` le dit) : la vidéo s'enregistre quand même, avec un son du Mac muet de la durée de la vidéo.
 - [ ] Le cadre rouge et la barre n'apparaissent pas dans la vidéo.
