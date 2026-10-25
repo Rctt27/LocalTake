@@ -20,6 +20,8 @@ public sealed class AvFoundationTests
     /// <summary>Two displays side by side, the second at 1.5× on the right.</summary>
     private static readonly IReadOnlyList<PixelRect> Displays = [new(0, 0, 2880, 1800), new(2880, 0, 2560, 1440)];
 
+    private static readonly PipedAudio Pipe = new("/tmp/lt.pcm", new RawAudioFormat("f32le", 48000, 2));
+
     private readonly AvFoundation _platform = new(() => Displays);
 
     [Fact]
@@ -30,8 +32,9 @@ public sealed class AvFoundationTests
     public void Lists_devices_with_avfoundation() =>
         _platform.ListDevicesArguments.ShouldBe(["-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""]);
 
+    /// <summary>No longer recorded: only kept out of the microphones when it is installed.</summary>
     [Fact]
-    public void System_audio_is_BlackHole() => _platform.SystemAudioDevice.ShouldBe("BlackHole 2ch");
+    public void BlackHole_is_kept_out_of_the_microphones() => _platform.SystemAudioDevice.ShouldBe("BlackHole 2ch");
 
     [Fact]
     public void The_display_holding_the_area_is_recorded_and_cropped_to_it()
@@ -44,15 +47,42 @@ public sealed class AvFoundationTests
     }
 
     [Fact]
-    public void Each_audio_input_is_opened_by_name()
+    public void The_microphone_is_opened_by_name()
     {
-        var inputs = _platform.BuildInputs(new PixelRect(0, 0, 100, 100), new VideoOptions(24, "MacBook Pro Microphone", true), null);
-        inputs.AudioInputs.ShouldBe(
-        [
-            ["-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":MacBook Pro Microphone"],
-            ["-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":BlackHole 2ch"]
-        ]);
+        var inputs = _platform.BuildInputs(new PixelRect(0, 0, 100, 100), new VideoOptions(24, "MacBook Pro Microphone", false), null);
+        inputs.AudioInputs.ShouldBe([["-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":MacBook Pro Microphone"]]);
     }
+
+    [Fact]
+    public void The_computer_sound_is_read_from_the_pipe_after_the_screen()
+    {
+        // Deliberate change: LocalTake captures the Mac's sound itself and pipes it; BlackHole is no longer read.
+        var inputs = _platform.BuildInputs(new PixelRect(0, 0, 100, 100), new VideoOptions(30, "MacBook Pro Microphone", true), Pipe);
+
+        inputs.AudioInputs.ShouldBe([["-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":MacBook Pro Microphone"]]);
+        inputs.TrailingAudioInputs.ShouldBe(
+        [
+            ["-f", "f32le", "-ar", "48000", "-ac", "2", "-thread_queue_size", "1024", "-probesize", "32", "-analyzeduration", "0", "-i", "/tmp/lt.pcm"]
+        ]);
+        inputs.VideoInput.ShouldBe(
+        [
+            "-f", "avfoundation", "-thread_queue_size", "1024", "-probesize", "32", "-analyzeduration", "0",
+            "-capture_cursor", "1", "-framerate", "30", "-i", "Capture screen 0:none"
+        ]);
+        inputs.AudioInputs.Concat(inputs.TrailingAudioInputs!).SelectMany(a => a).ShouldNotContain(":BlackHole 2ch");
+    }
+
+    [Fact]
+    public void Without_the_computer_sound_the_screen_is_probed_as_before()
+    {
+        var inputs = _platform.BuildInputs(new PixelRect(0, 0, 100, 100), new VideoOptions(30, null, false), Pipe);
+        inputs.VideoInput.ShouldNotContain("-probesize");
+        inputs.TrailingAudioInputs.ShouldBeNull();
+    }
+
+    [Fact]
+    public void The_computer_sound_needs_its_pipe() =>
+        Should.Throw<ArgumentException>(() => _platform.BuildInputs(new PixelRect(0, 0, 100, 100), new VideoOptions(30, null, true), null));
 
     [Fact]
     public void An_area_over_two_displays_records_the_one_holding_most_of_it()
@@ -71,13 +101,11 @@ public sealed class AvFoundationTests
     }
 
     [Fact]
-    public void The_computer_sound_needs_BlackHole()
+    public void The_computer_sound_needs_no_driver()
     {
-        _platform.CanRecordSystemAudio(["MacBook Pro Microphone"]).ShouldBeFalse();
-        _platform.CanRecordSystemAudio(["MacBook Pro Microphone", "BlackHole 2ch"]).ShouldBeTrue();
-    }
-
-    [Fact]
-    public void BlackHole_is_tried_anyway_when_ffmpeg_could_not_list_the_devices() =>
+        // Deliberate change: LocalTake captures the Mac's sound itself; BlackHole is no longer needed.
         _platform.CanRecordSystemAudio([]).ShouldBeTrue();
+        _platform.CanRecordSystemAudio(["MacBook Pro Microphone"]).ShouldBeTrue();
+        _platform.SystemAudioRequirement.ShouldNotContain("BlackHole");
+    }
 }
