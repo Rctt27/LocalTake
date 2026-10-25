@@ -1,7 +1,7 @@
 name: Release
 
 # Pushing a tag vX.Y.Z on main builds LocalTake for Windows and macOS and publishes both as a GitHub release. The
-# Windows zip holds LocalTake.exe, Whisper's native libraries and the transcription model.
+# Windows zip and the macOS app hold Whisper's native libraries and the transcription model.
 on:
   push:
     tags: ['v*.*.*']
@@ -12,10 +12,6 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  # The Whisper model shipped with LocalTake: LocalTake itself never downloads anything. Pinned and checked.
-  WHISPER_MODELS_REVISION: 5359861c739e955e79d9a303bcbc70fb988958b1
-  WHISPER_MODEL: ggml-small-q5_1.bin
-  WHISPER_MODEL_SHA256: ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb
 
 jobs:
   windows:
@@ -29,11 +25,8 @@ jobs:
       - run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o build/LocalTake
       - name: Add the Whisper model
         shell: bash
-        run: |
-          mkdir -p build/LocalTake/models
-          cd build/LocalTake/models
-          curl -sSfL -o "$WHISPER_MODEL" "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/$WHISPER_MODEL"
-          echo "$WHISPER_MODEL_SHA256  $WHISPER_MODEL" | sha256sum -c -
+        # LocalTake itself never downloads anything: the model is pinned and checked (build/fetch-whisper-model.sh).
+        run: bash build/fetch-whisper-model.sh build/LocalTake/models
       - name: Add ffmpeg and the licence notices
         shell: bash
         run: |

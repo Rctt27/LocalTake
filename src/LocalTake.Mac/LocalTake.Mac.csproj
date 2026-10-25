@@ -27,8 +27,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LocalTake.Core\LocalTake.Core.csproj" />
-    <!-- No transcription on macOS yet: none of Whisper's native libraries in the bundle. -->
-    <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" AdditionalProperties="WhisperRuntimes=false" />
+    <!-- Of Whisper's native libraries, only the macOS ones: Whisper.net loads them from MonoBundle/runtimes/macos-<arch>. -->
+    <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" AdditionalProperties="WhisperRuntimes=macos" />
     <ProjectReference Include="..\LocalTake.Platform.MacOS\LocalTake.Platform.MacOS.csproj" />
   </ItemGroup>
 
@@ -38,8 +38,8 @@
 
   <!--
     Whisper.net also declares its functions against __Internal, for the Apple platforms that link whisper.cpp
-    statically, and the macOS SDK passes every __Internal function to the native linker. The app does not transcribe
-    yet and ships no whisper.cpp: these functions are left out of the link (Whisper.net 1.9.1's list).
+    statically, and the macOS SDK passes every __Internal function to the native linker. On macOS, Whisper.net loads
+    libwhisper.dylib at run time instead: these functions are left out of the link (Whisper.net 1.9.1's list).
   -->
   <ItemGroup>
     <ReferenceNativeSymbol Include="whisper_ctx_init_openvino_encoder_with_state" SymbolType="Function" SymbolMode="Ignore" />

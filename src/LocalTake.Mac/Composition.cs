@@ -67,8 +67,7 @@ internal static class Composition
         services.AddSingleton<IVideoRecorderFactory, FfmpegVideoRecorderFactory>();
         // The Mac's sound, captured by LocalTake itself and piped to ffmpeg.
         services.AddSingleton<ISystemAudioSource, MacSystemAudio>();
-        // The app does not transcribe yet: there is no model to check.
-        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<DiagnosticsReport>(sp, false));
+        services.AddSingleton<DiagnosticsReport>();
 
         // macOS adapters
         services.AddSingleton<IUiThread>(new MainThread());

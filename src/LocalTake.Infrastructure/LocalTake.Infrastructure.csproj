@@ -27,13 +27,13 @@
   </ItemGroup>
 
   <!--
-    An app that does not transcribe (the macOS app, for now) builds this project with WhisperRuntimes=false: it then
-    gets none of Whisper's native libraries, which the macOS SDK would try to process as its own (the Linux ones fail).
-    The items come from the package's targets, imported after this file, hence a target rather than an ItemGroup.
+    Whisper.net.Runtime brings the native libraries of every platform, which the macOS SDK would try to process as its
+    own (the Linux ones fail): the macOS app builds this project with WhisperRuntimes=macos, which keeps only the macOS
+    ones. The items come from the package's targets, imported after this file, hence a target rather than an ItemGroup.
   -->
-  <Target Name="DropWhisperRuntimes" BeforeTargets="AssignTargetPaths" Condition="'$(WhisperRuntimes)' == 'false'">
+  <Target Name="DropWhisperRuntimes" BeforeTargets="AssignTargetPaths" Condition="'$(WhisperRuntimes)' == 'macos'">
     <ItemGroup>
-      <None Remove="@(None)" Condition="$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/'))" />
+      <None Remove="@(None)" Condition="$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/')) And !$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/macos-'))" />
     </ItemGroup>
   </Target>
 

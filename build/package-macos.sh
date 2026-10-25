@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Completes the built LocalTake.app and zips it, for the CI artifact and the release alike: adds the shipped ffmpeg and
-# the licence notices, signs, checks both architectures, zips.
+# Completes the built LocalTake.app and zips it, for the CI artifact and the release alike: adds the shipped ffmpeg, the
+# Whisper model and the licence notices, checks that whisper.cpp is there, signs, checks both architectures, zips.
 #
 # Signing: with MACOS_SIGNING_P12 (a base64 .p12 holding the "LocalTake" self-signed code-signing certificate) and
 # MACOS_SIGNING_PASSWORD, the app is signed with that certificate, which stays the same from one version to the next,
@@ -36,8 +36,17 @@ fail() {
 
 bash "$repo/build/fetch-ffmpeg.sh" macos "$work/ffmpeg"
 cp "$work/ffmpeg/ffmpeg" "$app/Contents/MacOS/ffmpeg"
+# The transcription model, where AppPaths looks first; LocalTake itself never downloads it.
+bash "$repo/build/fetch-whisper-model.sh" "$app/Contents/Resources/models"
 cp "$repo/THIRD-PARTY-NOTICES.md" "$app/Contents/Resources/"
 cp -R "$repo/licenses" "$app/Contents/Resources/"
+
+# whisper.cpp, which Whisper.net loads from runtimes/macos-<arch> next to the assemblies.
+whisper="$app/Contents/MonoBundle/runtimes"
+for arch in arm64 x64; do
+  [ -f "$whisper/macos-$arch/libwhisper.dylib" ] ||
+    fail "no $whisper/macos-$arch/libwhisper.dylib; found: $(find "$app" -name 'libwhisper*' | tr '\n' ' ')"
+done
 
 if [ -n "${MACOS_SIGNING_P12:-}" ]; then
   password=$(uuidgen)
@@ -59,8 +68,9 @@ else
   identity=-
 fi
 
-# The nested executable first, then the app around it.
+# The nested code first, then the app around it.
 codesign --force --sign "$identity" "$app/Contents/MacOS/ffmpeg"
+find "$whisper" -name '*.dylib' -exec codesign --force --sign "$identity" {} \;
 codesign --force --deep --sign "$identity" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 if [ "$identity" != "-" ]; then

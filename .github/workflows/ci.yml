@@ -119,6 +119,25 @@ jobs:
           MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
           MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
         run: bash build/package-macos.sh src/LocalTake.Mac/bin/Release/net10.0-macos/LocalTake.app dist/LocalTake-macos.zip
+      # The packaged app loads whisper.cpp and the model it ships, on both architectures when the runner has Rosetta.
+      # The runner has no Screen Recording permission, so the report fails elsewhere: only its transcription line counts.
+      - name: Check that the packaged app can transcribe
+        run: |
+          check() {
+            out=$("$@" 2>&1 || true)
+            echo "$out"
+            grep -F "[ok]   transcription:" <<< "$out" > /dev/null
+          }
+          rm -rf "$RUNNER_TEMP/app" && mkdir "$RUNNER_TEMP/app"
+          ditto -x -k dist/LocalTake-macos.zip "$RUNNER_TEMP/app"
+          bin="$RUNNER_TEMP/app/LocalTake.app/Contents/MacOS/LocalTake"
+          # macOS has no timeout command.
+          check perl -e 'alarm shift; exec @ARGV' 300 "$bin" --diagnostics
+          if arch -x86_64 /usr/bin/true 2> /dev/null; then
+            check perl -e 'alarm shift; exec @ARGV' 300 arch -x86_64 "$bin" --diagnostics
+          else
+            echo "::warning::No Rosetta on this runner: Whisper's x86_64 library is not checked"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: LocalTake-macos
