@@ -40,7 +40,11 @@ internal sealed class MacHighlightOverlay : IHighlightOverlay
         _view.Points = [.. points];
         _view.NeedsDisplay = true;
         if (!_window.IsVisible)
+        {
+            // Drawn before it shows: the video captures it, and its last stroke must not flash for a frame.
+            _view.Display();
             _window.OrderFrontRegardless();
+        }
     }
 
     public void SetOpacity(double opacity) => _window.AlphaValue = (nfloat)opacity;

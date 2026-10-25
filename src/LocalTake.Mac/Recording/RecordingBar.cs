@@ -202,6 +202,7 @@ internal sealed class RecordingBar : NSPanel
     {
         StopTimer();
         _highlight.Hidden = true;
+        Fit();
         _dot.AlphaValue = 0.35f;
         _status.StringValue = "Finalisation…";
         _stop.Enabled = _cancel.Enabled = false;
@@ -221,13 +222,19 @@ internal sealed class RecordingBar : NSPanel
         _timer = null;
     }
 
-    /// <summary>Sizes the bar to its content, keeping its top edge where it is.</summary>
+    /// <summary>
+    /// Sizes the bar to its content, keeping its top edge where it is, and back inside its screen: placed against the
+    /// right edge, the bar would otherwise push Arrêter and Annuler off screen when the highlight hint appears.
+    /// </summary>
     private CGSize Fit()
     {
         _stack.LayoutSubtreeIfNeeded();
         var size = _stack.FittingSize;
         var frame = Frame;
-        SetFrame(new CGRect(frame.X, frame.Y + frame.Height - size.Height, size.Width, size.Height), true);
+        var x = frame.X;
+        if (Screen?.VisibleFrame is { } visible)
+            x = Math.Max(visible.X, Math.Min(x, visible.X + visible.Width - size.Width));
+        SetFrame(new CGRect(x, frame.Y + frame.Height - size.Height, size.Width, size.Height), true);
         return size;
     }
 
