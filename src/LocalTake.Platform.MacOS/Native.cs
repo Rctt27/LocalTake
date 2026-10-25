@@ -119,3 +119,22 @@ internal static unsafe partial class Carbon
     [LibraryImport(Library)]
     public static partial int GetEventParameter(nint evt, uint name, uint type, nint outActualType, nuint bufferSize, nint outActualSize, void* outData);
 }
+
+/// <summary>The C library: the FIFO through which ffmpeg reads the Mac's sound.</summary>
+internal static partial class Libc
+{
+    private const string Library = "libc";
+
+    public const int O_RDONLY = 0;
+    public const int O_NONBLOCK = 0x0004;
+
+    /// <param name="mode">mode_t, 16 bits on macOS.</param>
+    [LibraryImport(Library, SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int mkfifo(string path, ushort mode);
+
+    [LibraryImport(Library, SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int open(string path, int flags);
+
+    [LibraryImport(Library)]
+    public static partial int close(int fd);
+}
