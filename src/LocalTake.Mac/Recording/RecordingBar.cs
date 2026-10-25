@@ -26,6 +26,7 @@ internal sealed class RecordingBar : NSPanel
     private readonly NSStackView _stack;
     private readonly NSTextField _dot = NSTextField.CreateLabel("●");
     private readonly NSTextField _status = NSTextField.CreateLabel("");
+    private readonly NSTextField _highlight = NSTextField.CreateLabel("");
     private readonly NSButton _microphone;
     private readonly NSPopUpButton _microphoneBox = new(CGRect.Empty, false);
     private readonly NSButton _systemAudio;
@@ -57,6 +58,9 @@ internal sealed class RecordingBar : NSPanel
             _status.Font = font;
         // Wide enough for "Enregistrement  00:00.0", so that the bar does not resize while the counter runs.
         _status.WidthAnchor.ConstraintGreaterThanOrEqualTo(190).Active = true;
+        _highlight.TextColor = NSColor.SecondaryLabel;
+        _highlight.Hidden = true;
+        _highlight.ToolTip = "Une traînée jaune suit la souris tant que le raccourci est maintenu ; elle apparaît dans la vidéo";
         _microphone = Toggle("Micro", Microphone_Changed);
         _systemAudio = Toggle("Son du Mac", SystemAudio_Changed);
         _microphoneBox.ToolTip = "Micro utilisé";
@@ -76,7 +80,7 @@ internal sealed class RecordingBar : NSPanel
         _cancel = NSButton.CreateButton("Annuler", () => CancelRequested?.Invoke(this, EventArgs.Empty));
         _cancel.ToolTip = "Abandonner : rien n'est enregistré";
 
-        _stack = NSStackView.FromViews([_dot, _status, _microphone, _microphoneBox, _systemAudio, _start, _stop, _cancel]);
+        _stack = NSStackView.FromViews([_dot, _status, _highlight, _microphone, _microphoneBox, _systemAudio, _start, _stop, _cancel]);
         _stack.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         _stack.Spacing = 8;
         _stack.EdgeInsets = new NSEdgeInsets(6, 12, 6, 12);
@@ -135,6 +139,7 @@ internal sealed class RecordingBar : NSPanel
         _start.Hidden = false;
         _stop.Hidden = true;
         _start.Enabled = true;
+        _highlight.Hidden = true;
         _audioLocked = false;
         UpdateAudioToggles();
     }
@@ -185,9 +190,18 @@ internal sealed class RecordingBar : NSPanel
         });
     }
 
+    /// <summary>During the recording: the shortcut to hold to highlight, or null when there is none.</summary>
+    public void ShowHighlightShortcut(string? shortcut)
+    {
+        _highlight.StringValue = shortcut is null ? "" : $"Surligner : maintenir {shortcut}";
+        _highlight.Hidden = shortcut is null;
+        Fit();
+    }
+
     public void ShowFinishing()
     {
         StopTimer();
+        _highlight.Hidden = true;
         _dot.AlphaValue = 0.35f;
         _status.StringValue = "Finalisation…";
         _stop.Enabled = _cancel.Enabled = false;

@@ -47,6 +47,8 @@ internal sealed class SettingsWindowController : NSWindowController
     private readonly NSButton _systemAudio = NSButton.CreateCheckbox("Enregistrer le son de l'ordinateur", () => { });
     private readonly NSPopUpButton _frameRate = new(CGRect.Empty, false);
     private readonly HotkeyField[] _hotkeys;
+    private readonly HotkeyField _highlightTrigger;
+    private readonly NSTextField _highlightWarning = Help("Pendant l'enregistrement, cette touche n'écrira plus rien dans les applications.");
     private readonly NSButton _startup = NSButton.CreateCheckbox("Lancer LocalTake à l'ouverture de session", () => { });
     private int _audioLoadGeneration;
 
@@ -82,6 +84,10 @@ internal sealed class SettingsWindowController : NSWindowController
             new(settings.HotkeyRegion), new(settings.HotkeyWindow), new(settings.HotkeyFullScreen), new(settings.HotkeyLastRegion),
             new(settings.HotkeyVideoRegion), new(settings.HotkeyVideoFullScreen), new(settings.HotkeyVideoStart), new(settings.HotkeyVideoStop)
         ];
+        // The highlight trigger is only registered while recording: any key may be held alone, Space included.
+        _highlightTrigger = new HotkeyField(settings.HighlightTrigger) { AllowPlainKey = true };
+        _highlightTrigger.ShortcutChanged += (_, _) => UpdateHighlightWarning();
+        UpdateHighlightWarning();
         _startup.State = context.Startup.IsEnabled ? NSCellStateValue.On : NSCellStateValue.Off;
 
         var window = Window!;
@@ -149,9 +155,11 @@ internal sealed class SettingsWindowController : NSWindowController
             Section("Raccourcis clavier")
         };
         rows.AddRange(hotkeyTitles.Select((title, i) => Row(title, _hotkeys[i])));
+        rows.Add(Row("Surligner (maintenir)", _highlightTrigger));
+        rows.Add(Row("", _highlightWarning));
         rows.Add(Row("", NSButton.CreateButton("Raccourcis par défaut", DefaultHotkeys)));
         rows.Add(Row("", Help("Cliquez dans un champ puis appuyez sur la combinaison. ⌫ : aucun raccourci. " +
-            "Démarrer et Arrêter ne sont actifs que pendant une vidéo.")));
+            "Démarrer, Arrêter et Surligner ne sont actifs que pendant une vidéo ; Surligner se maintient au clavier.")));
         rows.Add(Row("", _startup));
         var buttons = NSStackView.FromViews([cancel, save]);
         buttons.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
@@ -165,7 +173,7 @@ internal sealed class SettingsWindowController : NSWindowController
         form.SetCustomSpacing(16, rows[^2]);
         foreach (var field in new[] { _folder, _pattern, _ffmpeg })
             field.WidthAnchor.ConstraintGreaterThanOrEqualTo(330).Active = true;
-        foreach (var field in _hotkeys)
+        foreach (var field in _hotkeys.Append(_highlightTrigger))
             field.WidthAnchor.ConstraintEqualTo(200).Active = true;
         foreach (var help in new[] { _patternPreview, _ffmpegStatus })
             help.PreferredMaxLayoutWidth = 460;
@@ -294,7 +302,12 @@ internal sealed class SettingsWindowController : NSWindowController
         ];
         for (var i = 0; i < _hotkeys.Length; i++)
             _hotkeys[i].Shortcut = defaults[i];
+        _highlightTrigger.Shortcut = d.HighlightTrigger;
+        UpdateHighlightWarning();
     }
+
+    private void UpdateHighlightWarning() =>
+        _highlightWarning.Hidden = !(HighlightTrigger.TryParse(_highlightTrigger.Shortcut, out var trigger) && trigger.BlocksTyping);
 
     private void Save()
     {
@@ -303,8 +316,8 @@ internal sealed class SettingsWindowController : NSWindowController
             _folder.StringValue, _pattern.StringValue, SelectedFormat(), (int)_quality.IntValue, _copyPath.State == NSCellStateValue.On,
             AfterCaptureChoices[(int)Math.Max(0, _afterCapture.IndexOfSelectedItem)].Action,
             h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7],
-            // Neither the highlight nor the transcription is on macOS yet: their settings are kept as they are.
-            _context.Settings.HighlightTrigger, _ffmpeg.StringValue,
+            // The transcription is not on macOS yet: its settings are kept as they are.
+            _highlightTrigger.Shortcut, _ffmpeg.StringValue,
             _microphone.IndexOfSelectedItem > 0 ? _microphone.TitleOfSelectedItem ?? "" : "",
             _recordMicrophone.State == NSCellStateValue.On, _systemAudio.State == NSCellStateValue.On,
             SettingsForm.FrameRates[(int)Math.Max(0, _frameRate.IndexOfSelectedItem)],

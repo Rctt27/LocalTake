@@ -24,12 +24,20 @@ internal sealed class HotkeyField : NSTextField
         ToolTip = "Cliquez puis appuyez sur la combinaison. ⌫ : aucun raccourci.";
     }
 
+    /// <summary>
+    /// Whether a key may be used alone (Space, a letter): for the highlight, only registered while recording.
+    /// </summary>
+    public bool AllowPlainKey { get; init; }
+
     /// <summary>As settings.json stores it; an older file's Windows names (Alt, Win) are shown with Mac names.</summary>
     public string Shortcut
     {
         get => StringValue;
-        set => StringValue = Hotkey.TryParse(value, out var parsed) ? parsed.Format(HotkeyNaming.MacOS) : value;
+        set => StringValue = Hotkey.TryParse(value, out var parsed, AllowPlainKey) ? parsed.Format(HotkeyNaming.MacOS) : value;
     }
+
+    /// <summary>Raised when the shortcut changes by a key press.</summary>
+    public event EventHandler? ShortcutChanged;
 
     public override bool AcceptsFirstResponder() => true;
 
@@ -75,11 +83,15 @@ internal sealed class HotkeyField : NSTextField
                     return;
                 case Backspace or ForwardDelete:
                     StringValue = "";
+                    ShortcutChanged?.Invoke(this, EventArgs.Empty);
                     return;
             }
         }
-        if (new Hotkey(modifiers, MacKeys.FromKeyCode(code)) is { IsValid: true } hotkey)
+        if (new Hotkey(modifiers, MacKeys.FromKeyCode(code)) is var hotkey && hotkey.Key != KeyCode.None && (hotkey.IsValid || AllowPlainKey))
+        {
             StringValue = hotkey.Format(HotkeyNaming.MacOS);
+            ShortcutChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private static HotkeyModifiers Modifiers(NSEventModifierMask flags) =>
