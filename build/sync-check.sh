@@ -2,7 +2,9 @@
 # Measures the offset between sound and picture in a recording, by hand on a Mac, where the CI cannot record the screen
 # (Windows has SyncTests for it). Play the clip full screen, record it with LocalTake (the Mac's sound only), measure.
 #
-# Usage: sync-check.sh clip <out.mp4>         a 12 s clip: black, with a white flash and a 1 kHz beep together every 2 s
+# Usage: sync-check.sh clip <out.mp4>         a 14 s clip, black, with a white flash and a 1 kHz beep together every 2 s
+#                                             from 2 s to 12 s (black before and after: going full screen or back to the
+#                                             desktop is not taken for a flash)
 #        sync-check.sh measure <recording>    for each flash, the offset of the nearest beep; fails past ±0.1 s
 # ffmpeg: $FFMPEG, else the one on the PATH (on a Mac: /Applications/LocalTake.app/Contents/MacOS/ffmpeg).
 set -euo pipefail
@@ -19,9 +21,9 @@ usage() {
 case "$1" in
   clip)
     "$ffmpeg" -hide_banner -loglevel error -y \
-      -f lavfi -i "color=c=black:s=640x360:r=30:d=12" \
-      -f lavfi -i "sine=f=1000:sample_rate=48000:d=12" \
-      -filter_complex "[0:v]drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='lt(mod(t,2),0.1)'[v];[1:a]volume=volume=0:enable='gte(mod(t,2),0.1)'[a]" \
+      -f lavfi -i "color=c=black:s=640x360:r=30:d=14" \
+      -f lavfi -i "sine=f=1000:sample_rate=48000:d=14" \
+      -filter_complex "[0:v]drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='between(t,1.9,12.1)*lt(mod(t,2),0.1)'[v];[1:a]volume=volume=0:enable='not(between(t,1.9,12.1)*lt(mod(t,2),0.1))'[a]" \
       -map "[v]" -map "[a]" -c:v libx264 -pix_fmt yuv420p -c:a aac "$2"
     echo "Clip written: $2"
     ;;
@@ -43,11 +45,14 @@ case "$1" in
       {
         best = ""
         for (i = 1; i <= n; i++) { d = beep[i] - $1; if (best == "" || (d < 0 ? -d : d) < (best < 0 ? -best : best)) best = d }
+        # A brightening with no beep near it (full screen, the desktop after playback) is not one of the clip flashes.
+        if (best == "" || (best < 0 ? -best : best) > 1) { printf "flash %7.3f s   no beep within 1 s: ignored\n", $1; next }
         printf "flash %7.3f s   beep - flash %+6.3f s\n", $1, best
         sum += best; count++
         if ((best < 0 ? -best : best) > tolerance) bad++
       }
       END {
+        if (count == 0) { print "No flash with its beep: was the clip played with its sound?"; exit 1 }
         printf "mean offset %+6.3f s over %d flashes (tolerance ±%s s)\n", sum / count, count, tolerance
         exit bad > 0
       }' <<< "$flashes"
