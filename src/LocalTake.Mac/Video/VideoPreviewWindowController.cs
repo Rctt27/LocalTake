@@ -58,7 +58,12 @@ internal sealed class VideoPreviewWindowController : NSWindowController
         _subtitles.StatusChanged += UpdateGenerateButton;
         _subtitles.CueShown += ShowCue;
 
-        _playerView = new SeekingPlayerView { ControlsStyle = AVPlayerViewControlsStyle.Floating, ShowsFullScreenToggleButton = true };
+        _playerView = new SeekingPlayerView
+        {
+            ControlsStyle = AVPlayerViewControlsStyle.Floating,
+            ShowsFullScreenToggleButton = true,
+            Subtitles = _subtitles
+        };
         _playerView.JumpRequested += direction => Seek(direction < 0
             ? PlayerSeek.Back(Position)
             : PlayerSeek.Forward(Position, Duration));
@@ -113,6 +118,8 @@ internal sealed class VideoPreviewWindowController : NSWindowController
 
         window.WillClose += (_, _) =>
         {
+            // A subtitle still being typed is committed, and saved below.
+            window.MakeFirstResponder(null);
             Release();
             _subtitles.Close(discard: false);
             // Never used: the subtitles were not asked for.
@@ -166,13 +173,6 @@ internal sealed class VideoPreviewWindowController : NSWindowController
     /// <summary>Escape closes the window, as on Windows.</summary>
     [Export("cancelOperation:")]
     public void CancelOperation(NSObject? sender) => Window?.PerformClose(sender);
-
-    /// <summary>⌘Z in the subtitles; while a field is being edited, the field's own undo comes first.</summary>
-    [Export("undo:")]
-    public void Undo(NSObject? sender) => _subtitles.Undo();
-
-    [Export("redo:")]
-    public void Redo(NSObject? sender) => _subtitles.Redo();
 
     /// <summary>
     /// Sends the video to the Trash, with its subtitles, and closes the window; its transcription stops. Returns false,
@@ -254,10 +254,17 @@ internal sealed class VideoPreviewWindowController : NSWindowController
         _transcriptShown = true;
         _panel.WidthAnchor.ConstraintGreaterThanOrEqualTo(220).Active = true;
         _split.InsertArrangedSubview(_panel, 0);
+        // The panel keeps its width when the window is resized: the video takes the rest, as on Windows.
+        _split.SetHoldingPriority(260, 0);
         if (Window is { } window)
         {
             var frame = window.Frame;
-            window.SetFrame(new CGRect(frame.X, frame.Y, frame.Width + TranscriptWidth, frame.Height), true);
+            window.SetFrame(new CGRect(frame.X, frame.Y, frame.Width + TranscriptWidth, frame.Height), window.IsVisible);
+            // Not shown yet (the subtitles came with the recording): it opens centred, wider.
+            if (!window.IsVisible)
+                window.Center();
+            // The divider only moves once the split view has its size.
+            window.ContentView?.LayoutSubtreeIfNeeded();
         }
         _split.SetPositionOfDivider(TranscriptWidth, 0);
     }

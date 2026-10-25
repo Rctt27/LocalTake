@@ -1,11 +1,14 @@
 using AppKit;
 using AVKit;
+using Foundation;
+using LocalTake.Core.Transcription;
 
 namespace LocalTake.Mac.Video;
 
 /// <summary>
 /// macOS's player view, with LocalTake's keys: ← and → jump 5 seconds (instead of a frame), Home goes back to the
-/// start. Space, full screen and the rest stay the player's own.
+/// start. Space, full screen and the rest stay the player's own. It has the keyboard whenever no subtitle is being
+/// typed, so ⌘Z and ⇧⌘Z come here for the subtitles: the window would otherwise take them for its own, empty, undo.
 /// </summary>
 internal sealed class SeekingPlayerView : AVPlayerView
 {
@@ -16,6 +19,9 @@ internal sealed class SeekingPlayerView : AVPlayerView
 
     /// <summary>← (-1), → (+1).</summary>
     public event Action<int>? JumpRequested;
+
+    /// <summary>The subtitles that ⌘Z and ⇧⌘Z undo and redo.</summary>
+    public SubtitleEditor? Subtitles { get; set; }
 
     public event Action? HomeRequested;
 
@@ -42,6 +48,20 @@ internal sealed class SeekingPlayerView : AVPlayerView
         }
         base.KeyDown(theEvent);
     }
+
+    [Export("undo:")]
+    public void Undo(NSObject? sender) => Subtitles?.Undo();
+
+    [Export("redo:")]
+    public void Redo(NSObject? sender) => Subtitles?.Redo();
+
+    [Export("validateMenuItem:")]
+    public bool ValidateMenu(NSMenuItem item) => item.Action?.Name switch
+    {
+        "undo:" => Subtitles?.CanUndo == true,
+        "redo:" => Subtitles?.CanRedo == true,
+        _ => true
+    };
 
     public override void Layout()
     {

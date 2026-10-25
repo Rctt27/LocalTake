@@ -344,8 +344,24 @@ public sealed class SubtitleEditorTests : IDisposable
     {
         _editor.Load(Video, null);
 
+        _editor.CanUndo.ShouldBeFalse();
         _editor.Undo().ShouldBeFalse();
         _editor.Redo().ShouldBeFalse();
+    }
+
+    /// <summary>For the menu's Annuler and Rétablir, enabled only when they would do something.</summary>
+    [Fact]
+    public void Undo_and_redo_say_when_they_can_act()
+    {
+        LoadSaved();
+        _editor.CanUndo.ShouldBeFalse();
+
+        _editor.CommitText(0, "Un !");
+        _editor.CanUndo.ShouldBeTrue();
+        _editor.CanRedo.ShouldBeFalse();
+
+        _editor.Undo();
+        _editor.CanRedo.ShouldBeTrue();
     }
 
     [Fact]

@@ -146,6 +146,10 @@ public sealed class SubtitleEditor(SubtitleFile file, Transcriptions transcripti
     /// <returns>The new cue's index, or -1 when the gap has no room for one.</returns>
     public int AddInGap(GapEntry gap) => _document?.AddInGap(gap) ?? -1;
 
+    public bool CanUndo => _document?.History.CanUndo == true;
+
+    public bool CanRedo => _document?.History.CanRedo == true;
+
     public bool Undo() => _document?.History.Undo() == true;
 
     public bool Redo() => _document?.History.Redo() == true;
