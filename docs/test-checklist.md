@@ -163,6 +163,9 @@ Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"
 - [ ] Silence : 10 s enregistrées sans rien jouer, avec le micro et le son du Mac : la piste dure autant que la vidéo et la voix garde son niveau.
 - [ ] Capture du son en échec (le journal `~/Library/Logs/LocalTake` le dit) : la vidéo s'enregistre quand même, avec un son du Mac muet de la durée de la vidéo.
 - [ ] Le cadre rouge et la barre n'apparaissent pas dans la vidéo.
+- [ ] Surlignage : pendant l'enregistrement (pas avant ni après), la barre montre « Surligner : maintenir Option+Space ». Maintenir `Option+Espace` en survolant un bouton : une traînée jaune translucide suit la souris, rien n'est tapé dans l'application ; au relâchement, elle reste 0,3 s puis s'estompe. Relâcher Option avant Espace : fondu immédiat.
+- [ ] Dans le MP4 : la traînée et son fondu sont visibles ; avec deux écrans d'échelles différentes, la traînée est sous la souris sur l'écran enregistré.
+- [ ] Réglages : le champ « Surligner (maintenir) » prend une autre combinaison, accepte `Espace` seul (avec l'avertissement), et « Raccourcis par défaut » remet `Option+Space`.
 - [ ] « Enregistrer une vidéo (tout l'écran) » dans le menu ; puis, avec un second écran, une vidéo d'une zone sur le second écran : c'est bien cet écran qui est filmé.
 - [ ] `Ctrl+Maj+R` démarre (compte à rebours 3, 2, 1), `Ctrl+Maj+D` arrête ; « Annuler » n'enregistre rien.
 - [ ] La vidéo s'ouvre dans la fenêtre d'aperçu et se lit dedans (survol de la barre de temps : aperçu des images ; plein écran) ; `Échap` ferme.
