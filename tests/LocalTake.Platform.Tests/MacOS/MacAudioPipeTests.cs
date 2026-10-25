@@ -77,6 +77,19 @@ public sealed class MacAudioPipeTests : IDisposable
         bytes.Count(b => b == 7).ShouldBe(480 * Format.BlockAlign);
     }
 
+    /// <summary>A failing handler (ScreenCaptureKit refusing to start) must not leave ffmpeg waiting on an empty pipe.</summary>
+    [Fact]
+    public async Task A_throwing_opened_handler_still_feeds_the_pipe()
+    {
+        using var pipe = NewPipe();
+        pipe.Opened += () => throw new InvalidOperationException("capture refused");
+        await using var reader = await OpenAsync(pipe);
+
+        var bytes = await ReadForAsync(reader, TimeSpan.FromSeconds(0.6));
+
+        bytes.ShouldNotBeEmpty();
+    }
+
     [Fact]
     public async Task An_idle_pipe_is_padded_with_silence()
     {
