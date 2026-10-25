@@ -42,6 +42,29 @@ public static class MacScreenSpace
             laidOut.Y + Round((screen.Y + screen.Height - pointY) * screen.Scale));
     }
 
+    /// <summary>
+    /// A point in Cocoa's global coordinates (the mouse, for instance) as a pixel of the layout, at the scale of the
+    /// screen holding it, or of the nearest one when it lies on none.
+    /// </summary>
+    public static PixelPoint PointToPixel(IReadOnlyList<ScreenFrame> screens, IReadOnlyList<PixelRect> layout, double pointX, double pointY)
+    {
+        ArgumentNullException.ThrowIfNull(screens);
+        ArgumentNullException.ThrowIfNull(layout);
+        static double Distance(double value, double from, double length) =>
+            value < from ? from - value : value > from + length ? value - from - length : 0;
+        var index = 0;
+        var best = double.MaxValue;
+        for (var i = 0; i < screens.Count; i++)
+        {
+            var s = screens[i];
+            double dx = Distance(pointX, s.X, s.Width), dy = Distance(pointY, s.Y, s.Height);
+            var distance = dx * dx + dy * dy;
+            if (distance < best)
+                (best, index) = (distance, i);
+        }
+        return ToPixel(screens[index], layout[index], pointX, pointY);
+    }
+
     /// <summary>A rectangle of the layout, on <paramref name="screen"/>, as a Cocoa frame in points.</summary>
     /// <param name="laidOut">The screen's rectangle from <see cref="Layout"/>.</param>
     /// <returns>The frame, with the screen's scale.</returns>

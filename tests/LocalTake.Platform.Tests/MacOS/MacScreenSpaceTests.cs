@@ -12,6 +12,30 @@ public sealed class MacScreenSpaceTests
 {
     private static readonly ScreenFrame Main = new(0, 0, 1440, 900, 2);
 
+    /// <summary>The main screen at 2×, a second one at 1× on its right.</summary>
+    private static readonly ScreenFrame[] TwoScreens = [Main, new ScreenFrame(1440, 0, 1920, 1080, 1)];
+
+    [Fact]
+    public void A_point_on_the_main_screen_is_scaled_from_the_top_left() =>
+        MacScreenSpace.PointToPixel(TwoScreens, MacScreenSpace.Layout(TwoScreens), 100, 800).ShouldBe(new PixelPoint(200, 200));
+
+    [Fact]
+    public void A_point_on_the_second_screen_uses_its_scale()
+    {
+        var layout = MacScreenSpace.Layout(TwoScreens);
+        MacScreenSpace.PointToPixel(TwoScreens, layout, 1540, 980)
+            .ShouldBe(MacScreenSpace.ToPixel(TwoScreens[1], layout[1], 1540, 980));
+    }
+
+    [Fact]
+    public void A_point_off_every_screen_uses_the_nearest()
+    {
+        var layout = MacScreenSpace.Layout(TwoScreens);
+        MacScreenSpace.PointToPixel(TwoScreens, layout, -50, 450).ShouldBe(MacScreenSpace.ToPixel(Main, layout[0], -50, 450));
+        MacScreenSpace.PointToPixel(TwoScreens, layout, 3500, 1000)
+            .ShouldBe(MacScreenSpace.ToPixel(TwoScreens[1], layout[1], 3500, 1000));
+    }
+
     [Fact]
     public void Single_retina_screen() =>
         MacScreenSpace.Layout([new ScreenFrame(0, 0, 1512, 982, 2)]).ShouldBe([new PixelRect(0, 0, 3024, 1964)]);
