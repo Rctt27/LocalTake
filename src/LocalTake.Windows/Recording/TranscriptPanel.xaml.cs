@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using LocalTake.Adapters;
 using LocalTake.Core.Transcription;
 
 namespace LocalTake;
@@ -15,7 +13,8 @@ namespace LocalTake;
 /// <summary>
 /// The subtitles beside the video, cue by cue with the gaps between them, text and times editable. The row at the
 /// playing position is highlighted and kept in the middle, so that the panel always shows the place being played: a
-/// cue, or the gap between two. Every change is saved to the .srt shortly after.
+/// cue, or the gap between two. The rules (transcription, edits, saving to the .srt) are <see cref="SubtitleEditor"/>'s;
+/// the panel draws its rows.
 /// </summary>
 public partial class TranscriptPanel : UserControl
 {
@@ -28,18 +27,8 @@ public partial class TranscriptPanel : UserControl
     private static readonly Brush DimBrush = Frozen("#8A8A8A");
     private static readonly Brush NoticeBrush = Frozen("#F2C14E");
 
-    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private string _videoPath = "";
-    private SubtitleFile? _file;
-    private Transcriptions? _transcriptions;
-    private TranscriptionJob? _job;
-    private SubtitleDocument? _document;
-    private TimeSpan _duration;
-    private TimeSpan _position;
-    private IReadOnlyList<TimelineEntry> _timeline = [];
+    private SubtitleEditor? _editor;
     private int _active = -1;
-    private string? _saveError;
-    private string? _shownCue;
     private bool _centerPending;
 
     /// <summary>Set while a click in the panel moves the video: that row is under the mouse, it is not scrolled away.</summary>
@@ -48,7 +37,6 @@ public partial class TranscriptPanel : UserControl
     public TranscriptPanel()
     {
         InitializeComponent();
-        _saveTimer.Tick += (_, _) => Save();
     }
 
     /// <summary>A row clicked or a field entered: the video goes to that place.</summary>
@@ -64,207 +52,83 @@ public partial class TranscriptPanel : UserControl
     public event Action? SubtitlesChanged;
 
     /// <summary>Whether there is anything to show: a transcription, or subtitles saved earlier.</summary>
-    internal bool HasSubtitles => _job is not null || _document is not null;
+    internal bool HasSubtitles => _editor?.HasSubtitles == true;
 
     /// <summary>
     /// Whether the video has no subtitles to show and none on the way: "Générer les sous-titres" is offered then. After a
     /// failure, the panel's "Réessayer" is.
     /// </summary>
-    internal bool CanGenerate =>
-        _job?.State is null or TranscriptionState.Done or TranscriptionState.Canceled && (_document?.Cues.Count ?? 0) == 0;
+    internal bool CanGenerate => _editor?.CanGenerate ?? true;
 
     /// <summary>Whether a field of the panel has the keyboard: keys then type text instead of driving the player.</summary>
     internal bool IsEditing => Keyboard.FocusedElement is TextBox box && IsAncestorOf(box);
 
     /// <summary>The subtitles as they stand, for the tests and the owner.</summary>
-    internal IReadOnlyList<SubtitleCue> Cues => _document?.Cues ?? [];
+    internal IReadOnlyList<SubtitleCue> Cues => _editor?.Cues ?? [];
 
     /// <param name="job">The transcription under way, or null to show the .srt already next to the video, if any.</param>
     internal void Load(string videoPath, SubtitleFile file, Transcriptions transcriptions, TranscriptionJob? job)
     {
-        _videoPath = videoPath;
-        _file = file;
-        _transcriptions = transcriptions;
-        if (job is not null)
+        var editor = _editor = new SubtitleEditor(file, transcriptions, TimeProvider.System, new DispatcherUiThread(Dispatcher));
+        editor.TimelineChanged += Sync;
+        editor.ActiveChanged += OnActiveChanged;
+        editor.StatusChanged += () =>
         {
-            Attach(job);
-            return;
-        }
-        try
-        {
-            // An empty file is no subtitles: the player offers to generate them.
-            if (file.Load(videoPath) is { Cues.Count: > 0 } saved)
-                SetDocument(saved);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Unreadable subtitles: the video plays without them.
-        }
+            UpdateStatus();
+            SubtitlesChanged?.Invoke();
+        };
+        editor.CueShown += text => CueShown?.Invoke(text);
+        editor.Load(videoPath, job);
+        UpdateStatus();
     }
 
     /// <summary>"Générer les sous-titres": transcribes the video, from its microphone track when it was kept.</summary>
     /// <param name="microphoneTrack">The track recorded with the video, or null to transcribe the video's own sound.</param>
-    internal void Generate(string? microphoneTrack)
-    {
-        if (_transcriptions is null)
-            return;
-        Attach(_transcriptions.Enqueue(_videoPath, microphoneTrack));
-    }
-
-    /// <summary>Follows a transcription; subtitles without any cue, from an earlier one, make way for its result.</summary>
-    private void Attach(TranscriptionJob job)
-    {
-        if (_job is not null)
-            _job.Changed -= OnJobChanged;
-        if (_document is { Cues.Count: 0 } empty)
-        {
-            empty.Changed -= OnDocumentChanged;
-            _document = null;
-            _timeline = [];
-            _active = -1;
-            Rows.Children.Clear();
-            ShowCue();
-        }
-        _job = job;
-        job.Changed += OnJobChanged;
-        OnJobChanged(job, EventArgs.Empty);
-    }
+    internal void Generate(string? microphoneTrack) => _editor?.Generate(microphoneTrack);
 
     /// <param name="discard">The video is deleted: its transcription stops and nothing more is saved.</param>
-    internal void Close(bool discard)
-    {
-        if (_job is not null)
-        {
-            _job.Changed -= OnJobChanged;
-            if (discard)
-                _transcriptions?.Cancel(_job);
-        }
-        if (discard)
-            _saveTimer.Stop();
-        else if (_saveTimer.IsEnabled)
-            Save();
-        if (_document is not null)
-            _document.Changed -= OnDocumentChanged;
-    }
+    internal void Close(bool discard) => _editor?.Close(discard);
 
     /// <summary>The video's length, once the player knows it: the last gap runs to it.</summary>
-    internal void SetDuration(TimeSpan duration)
-    {
-        _duration = duration;
-        Sync(center: true);
-    }
+    internal void SetDuration(TimeSpan duration) => _editor?.SetDuration(duration);
 
     /// <summary>The playing position: its cue, or the gap it falls in, is highlighted and brought to the middle.</summary>
-    internal void ShowPosition(TimeSpan position)
-    {
-        _position = position;
-        UpdateActive(center: !_seekingFromPanel);
-    }
+    internal void ShowPosition(TimeSpan position) => _editor?.ShowPosition(position);
 
-    internal bool Undo() => _document?.History.Undo() == true;
+    internal bool Undo() => _editor?.Undo() == true;
 
-    internal bool Redo() => _document?.History.Redo() == true;
+    internal bool Redo() => _editor?.Redo() == true;
 
-    // ---- Transcription and document ------------------------------------------------------------------------
-
-    private void OnJobChanged(object? sender, EventArgs e)
-    {
-        var job = _job!;
-        Progress.Visibility = job.State == TranscriptionState.Running ? Visibility.Visible : Visibility.Collapsed;
-        Progress.Value = job.Progress;
-        RetryButton.Visibility = job.State == TranscriptionState.Failed ? Visibility.Visible : Visibility.Collapsed;
-        switch (job.State)
-        {
-            case TranscriptionState.Waiting:
-                StatusText.Text = "Transcription en attente : elle commence après la transcription ou l'enregistrement en cours.";
-                break;
-            case TranscriptionState.Running:
-                StatusText.Text = "Transcription du micro… " + job.Progress.ToString("P0", CultureInfo.CurrentCulture);
-                break;
-            case TranscriptionState.Failed:
-                StatusText.Text = job.Error;
-                break;
-            case TranscriptionState.Canceled:
-                StatusText.Text = "Transcription annulée.";
-                break;
-            case TranscriptionState.Done when _document is null:
-                SetDocument(new SubtitleDocument(job.Cues));
-                break;
-        }
-        SubtitlesChanged?.Invoke();
-    }
-
-    private void SetDocument(SubtitleDocument document)
-    {
-        _document = document;
-        document.Changed += OnDocumentChanged;
-        Sync(center: true);
-        UpdateStatus();
-        SubtitlesChanged?.Invoke();
-    }
-
-    private void OnDocumentChanged(object? sender, EventArgs e)
-    {
-        Sync(center: false);
-        UpdateStatus();
-        _saveTimer.Stop();
-        _saveTimer.Start();
-        SubtitlesChanged?.Invoke();
-    }
+    // ---- Status --------------------------------------------------------------------------------------------
 
     private void UpdateStatus()
     {
-        if (_document is null)
+        if (_editor is null)
             return;
-        var count = _document.Cues.Count;
-        StatusText.Text = (count switch
-        {
-            0 => "Aucune parole détectée. Ajoutez des sous-titres avec « Ajouter » dans la liste.",
-            1 => "1 sous-titre",
-            _ => $"{count} sous-titres"
-        }) + (_saveError is null ? "" : "\n" + _saveError);
-        StatusText.Foreground = _saveError is null ? DimBrush : ErrorBrush;
+        var status = _editor.Status;
+        StatusText.Text = status.Text;
+        StatusText.Foreground = status.IsError ? ErrorBrush : DimBrush;
+        Progress.Visibility = status.ShowsProgress ? Visibility.Visible : Visibility.Collapsed;
+        Progress.Value = status.Progress;
+        RetryButton.Visibility = status.CanRetry ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void Save()
-    {
-        _saveTimer.Stop();
-        if (_document is null || _file is null)
-            return;
-        try
-        {
-            _file.Save(_videoPath, _document.Cues);
-            _saveError = null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _saveError = "Les sous-titres n'ont pas pu être enregistrés : " + ex.Message;
-        }
-        UpdateStatus();
-    }
-
-    private void Retry_Click(object sender, RoutedEventArgs e)
-    {
-        if (_job is not null)
-            _transcriptions?.Retry(_job);
-    }
+    private void Retry_Click(object sender, RoutedEventArgs e) => _editor?.Retry();
 
     // ---- Rows ----------------------------------------------------------------------------------------------
 
     /// <summary>
     /// Makes the rows match the timeline. Cue rows are updated in place and only gap rows come and go, so that the
-    /// field being edited keeps its row, and the keyboard.
+    /// field being edited keeps its row, and the keyboard. The editor then says which row is active.
     /// </summary>
     private void Sync(bool center)
     {
-        if (_document is null)
-            return;
-        _timeline = _document.Timeline(_duration);
+        var timeline = _editor?.Timeline ?? [];
         var rows = Rows.Children;
-        for (var i = 0; i < _timeline.Count; i++)
+        for (var i = 0; i < timeline.Count; i++)
         {
             var existing = i < rows.Count ? rows[i] : null;
-            if (_timeline[i] is CueEntry cue)
+            if (timeline[i] is CueEntry cue)
             {
                 if (existing is GapRow)
                 {
@@ -276,7 +140,7 @@ public partial class TranscriptPanel : UserControl
                 else
                     rows.Insert(i, NewCueRow(cue));
             }
-            else if (_timeline[i] is GapEntry gap)
+            else if (timeline[i] is GapEntry gap)
             {
                 if (existing is GapRow gapRow)
                     gapRow.Show(gap);
@@ -284,13 +148,12 @@ public partial class TranscriptPanel : UserControl
                     rows.Insert(i, NewGapRow(gap));
             }
         }
-        while (rows.Count > _timeline.Count)
+        while (rows.Count > timeline.Count)
             rows.RemoveAt(rows.Count - 1);
 
         foreach (UIElement row in rows)
             SetActive(row, false);
         _active = -1;
-        UpdateActive(center);
     }
 
     private CueRow NewCueRow(CueEntry entry)
@@ -300,14 +163,14 @@ public partial class TranscriptPanel : UserControl
         foreach (var box in new[] { row.StartBox, row.EndBox, row.TextBox })
             box.GotKeyboardFocus += (_, _) => OnFieldEntered(row.Entry.Start);
 
-        row.StartBox.LostKeyboardFocus += (_, _) => CommitTime(row, row.StartBox, row.Entry.Start, t => _document!.SetStart(row.Index, t));
-        row.EndBox.LostKeyboardFocus += (_, _) => CommitTime(row, row.EndBox, row.Entry.End, t => _document!.SetEnd(row.Index, t));
+        row.StartBox.LostKeyboardFocus += (_, _) => CommitTime(row, row.StartBox, row.Entry.Start, (i, t) => _editor!.CommitStart(i, t));
+        row.EndBox.LostKeyboardFocus += (_, _) => CommitTime(row, row.EndBox, row.Entry.End, (i, t) => _editor!.CommitEnd(i, t));
         row.TextBox.LostKeyboardFocus += (_, _) => CommitText(row);
         row.StartBox.PreviewKeyDown += (_, e) => OnFieldKey(row, e, allowNewLine: false);
         row.EndBox.PreviewKeyDown += (_, e) => OnFieldKey(row, e, allowNewLine: false);
         row.TextBox.PreviewKeyDown += (_, e) => OnFieldKey(row, e, allowNewLine: true);
 
-        row.DeleteButton.Click += (_, _) => _document?.Remove(row.Index);
+        row.DeleteButton.Click += (_, _) => _editor?.Remove(row.Index);
         row.MouseLeftButtonDown += (_, _) => SeekFromPanel(row.Entry.Start);
         return row;
     }
@@ -318,7 +181,7 @@ public partial class TranscriptPanel : UserControl
         row.Show(entry);
         row.AddButton.Click += (_, _) =>
         {
-            if (_document?.AddInGap(row.Entry) is { } index and >= 0)
+            if (_editor?.AddInGap(row.Entry) is { } index and >= 0)
                 FocusText(index);
         };
         row.MouseLeftButtonDown += (_, _) => SeekFromPanel(row.Entry.Start);
@@ -378,22 +241,17 @@ public partial class TranscriptPanel : UserControl
         Window.GetWindow(this)?.Focus();
     }
 
-    private void CommitTime(CueRow row, TextBox box, TimeSpan current, Func<TimeSpan, string?> apply)
+    private void CommitTime(CueRow row, TextBox box, TimeSpan current, Func<int, string, string?> commit)
     {
-        if (_document is null || row.Index >= _document.Cues.Count)
+        if (_editor is null || row.Index >= _editor.Cues.Count)
             return;
-        if (!Timecode.TryParse(box.Text, out var time))
-        {
-            row.ShowError("Temps illisible : écrivez-le par exemple 01:02.345.");
-            row.Show(row.Entry, force: true);
-            return;
-        }
-        if (time == current)
+        // The same time, written otherwise: shown as the cue has it, and an earlier refusal stays explained.
+        if (Timecode.TryParse(box.Text, out var time) && time == current)
         {
             row.Show(row.Entry, force: true);
             return;
         }
-        var error = apply(time);
+        var error = commit(row.Index, box.Text);
         row.ShowError(error);
         if (error is not null)
             row.Show(row.Entry, force: true);
@@ -401,42 +259,23 @@ public partial class TranscriptPanel : UserControl
 
     private void CommitText(CueRow row)
     {
-        if (_document is null || row.Index >= _document.Cues.Count)
-            return;
-        if (!_document.SetText(row.Index, row.TextBox.Text))
+        if (_editor?.CommitText(row.Index, row.TextBox.Text) == false)
             row.Show(row.Entry, force: true);
     }
 
     // ---- Following the video -------------------------------------------------------------------------------
 
-    private void UpdateActive(bool center)
+    private void OnActiveChanged(bool center)
     {
-        var index = SubtitleDocument.IndexAt(_timeline, _position);
-        if (index != _active && index < Rows.Children.Count)
-        {
-            if (_active >= 0 && _active < Rows.Children.Count)
-                SetActive(Rows.Children[_active], false);
-            _active = index;
-            if (index >= 0)
-            {
-                SetActive(Rows.Children[index], true);
-                if (center)
-                    CenterActive();
-            }
-        }
-        ShowCue();
-    }
-
-    /// <summary>Tells the player when the cue to show changes: another one, an edited text, or a gap.</summary>
-    private void ShowCue()
-    {
-        var text = _active >= 0 && _active < _timeline.Count && _timeline[_active] is CueEntry { Cue.Text: { Length: > 0 } cueText }
-            ? cueText
-            : null;
-        if (text == _shownCue)
+        var rows = Rows.Children;
+        if (_active >= 0 && _active < rows.Count)
+            SetActive(rows[_active], false);
+        _active = _editor?.ActiveIndex ?? -1;
+        if (_active < 0 || _active >= rows.Count)
             return;
-        _shownCue = text;
-        CueShown?.Invoke(text);
+        SetActive(rows[_active], true);
+        if (center && !_seekingFromPanel)
+            CenterActive();
     }
 
     private static void SetActive(UIElement row, bool active)
