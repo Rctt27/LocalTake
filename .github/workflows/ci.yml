@@ -75,6 +75,12 @@ jobs:
           echo "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin" > ggml-tiny.bin.sha256
           if command -v sha256sum > /dev/null; then sha256sum -c ggml-tiny.bin.sha256; else shasum -a 256 -c ggml-tiny.bin.sha256; fi
           echo "LOCALTAKE_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
+      # The Mac's sync is measured by hand with this script: its clip, measured against itself, must be in sync.
+      - name: Self-test of the sync check
+        if: runner.os == 'macOS'
+        run: |
+          bash build/sync-check.sh clip "$RUNNER_TEMP/sync.mp4"
+          bash build/sync-check.sh measure "$RUNNER_TEMP/sync.mp4"
       - name: Core tests with coverage
         run: dotnet test --project tests/LocalTake.Core.Tests -c Release --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
       - name: Core coverage of at least 90 %

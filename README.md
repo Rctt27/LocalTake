@@ -60,7 +60,7 @@ Les sous-titres sont enregistrés à chaque modification dans un fichier `.srt` 
 
 ffmpeg, qui encode les vidéos, est livré avec LocalTake (version épinglée ; LocalTake ne télécharge rien). Un autre ffmpeg peut être indiqué dans les réglages. Le son de l'ordinateur :
 - Windows : capté directement depuis la sortie audio par défaut, sans pilote à installer ;
-- macOS : il passe pour l'instant par BlackHole (`brew install blackhole-2ch`), avec un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
+- macOS : capté directement par LocalTake (ScreenCaptureKit), sans pilote à installer ; il demande l'autorisation Enregistrement de l'écran, déjà nécessaire pour la vidéo.
 
 ## Fichiers
 

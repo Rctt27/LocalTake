@@ -154,12 +154,13 @@ Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"
 
 ### Étape 5 : vidéo
 
-Prérequis : pour le son de l'ordinateur (jusqu'à la capture sans pilote), `brew install blackhole-2ch`, puis un « Périphérique à sorties multiples » (Configuration audio et MIDI) qui envoie le son à la fois aux haut-parleurs et à BlackHole.
-
 - [ ] Avec deux écrans : `open -a LocalTake --args --diagnostics` ; la ligne « screens » de `diagnostics.txt` liste les écrans dans l'ordre où ffmpeg les numérote (« Capture screen 0 », « 1 »…, visibles avec `/Applications/LocalTake.app/Contents/MacOS/ffmpeg -f avfoundation -list_devices true -i ""`).
 - [ ] `Ctrl+Maj+4` (vidéo d'une zone) : la zone se choisit comme une capture ; un cadre rouge l'entoure ; la barre apparaît dessous (ou dessus), se déplace en la glissant, et ne prend pas le clavier à l'application filmée.
 - [ ] Première vidéo avec le micro : macOS demande l'autorisation Micro pour LocalTake ; la vidéo contient la voix, jusqu'au dernier mot avant « Arrêter ».
-- [ ] Avec BlackHole : le bouton « Son du Mac » est actif et le son de l'ordinateur est dans la vidéo ; sans BlackHole, il est grisé et son info-bulle dit quoi installer.
+- [ ] Son du Mac sans pilote : sur un Mac sans BlackHole, le bouton « Son du Mac » est actif ; une vidéo ou une musique jouée pendant l'enregistrement s'entend dans le MP4.
+- [ ] Synchronisation du son du Mac : `FFMPEG=/Applications/LocalTake.app/Contents/MacOS/ffmpeg bash build/sync-check.sh clip ~/Desktop/sync.mp4` (depuis le dépôt), lire `sync.mp4` en plein écran dans QuickTime, l'enregistrer avec LocalTake (vidéo de tout l'écran, son du Mac seul, micro coupé), puis `FFMPEG=… bash build/sync-check.sh measure <la vidéo>` : chaque écart est dans ±0,1 s. Sinon, noter l'écart moyen affiché et le signaler.
+- [ ] Silence : 10 s enregistrées sans rien jouer, avec le micro et le son du Mac : la piste dure autant que la vidéo et la voix garde son niveau.
+- [ ] Capture du son en échec (le journal `~/Library/Logs/LocalTake` le dit) : la vidéo s'enregistre quand même, avec un son du Mac muet de la durée de la vidéo.
 - [ ] Le cadre rouge et la barre n'apparaissent pas dans la vidéo.
 - [ ] « Enregistrer une vidéo (tout l'écran) » dans le menu ; puis, avec un second écran, une vidéo d'une zone sur le second écran : c'est bien cet écran qui est filmé.
 - [ ] `Ctrl+Maj+R` démarre (compte à rebours 3, 2, 1), `Ctrl+Maj+D` arrête ; « Annuler » n'enregistre rien.
@@ -173,6 +174,6 @@ Prérequis : pour le son de l'ordinateur (jusqu'à la capture sans pilote), `bre
 - [ ] Saisie d'un raccourci avec `Cmd` et `Option` : le champ affiche par exemple `Ctrl+Option+Cmd+K` ; `⌫` le vide ; `Tab` passe au champ suivant.
 - [ ] Un raccourci attribué deux fois est refusé avec un message ; un dossier relatif (`Captures`) aussi.
 - [ ] « Parcourir… » pour le dossier et pour ffmpeg ; le statut d'ffmpeg dit « Détecté : … » quand le champ est vide.
-- [ ] La liste des micros est remplie ; « Enregistrer le son de l'ordinateur » est grisé sans BlackHole.
+- [ ] La liste des micros est remplie (sans BlackHole s'il est installé) ; « Enregistrer le son de l'ordinateur » est actif, sans pilote.
 - [ ] « Lancer LocalTake à l'ouverture de session » : LocalTake apparaît dans Réglages Système > Général > Ouverture, se lance après redémarrage, puis disparaît une fois la case décochée. (Si macOS refuse, le message s'affiche et le reste est enregistré.)
 - [ ] Après « Enregistrer », les nouveaux raccourcis marchent et s'affichent dans le menu ; les réglages sont conservés après relance.
