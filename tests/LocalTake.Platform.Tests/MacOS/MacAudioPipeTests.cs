@@ -85,9 +85,11 @@ public sealed class MacAudioPipeTests : IDisposable
 
         var bytes = await ReadForAsync(reader, TimeSpan.FromSeconds(1.5));
 
-        var expected = (1.5 - AudioTimeline.Slack.TotalSeconds) * Format.SampleRate * Format.BlockAlign;
-        var tolerance = 0.06 * Format.SampleRate * Format.BlockAlign;
-        ((double)bytes.Length).ShouldBeInRange(expected - tolerance, expected + tolerance);
+        // Never more than the clock allows; a little less at the end of the window, where the last 20 ms tick and the
+        // cancelled read fall on a busy runner (the length over a whole recording is checked by ffmpeg_reads_the_pipe).
+        var bytesPerSecond = (double)Format.SampleRate * Format.BlockAlign;
+        var expected = (1.5 - AudioTimeline.Slack.TotalSeconds) * bytesPerSecond;
+        ((double)bytes.Length).ShouldBeInRange(expected - 0.15 * bytesPerSecond, expected + 0.06 * bytesPerSecond);
         bytes.ShouldAllBe(b => b == 0);
     }
 
