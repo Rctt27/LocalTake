@@ -41,6 +41,16 @@ public sealed class MacAudioPipe : IDisposable
 
     public PipedAudio Input { get; }
 
+    /// <summary>Packets whose time was too far from the stream's to be believed (<see cref="AudioTimeline.Reanchors"/>).</summary>
+    public int Reanchors
+    {
+        get
+        {
+            lock (_gate)
+                return _timeline?.Reanchors ?? 0;
+        }
+    }
+
     /// <summary>Raised on a background thread when ffmpeg opens the FIFO: the moment the capture should start.</summary>
     public event Action? Opened;
 
@@ -81,7 +91,20 @@ public sealed class MacAudioPipe : IDisposable
             _timeline = new AudioTimeline(_format, _clock());
             _padding = new Timer(_ => Pad(), null, PaddingInterval, PaddingInterval);
         }
-        Opened?.Invoke();
+        // Each handler on its own: one that fails must neither stop the others nor this thread, or ffmpeg would wait on
+        // an empty pipe. The padding then keeps the track silent.
+        foreach (var handler in Opened?.GetInvocationList() ?? [])
+        {
+            try
+            {
+                ((Action)handler)();
+            }
+#pragma warning disable CA1031 // Whatever the handler threw, the sound must keep flowing to ffmpeg.
+            catch (Exception)
+#pragma warning restore CA1031
+            {
+            }
+        }
 
         try
         {
