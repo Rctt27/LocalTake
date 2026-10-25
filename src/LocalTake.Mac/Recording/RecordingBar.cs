@@ -147,7 +147,7 @@ internal sealed class RecordingBar : NSPanel
             return;
         var microphones = AudioDevices.Microphones(devices, _platform.SystemAudioDevice).ToList();
         _hasMicrophone = microphones.Count > 0;
-        _hasSystemAudio = devices.Contains(_platform.SystemAudioDevice);
+        _hasSystemAudio = _platform.CanRecordSystemAudio(devices);
         _microphoneBox.RemoveAllItems();
         _microphoneBox.AddItems([.. microphones]);
         if (AudioDevices.PickMicrophone(devices, _settings.Microphone, _platform.SystemAudioDevice) is { } picked)

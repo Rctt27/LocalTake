@@ -143,8 +143,8 @@ internal sealed class SettingsWindowController : NSWindowController
             Row("", _ffmpegStatus),
             Row("Micro", _microphone),
             Row("", _recordMicrophone, _systemAudio),
-            Row("", Help("Son de l'ordinateur : nécessite " + _context.Platform.SystemAudioRequirement +
-                ". Les deux se changent aussi sur la barre d'enregistrement : le dernier choix est retenu.")),
+            Row("", Help("Son de l'ordinateur : capté par LocalTake, sans pilote à installer. Les deux se changent aussi " +
+                "sur la barre d'enregistrement : le dernier choix est retenu.")),
             Row("Images/seconde", _frameRate),
             Section("Raccourcis clavier")
         };
@@ -229,7 +229,7 @@ internal sealed class SettingsWindowController : NSWindowController
         return path;
     }
 
-    /// <summary>Asks ffmpeg for the audio inputs; the computer sound needs BlackHole.</summary>
+    /// <summary>Asks ffmpeg for the audio inputs; the computer sound is captured by LocalTake itself.</summary>
     private async void LoadAudioDevices()
     {
         // A newer load (ffmpeg chosen while it was still listing) wins; the older one must not fill the list too.
@@ -252,10 +252,10 @@ internal sealed class SettingsWindowController : NSWindowController
         _microphone.AddItems(["Premier micro détecté", .. microphones]);
         _microphone.SelectItem(string.IsNullOrEmpty(selected) ? 0 : microphones.IndexOf(selected) + 1);
 
-        var hasSystemAudio = devices.Contains(_context.Platform.SystemAudioDevice);
+        var hasSystemAudio = _context.Platform.CanRecordSystemAudio(devices);
         _systemAudio.Enabled = hasSystemAudio || _systemAudio.State == NSCellStateValue.On;
         _systemAudio.ToolTip = hasSystemAudio
-            ? "Utilise " + _context.Platform.SystemAudioRequirement + "."
+            ? "Capté par LocalTake, avec " + _context.Platform.SystemAudioRequirement + "."
             : "Nécessite " + _context.Platform.SystemAudioRequirement + " : introuvable sur ce Mac.";
     }
 
