@@ -54,9 +54,9 @@ internal static class Composition
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RecordingSession>(sp,
             (IGlobalHotkeys)new MacHotkeys(sp.GetRequiredService<IUiThread>()), HotkeyNaming.MacOS));
         services.AddSingleton<IRecordingStatus>(sp => sp.GetRequiredService<RecordingSession>());
-        // Not on macOS yet: no trigger is registered, so recordings show no highlight.
-        services.AddSingleton<IHighlightInput, NoHighlightInput>();
-        services.AddSingleton<IHighlightOverlayFactory, NoHighlightOverlayFactory>();
+        // The highlight trigger is registered only while recording, like Start and Stop.
+        services.AddSingleton<IHighlightInput>(sp => new MacHighlightInput(sp.GetRequiredService<IUiThread>()));
+        services.AddSingleton<IHighlightOverlayFactory, MacHighlightOverlayFactory>();
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<Highlighter>(sp, HotkeyNaming.MacOS));
         // No transcription on macOS yet: the release ships no model, so no microphone track is ever written.
         services.AddSingleton(sp => paths.CreateModelLocator(sp.GetRequiredService<IFileSystem>()));
