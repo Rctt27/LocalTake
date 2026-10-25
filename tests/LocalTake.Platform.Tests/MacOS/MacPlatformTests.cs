@@ -49,6 +49,19 @@ public sealed class MacPlatformTests
         hotkeys.UnregisterAll();
     }
 
+    /// <summary>macOS 15.0 and 15.1 refused shortcuts made of Option alone; the default must register.</summary>
+    [Fact]
+    public void The_default_highlight_shortcut_can_be_registered()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "macOS only.");
+        Hotkey.TryParse(SettingsDefaultsFor().HighlightTrigger, out var hotkey).ShouldBeTrue();
+        MacKeys.TryGetKeyCode(hotkey.Key, out var code).ShouldBeTrue();
+        MacKeys.IsSystemShortcut(code, MacKeys.Modifiers(hotkey.Modifiers)).ShouldBeFalse();
+        using var hotkeys = new MacHotkeys(new ImmediateUiThread());
+        hotkeys.Register(hotkey, () => { }, () => { }).ShouldBeTrue(hotkey.Format(HotkeyNaming.MacOS));
+        hotkeys.UnregisterAll();
+    }
+
     [Fact]
     public void A_shortcut_can_be_registered_and_released()
     {

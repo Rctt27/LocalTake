@@ -28,7 +28,7 @@ public sealed record SettingsDefaults(
 
     /// <summary>
     /// A Mac has no Print Screen key, and Cmd+Shift+3/4/5 belong to macOS: Ctrl+Shift with a digit is free in macOS
-    /// and in common applications.
+    /// and in common applications. Ctrl+Space selects the input source: the highlight is held with Option+Space.
     /// </summary>
     public static SettingsDefaults ForMacOS(string outputFolder) => new(
         outputFolder,
@@ -40,5 +40,5 @@ public sealed record SettingsDefaults(
         HotkeyVideoFullScreen: "",
         HotkeyVideoStart: "Ctrl+Shift+R",
         HotkeyVideoStop: "Ctrl+Shift+D",
-        HighlightTrigger: "Ctrl+Space");
+        HighlightTrigger: "Alt+Space");
 }

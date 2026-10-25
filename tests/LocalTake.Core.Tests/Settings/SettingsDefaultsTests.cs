@@ -45,11 +45,14 @@ public sealed class SettingsDefaultsTests
     }
 
     [Fact]
-    public void Both_platforms_highlight_with_Ctrl_Space()
+    public void Each_platform_has_its_highlight_shortcut()
     {
         SettingsDefaults.ForWindows("x").HighlightTrigger.ShouldBe("Ctrl+Space");
-        SettingsDefaults.ForMacOS("x").HighlightTrigger.ShouldBe("Ctrl+Space");
         new AppSettings(SettingsDefaults.ForWindows("x")).HighlightTrigger.ShouldBe("Ctrl+Space");
+        // Deliberate change: Ctrl+Space selects the input source on a Mac.
+        SettingsDefaults.ForMacOS("x").HighlightTrigger.ShouldBe("Alt+Space");
+        Hotkey.TryParse("Alt+Space", out var hotkey).ShouldBeTrue();
+        hotkey.Format(HotkeyNaming.MacOS).ShouldBe("Option+Space");
     }
 
     [Fact]
