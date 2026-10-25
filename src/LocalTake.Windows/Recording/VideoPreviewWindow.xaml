@@ -112,11 +112,11 @@
                             ValueChanged="SeekBar_ValueChanged" MouseMove="SeekBar_MouseMove" MouseLeave="SeekBar_MouseLeave"/>
                 </DockPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
-                    <Button Style="{StaticResource PlayerButton}" Click="Rewind_Click" ToolTip="Reculer de 10 secondes (←)">&#xEB9E;</Button>
+                    <Button Style="{StaticResource PlayerButton}" Click="Rewind_Click" ToolTip="Reculer de 5 secondes (←)">&#xEB9E;</Button>
                     <Button Style="{StaticResource PlayerButton}" Click="PlayPause_Click" ToolTip="Lecture / pause (Espace)">
                         <TextBlock x:Name="PlayPauseGlyph" Text="&#xE769;"/>
                     </Button>
-                    <Button Style="{StaticResource PlayerButton}" Click="Forward_Click" ToolTip="Avancer de 10 secondes (→)">&#xEB9D;</Button>
+                    <Button Style="{StaticResource PlayerButton}" Click="Forward_Click" ToolTip="Avancer de 5 secondes (→)">&#xEB9D;</Button>
                 </StackPanel>
             </StackPanel>
         </Border>

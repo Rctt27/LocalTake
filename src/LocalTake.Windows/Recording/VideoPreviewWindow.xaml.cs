@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using LocalTake.Core.Ports;
+using LocalTake.Core.Recording;
 using LocalTake.Core.Transcription;
 using Forms = System.Windows.Forms;
 
@@ -17,14 +18,12 @@ namespace LocalTake;
 
 /// <summary>
 /// Opens when a recording is saved, as in TinyTake, and plays it straight away: seek bar with a frame preview on
-/// hover, 10-second jumps, replay at the end. The video is already in the output folder; the window only shows it,
+/// hover, 5-second jumps, replay at the end. The video is already in the output folder; the window only shows it,
 /// sends it to the Recycle Bin, or asks for a new take. With a transcription, its subtitles are at the left, following
 /// the video and editable (<see cref="TranscriptPanel"/>).
 /// </summary>
 public partial class VideoPreviewWindow : Window
 {
-    private const double JumpSeconds = 10;
-
     private readonly string _path;
 
     /// <summary>"Refaire": the owner checks that a recording can start, then calls <see cref="DiscardAsync"/>.</summary>
@@ -226,7 +225,7 @@ public partial class VideoPreviewWindow : Window
         }
         PlaceSubtitle();
         SeekBar.SmallChange = 1;
-        SeekBar.LargeChange = JumpSeconds;
+        SeekBar.LargeChange = PlayerSeek.Step.TotalSeconds;
         if (!_sized)
         {
             _sized = true;
@@ -349,8 +348,12 @@ public partial class VideoPreviewWindow : Window
     // ---- Buttons and keyboard -------------------------------------------------------------------------------
 
     private void PlayPause_Click(object sender, RoutedEventArgs e) => TogglePlay();
-    private void Rewind_Click(object sender, RoutedEventArgs e) => SeekTo(Player.Position.TotalSeconds - JumpSeconds);
-    private void Forward_Click(object sender, RoutedEventArgs e) => SeekTo(Player.Position.TotalSeconds + JumpSeconds);
+    private void Rewind_Click(object sender, RoutedEventArgs e) => JumpBack();
+    private void Forward_Click(object sender, RoutedEventArgs e) => JumpForward();
+
+    private void JumpBack() => SeekTo(PlayerSeek.Back(Player.Position).TotalSeconds);
+
+    private void JumpForward() => SeekTo(PlayerSeek.Forward(Player.Position, TimeSpan.FromSeconds(SeekBar.Maximum)).TotalSeconds);
 
     private void Video_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => TogglePlay();
 
@@ -378,10 +381,10 @@ public partial class VideoPreviewWindow : Window
                 TogglePlay();
                 break;
             case Key.Left:
-                SeekTo(Player.Position.TotalSeconds - JumpSeconds);
+                JumpBack();
                 break;
             case Key.Right:
-                SeekTo(Player.Position.TotalSeconds + JumpSeconds);
+                JumpForward();
                 break;
             case Key.Home:
                 SeekTo(0);
