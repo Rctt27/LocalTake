@@ -50,7 +50,7 @@ Avec l'exe publié (`dotnet publish src/LocalTake.Windows -c Release -r win-x64 
 - [ ] Annuler pendant « Démarrage… », puis réenregistrer : rien ne bloque.
 - [ ] Sortie audio désactivée dans Windows : « Son du PC » est grisé, l'infobulle dit qu'il faut une sortie audio.
 - [ ] Le cadre et la barre n'apparaissent pas dans la vidéo.
-- [ ] Aperçu : la vidéo se lit dans la fenêtre ; `Espace`, `←` / `→` ; image au survol de la barre de défilement.
+- [ ] Aperçu : la vidéo se lit dans la fenêtre ; `Espace`, `←` / `→` (5 secondes, infobulles des boutons comprises), `Début` ; image au survol de la barre de défilement.
 - [ ] « Afficher dans l'Explorateur » ouvre l'Explorateur sur la vidéo.
 - [ ] « Supprimer » pendant la lecture : la vidéo part dans la Corbeille (et peut en être restaurée).
 - [ ] « Refaire » : la vidéo part dans la Corbeille et un nouvel enregistrement commence.
@@ -168,16 +168,38 @@ Le réglage « Après une capture » revient à « Ouvrir dans l'éditeur » (`"
 - [ ] Réglages : le champ « Surligner (maintenir) » prend une autre combinaison, accepte `Espace` seul (avec l'avertissement), et « Raccourcis par défaut » remet `Option+Space`.
 - [ ] « Enregistrer une vidéo (tout l'écran) » dans le menu ; puis, avec un second écran, une vidéo d'une zone sur le second écran : c'est bien cet écran qui est filmé.
 - [ ] `Ctrl+Maj+R` démarre (compte à rebours 3, 2, 1), `Ctrl+Maj+D` arrête ; « Annuler » n'enregistre rien.
-- [ ] La vidéo s'ouvre dans la fenêtre d'aperçu et se lit dedans (survol de la barre de temps : aperçu des images ; plein écran) ; `Échap` ferme.
+- [ ] La vidéo s'ouvre dans la fenêtre d'aperçu et se lit dedans (survol de la barre de temps : aperçu des images ; plein écran) ; `Espace` lit ou met en pause, `←` / `→` reculent ou avancent de 5 secondes (pas d'une image), `Début` revient au début ; `Échap` ferme.
 - [ ] « Afficher dans le Finder » ; « Supprimer » (après confirmation) met la vidéo à la Corbeille ; « Refaire » la met à la Corbeille et relance une vidéo de la même façon.
 - [ ] « Quitter LocalTake » pendant un enregistrement demande s'il faut l'arrêter et garder la vidéo ; « Annuler » laisse l'enregistrement continuer.
 
-### Étape 6 : réglages
+### Étape 6 : sous-titres
+
+Avec l'artefact `LocalTake-macos` ou la release : le modèle est dans l'app, rien à installer.
+
+- [ ] `open -a LocalTake --args --diagnostics` : la ligne « transcription » est `[ok]`, avec le modèle de `Contents/Resources/models`. Sur un Mac Intel aussi.
+- [ ] Bascule « Sous-titres » de la barre : grisée quand le micro est coupé, avec l'infobulle qui l'explique ; le choix est retenu d'une vidéo à l'autre.
+- [ ] Enregistrer une minute en parlant, avec « Sous-titres » : l'aperçu s'ouvre et lit la vidéo aussitôt ; le panneau de gauche montre « Transcription du micro… » avec sa progression, puis les blocs, découpés comme sous Windows, avec la vitesse de lecture à côté des temps (orange au-delà de 15 car./s, rouge au-delà de 17, explication en infobulle).
+- [ ] Le sous-titre en cours s'affiche sur la vidéo, en bas de l'image (pas dans les bandes noires), sur un bandeau noir translucide, à une taille proportionnée à l'image, en fenêtre comme en plein écran ; rien entre deux blocs ; un texte corrigé s'y met à jour.
+- [ ] Pendant la lecture, le bloc surligné suit la voix ; entre deux phrases, c'est l'intervalle qui est surligné ; la liste défile pour le garder au milieu. Après `←` / `→` ou un clic sur la barre de temps, le panneau se place aussitôt sur le bon moment.
+- [ ] Clic sur un bloc ou un intervalle : la vidéo y va, sans que la liste saute.
+- [ ] Cliquer dans un texte met la lecture en pause ; `Espace`, `←` / `→` et `Début` y agissent sur le texte, pas sur la vidéo ; `Entrée` valide et rend les touches au lecteur ; `Maj+Entrée` passe à la ligne ; `Échap` remet le texte d'avant ; `Cmd+Z` dans un champ défait la saisie.
+- [ ] Un début avant la fin du bloc précédent est refusé avec un message, et l'ancien temps revient. Raccourcir une fin fait apparaître un intervalle.
+- [ ] « + Ajouter » dans un intervalle (le curseur va dans le nouveau texte), supprimer un bloc, `Cmd+Z` / `Cmd+Maj+Z` hors des champs.
+- [ ] Le `.srt` à côté de la vidéo reprend les modifications, même en fermant la fenêtre aussitôt après ; QuickTime ou VLC l'affiche avec la vidéo, accents compris.
+- [ ] Sans la bascule : la fenêtre de lecture montre « Générer les sous-titres » ; un clic ouvre le panneau avec la progression, puis les blocs ; le bouton disparaît pendant la transcription et quand il y a des sous-titres, et revient si rien n'a été entendu.
+- [ ] Fermer la fenêtre sans générer : `~/Library/Caches/LocalTake` ne contient plus de `.wav`. Une vidéo avec un `.srt` vide affiche aussi le bouton.
+- [ ] Lancer un nouvel enregistrement pendant une transcription : elle s'interrompt (« en attente ») et reprend après.
+- [ ] « Supprimer » ou « Refaire » pendant la transcription : la vidéo et le `.srt` partent à la Corbeille, la transcription s'arrête.
+- [ ] Ne rien dire : « Aucune parole détectée », pas de `.srt`.
+- [ ] Quitter LocalTake pendant une transcription, le relancer : `~/Library/Caches/LocalTake` est vidé de ses `.wav`.
+
+### Étape 7 : réglages
 
 - [ ] « Réglages… » ouvre la fenêtre ; pendant qu'elle est ouverte, les raccourcis de LocalTake ne déclenchent pas de capture.
 - [ ] Saisie d'un raccourci avec `Cmd` et `Option` : le champ affiche par exemple `Ctrl+Option+Cmd+K` ; `⌫` le vide ; `Tab` passe au champ suivant.
 - [ ] Un raccourci attribué deux fois est refusé avec un message ; un dossier relatif (`Captures`) aussi.
 - [ ] « Parcourir… » pour le dossier et pour ffmpeg ; le statut d'ffmpeg dit « Détecté : … » quand le champ est vide.
 - [ ] La liste des micros est remplie (sans BlackHole s'il est installé) ; « Enregistrer le son de l'ordinateur » est actif, sans pilote.
+- [ ] Section « Sous-titres » : le statut du modèle dit « Livré avec LocalTake : … » quand le champ est vide, « Modèle introuvable… » en rouge pour un chemin faux ; la langue et la case « Transcrire le micro… » sont conservées après « Enregistrer » et relance, et la case est reprise par la bascule de la barre.
 - [ ] « Lancer LocalTake à l'ouverture de session » : LocalTake apparaît dans Réglages Système > Général > Ouverture, se lance après redémarrage, puis disparaît une fois la case décochée. (Si macOS refuse, le message s'affiche et le reste est enregistré.)
 - [ ] Après « Enregistrer », les nouveaux raccourcis marchent et s'affichent dans le menu ; les réglages sont conservés après relance.
