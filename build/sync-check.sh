@@ -37,8 +37,9 @@ case "$1" in
     beeps=$(awk -F'silence_end: ' '/silence_end:/ { split($2, a, " "); print a[1] }' <<< "$silences")
     [ -n "$flashes" ] || { echo "No flash in $2" >&2; exit 1; }
     [ -n "$beeps" ] || { echo "No beep in $2" >&2; exit 1; }
-    awk -v tolerance="$tolerance" -v beeps="$beeps" '
-      BEGIN { n = split(beeps, beep, "\n") }
+    # Through the environment: macOS's awk refuses a newline in a -v value.
+    BEEPS="$beeps" awk -v tolerance="$tolerance" '
+      BEGIN { n = split(ENVIRON["BEEPS"], beep, "\n") }
       {
         best = ""
         for (i = 1; i <= n; i++) { d = beep[i] - $1; if (best == "" || (d < 0 ? -d : d) < (best < 0 ? -best : best)) best = d }
