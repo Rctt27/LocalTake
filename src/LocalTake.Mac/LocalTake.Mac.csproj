@@ -27,8 +27,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LocalTake.Core\LocalTake.Core.csproj" />
-    <!-- Of Whisper's native libraries, only the macOS ones: Whisper.net loads them from MonoBundle/runtimes/macos-<arch>. -->
-    <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" AdditionalProperties="WhisperRuntimes=macos" />
+    <!--
+      None of Whisper's native libraries from the build: build/package-macos.sh adds the macOS ones to the bundle as they
+      are. Built into the app, they stopped it at launch: one could no longer find another (@rpath/libggml-base-whisper.0.dylib).
+    -->
+    <ProjectReference Include="..\LocalTake.Infrastructure\LocalTake.Infrastructure.csproj" AdditionalProperties="WhisperRuntimes=false" />
     <ProjectReference Include="..\LocalTake.Platform.MacOS\LocalTake.Platform.MacOS.csproj" />
   </ItemGroup>
 

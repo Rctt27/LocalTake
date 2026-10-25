@@ -126,7 +126,7 @@ jobs:
           check() {
             out=$("$@" 2>&1 || true)
             echo "$out"
-            grep -F "[ok]   transcription:" <<< "$out" > /dev/null
+            grep -F "[ok]   transcription:" <<< "$out" > /dev/null || { otool -L "$bin"; return 1; }
           }
           rm -rf "$RUNNER_TEMP/app" && mkdir "$RUNNER_TEMP/app"
           ditto -x -k dist/LocalTake-macos.zip "$RUNNER_TEMP/app"

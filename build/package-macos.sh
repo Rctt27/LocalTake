@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Completes the built LocalTake.app and zips it, for the CI artifact and the release alike: adds the shipped ffmpeg, the
-# Whisper model and the licence notices, checks that whisper.cpp is there, signs, checks both architectures, zips.
+# Whisper model, whisper.cpp and the licence notices, signs, checks both architectures, zips.
 #
 # Signing: with MACOS_SIGNING_P12 (a base64 .p12 holding the "LocalTake" self-signed code-signing certificate) and
 # MACOS_SIGNING_PASSWORD, the app is signed with that certificate, which stays the same from one version to the next,
@@ -41,11 +41,17 @@ bash "$repo/build/fetch-whisper-model.sh" "$app/Contents/Resources/models"
 cp "$repo/THIRD-PARTY-NOTICES.md" "$app/Contents/Resources/"
 cp -R "$repo/licenses" "$app/Contents/Resources/"
 
-# whisper.cpp, which Whisper.net loads from runtimes/macos-<arch> next to the assemblies.
+# whisper.cpp, from the restored Whisper.net.Runtime package, where Whisper.net looks for it: runtimes/macos-<arch> next
+# to the assemblies. Copied as they are, not through the build: the libraries find each other by their install names
+# once Whisper.net has loaded them in order, as in a plain .NET program.
+version=$(sed -nE 's/.*Include="Whisper\.net\.Runtime" Version="([^"]+)".*/\1/p' "$repo/Directory.Packages.props")
+packages=$(dotnet nuget locals global-packages --list | sed 's/^global-packages: //')
 whisper="$app/Contents/MonoBundle/runtimes"
 for arch in arm64 x64; do
-  [ -f "$whisper/macos-$arch/libwhisper.dylib" ] ||
-    fail "no $whisper/macos-$arch/libwhisper.dylib; found: $(find "$app" -name 'libwhisper*' | tr '\n' ' ')"
+  source="$packages/whisper.net.runtime/$version/build/macos-$arch"
+  [ -f "$source/libwhisper.dylib" ] || fail "no $source/libwhisper.dylib: restore the projects first"
+  mkdir -p "$whisper/macos-$arch"
+  cp "$source"/*.dylib "$whisper/macos-$arch/"
 done
 
 if [ -n "${MACOS_SIGNING_P12:-}" ]; then
