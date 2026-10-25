@@ -252,25 +252,16 @@ public partial class VideoPreviewWindow : Window
         ErrorPanel.Visibility = Visibility.Visible;
     }
 
-    /// <summary>
-    /// Puts the subtitle near the bottom of the picture, inside the black bars the player may leave around it, with a
-    /// font in proportion to the picture: about 4.5 % of its height, as on a television.
-    /// </summary>
+    /// <summary>Puts the subtitle near the bottom of the picture, sized to it (<see cref="SubtitlePlacement"/>).</summary>
     private void PlaceSubtitle()
     {
         double width = VideoHost.ActualWidth, height = VideoHost.ActualHeight;
         if (width <= 0 || height <= 0)
             return;
-        double pictureWidth = width, pictureHeight = height;
-        if (Player.NaturalVideoWidth > 0 && Player.NaturalVideoHeight > 0)
-        {
-            var scale = Math.Min(width / Player.NaturalVideoWidth, height / Player.NaturalVideoHeight);
-            pictureWidth = Player.NaturalVideoWidth * scale;
-            pictureHeight = Player.NaturalVideoHeight * scale;
-        }
-        SubtitleText.FontSize = Math.Max(12, pictureHeight * 0.045);
-        SubtitleBand.MaxWidth = pictureWidth * 0.9;
-        SubtitleBand.Margin = new Thickness(0, 0, 0, (height - pictureHeight) / 2 + pictureHeight * 0.05);
+        var placement = SubtitlePlacement.For(width, height, Player.NaturalVideoWidth, Player.NaturalVideoHeight);
+        SubtitleText.FontSize = placement.FontSize;
+        SubtitleBand.MaxWidth = placement.MaxWidth;
+        SubtitleBand.Margin = new Thickness(0, 0, 0, placement.BottomMargin);
     }
 
     /// <summary>

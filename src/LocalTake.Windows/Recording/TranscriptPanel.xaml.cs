@@ -566,16 +566,17 @@ public partial class TranscriptPanel : UserControl
                 TextBox.Text = text;
         }
 
-        /// <summary>Checked against the tutorial profile, which cut the transcription.</summary>
         private void ShowReadability(SubtitleCue cue)
         {
-            var warnings = SubtitleProfile.Tutorial.Check(cue);
-            SpeedText.Text = Math.Round(SubtitleProfile.ReadingSpeed(cue)).ToString(CultureInfo.CurrentCulture) + " car./s";
-            SpeedText.Foreground = warnings.Any(w => w.Level == SubtitleWarningLevel.Problem) ? ErrorBrush
-                : warnings.Count > 0 ? NoticeBrush : DimBrush;
-            SpeedText.ToolTip = warnings.Count > 0
-                ? string.Join(Environment.NewLine, warnings.Select(w => w.Message))
-                : "Caractères affichés par seconde : facile à lire (15 au plus, idéalement).";
+            var readability = CueReadability.Of(cue);
+            SpeedText.Text = readability.Speed;
+            SpeedText.Foreground = readability.Level switch
+            {
+                ReadabilityLevel.Problem => ErrorBrush,
+                ReadabilityLevel.Notice => NoticeBrush,
+                _ => DimBrush
+            };
+            SpeedText.ToolTip = readability.ToolTip;
         }
 
         public void ShowError(string? error)

@@ -226,15 +226,10 @@ public partial class RecordingBar : Window
                 : "Son de l'ordinateur coupé. Cliquer pour l'enregistrer.";
         SystemAudioLabel.TextDecorations = SystemAudioToggle.IsChecked == true ? null : TextDecorations.Strikethrough;
 
-        // Only the microphone is transcribed: without it, there is nothing to put in the subtitles.
-        var microphoneOn = MicrophoneToggle.IsChecked == true;
-        TranscriptionToggle.IsChecked = _canTranscribe && microphoneOn && _settings.TranscribeMicrophone;
-        TranscriptionToggle.IsEnabled = _canTranscribe && microphoneOn && !_audioLocked;
-        TranscriptionToggle.ToolTip = !_canTranscribe ? "Modèle de transcription introuvable : voir les réglages."
-            : !microphoneOn ? "Les sous-titres transcrivent le micro : activez-le d'abord."
-            : _settings.TranscribeMicrophone
-                ? "Ce que vous dites au micro sera transcrit en sous-titres après l'enregistrement. Cliquer pour ne pas le transcrire."
-                : "Pas de sous-titres. Cliquer pour transcrire le micro après l'enregistrement.";
+        var transcription = SubtitleToggle.For(_canTranscribe, MicrophoneToggle.IsChecked == true, _settings.TranscribeMicrophone, _audioLocked);
+        TranscriptionToggle.IsChecked = transcription.IsChecked;
+        TranscriptionToggle.IsEnabled = transcription.IsEnabled;
+        TranscriptionToggle.ToolTip = transcription.ToolTip;
         TranscriptionLabel.TextDecorations = TranscriptionToggle.IsChecked == true ? null : TextDecorations.Strikethrough;
     }
 
