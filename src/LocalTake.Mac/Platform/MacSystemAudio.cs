@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using CoreFoundation;
 using CoreMedia;
 using Foundation;
@@ -145,7 +146,16 @@ internal sealed class MacSystemAudioCapture : ISystemAudioCapture
                 return;
 
             var bytes = new byte[(int)data.DataLength];
-            data.CopyDataBytes(0, data.DataLength, bytes);
+            var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            try
+            {
+                if (data.CopyDataBytes(0, data.DataLength, pinned.AddrOfPinnedObject()) != CMBlockBufferError.None)
+                    return;
+            }
+            finally
+            {
+                pinned.Free();
+            }
             // Non-interleaved: one channel after the other in the block buffer.
             var planar = (format.FormatFlags & AudioToolbox.AudioFormatFlags.IsNonInterleaved) != 0;
             var pcm = planar ? PlanarAudio.Interleave(Split(bytes, format.ChannelsPerFrame)) : bytes;
