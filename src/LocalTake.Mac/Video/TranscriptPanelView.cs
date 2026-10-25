@@ -118,7 +118,7 @@ internal sealed class TranscriptPanelView : NSView
 
     /// <summary>Whether a field of the panel has the keyboard: keys then type text instead of driving the player.</summary>
     public bool IsEditing =>
-        Window?.FirstResponder is NSTextView { FieldEditor: true } editor && editor.WeakDelegate is NSView field && field.IsDescendantOf(this);
+        Window?.FirstResponder is NSTextView { FieldEditor: true } editor && editor.WeakDelegate is NSView edited && edited.IsDescendantOf(this);
 
     private void UpdateStatus()
     {
