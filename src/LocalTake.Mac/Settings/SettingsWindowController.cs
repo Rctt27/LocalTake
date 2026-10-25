@@ -6,6 +6,7 @@ using LocalTake.Core.Files;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 using LocalTake.Mac.Adapters;
 
 namespace LocalTake.Mac.Settings;
@@ -13,7 +14,7 @@ namespace LocalTake.Mac.Settings;
 /// <summary>What the settings window needs from the rest of the app.</summary>
 internal sealed record SettingsContext(
     AppSettings Settings, SettingsDefaults Defaults, FfmpegLocator Locator, IFfmpegPlatform Platform,
-    IAudioDeviceLister AudioDevices, IStartupRegistration Startup, SettingsEditor Editor);
+    IAudioDeviceLister AudioDevices, IStartupRegistration Startup, SettingsEditor Editor, TranscriptionModelLocator Models);
 
 /// <summary>
 /// The settings, the same fields as on Windows. The checks and the saving are <see cref="SettingsEditor"/>'s; the
@@ -46,6 +47,10 @@ internal sealed class SettingsWindowController : NSWindowController
     private readonly NSButton _recordMicrophone = NSButton.CreateCheckbox("Enregistrer le micro", () => { });
     private readonly NSButton _systemAudio = NSButton.CreateCheckbox("Enregistrer le son de l'ordinateur", () => { });
     private readonly NSPopUpButton _frameRate = new(CGRect.Empty, false);
+    private readonly NSButton _transcribe = NSButton.CreateCheckbox("Transcrire le micro en sous-titres après l'enregistrement", () => { });
+    private readonly NSPopUpButton _language = new(CGRect.Empty, false);
+    private readonly NSTextField _model = new();
+    private readonly NSTextField _modelStatus = Help("");
     private readonly HotkeyField[] _hotkeys;
     private readonly HotkeyField _highlightTrigger;
     private readonly NSTextField _highlightWarning = Help("Pendant l'enregistrement, cette touche n'écrira plus rien dans les applications.");
@@ -78,6 +83,13 @@ internal sealed class SettingsWindowController : NSWindowController
         _frameRate.AddItems([.. SettingsForm.FrameRates.Select(f => f.ToString(CultureInfo.InvariantCulture))]);
         var rate = SettingsForm.FrameRates.OrderBy(f => Math.Abs(f - settings.VideoFrameRate)).First();
         _frameRate.SelectItem(SettingsForm.FrameRates.ToList().IndexOf(rate));
+        _transcribe.State = settings.TranscribeMicrophone ? NSCellStateValue.On : NSCellStateValue.Off;
+        _language.AddItems([.. SettingsForm.TranscriptionLanguages.Select(l => l.Name)]);
+        _language.SelectItem(Math.Max(0, SettingsForm.TranscriptionLanguages.ToList().FindIndex(l => l.Code == settings.TranscriptionLanguage)));
+        _model.StringValue = settings.TranscriptionModelPath;
+        _model.PlaceholderString = "Laisser vide pour utiliser celui livré avec LocalTake";
+        _model.Changed += (_, _) => UpdateModelStatus();
+        UpdateModelStatus();
 
         _hotkeys =
         [
@@ -152,6 +164,14 @@ internal sealed class SettingsWindowController : NSWindowController
             Row("", Help("Son de l'ordinateur : capté par LocalTake, sans pilote à installer. Les deux se changent aussi " +
                 "sur la barre d'enregistrement : le dernier choix est retenu.")),
             Row("Images/seconde", _frameRate),
+            Section("Sous-titres"),
+            Row("", _transcribe),
+            Row("", Help("La transcription se fait sur cet ordinateur, sans rien envoyer. Les sous-titres s'affichent à côté de " +
+                "la vidéo pour être corrigés, et sont enregistrés dans un fichier .srt du même nom. Le choix se change aussi " +
+                "sur la barre d'enregistrement.")),
+            Row("Langue", _language),
+            Row("Modèle", _model, NSButton.CreateButton("Parcourir…", BrowseModel)),
+            Row("", _modelStatus),
             Section("Raccourcis clavier")
         };
         rows.AddRange(hotkeyTitles.Select((title, i) => Row(title, _hotkeys[i])));
@@ -171,11 +191,11 @@ internal sealed class SettingsWindowController : NSWindowController
         form.Spacing = 8;
         form.EdgeInsets = new NSEdgeInsets(16, 20, 16, 20);
         form.SetCustomSpacing(16, rows[^2]);
-        foreach (var field in new[] { _folder, _pattern, _ffmpeg })
+        foreach (var field in new[] { _folder, _pattern, _ffmpeg, _model })
             field.WidthAnchor.ConstraintGreaterThanOrEqualTo(330).Active = true;
         foreach (var field in _hotkeys.Append(_highlightTrigger))
             field.WidthAnchor.ConstraintEqualTo(200).Active = true;
-        foreach (var help in new[] { _patternPreview, _ffmpegStatus })
+        foreach (var help in new[] { _patternPreview, _ffmpegStatus, _modelStatus })
             help.PreferredMaxLayoutWidth = 460;
         return form;
     }
@@ -237,6 +257,18 @@ internal sealed class SettingsWindowController : NSWindowController
         return path;
     }
 
+    private void UpdateModelStatus()
+    {
+        var typed = _model.StringValue.Trim();
+        var path = _context.Models.Find(typed);
+        _modelStatus.StringValue = path is not null
+            ? (typed.Length == 0 ? "Livré avec LocalTake : " + path : "Modèle trouvé.")
+            : "Modèle introuvable : les vidéos ne pourront pas être transcrites. Laissez le champ vide pour utiliser " +
+              "celui livré avec LocalTake.";
+        _modelStatus.TextColor = path is not null ? NSColor.SecondaryLabel : NSColor.SystemRed;
+        _transcribe.Enabled = path is not null || _transcribe.State == NSCellStateValue.On;
+    }
+
     /// <summary>Asks ffmpeg for the audio inputs; the computer sound is captured by LocalTake itself.</summary>
     private async void LoadAudioDevices()
     {
@@ -292,6 +324,19 @@ internal sealed class SettingsWindowController : NSWindowController
         LoadAudioDevices();
     }
 
+    private void BrowseModel()
+    {
+        using var panel = NSOpenPanel.OpenPanel;
+        panel.CanChooseDirectories = false;
+        panel.CanChooseFiles = true;
+        panel.Prompt = "Choisir";
+        if (panel.RunModal() == 1 && panel.Url?.Path is { } path)
+        {
+            _model.StringValue = path;
+            UpdateModelStatus();
+        }
+    }
+
     private void DefaultHotkeys()
     {
         var d = _context.Defaults;
@@ -316,12 +361,12 @@ internal sealed class SettingsWindowController : NSWindowController
             _folder.StringValue, _pattern.StringValue, SelectedFormat(), (int)_quality.IntValue, _copyPath.State == NSCellStateValue.On,
             AfterCaptureChoices[(int)Math.Max(0, _afterCapture.IndexOfSelectedItem)].Action,
             h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7],
-            // The transcription is not on macOS yet: its settings are kept as they are.
             _highlightTrigger.Shortcut, _ffmpeg.StringValue,
             _microphone.IndexOfSelectedItem > 0 ? _microphone.TitleOfSelectedItem ?? "" : "",
             _recordMicrophone.State == NSCellStateValue.On, _systemAudio.State == NSCellStateValue.On,
             SettingsForm.FrameRates[(int)Math.Max(0, _frameRate.IndexOfSelectedItem)],
-            _context.Settings.TranscribeMicrophone, _context.Settings.TranscriptionLanguage, _context.Settings.TranscriptionModelPath);
+            _transcribe.State == NSCellStateValue.On,
+            SettingsForm.TranscriptionLanguages[(int)Math.Max(0, _language.IndexOfSelectedItem)].Code, _model.StringValue);
         if (_context.Editor.TryApply(form) is { } problem)
         {
             MacDialogs.Show(problem, NSAlertStyle.Warning);

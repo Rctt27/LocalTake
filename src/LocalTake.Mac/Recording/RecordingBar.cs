@@ -30,6 +30,8 @@ internal sealed class RecordingBar : NSPanel
     private readonly NSButton _microphone;
     private readonly NSPopUpButton _microphoneBox = new(CGRect.Empty, false);
     private readonly NSButton _systemAudio;
+    private readonly NSButton _transcription;
+    private readonly bool _canTranscribe;
     private readonly NSButton _start;
     private readonly NSButton _stop;
     private readonly NSButton _cancel;
@@ -38,12 +40,14 @@ internal sealed class RecordingBar : NSPanel
     private bool _hasSystemAudio = true;
     private bool _audioLocked;
 
-    public RecordingBar(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows)
+    /// <param name="canTranscribe">Whether there is a model to transcribe the microphone with.</param>
+    public RecordingBar(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, bool canTranscribe)
         : base(new CGRect(0, 0, 400, 44), NSWindowStyle.Borderless | NSWindowStyle.NonactivatingPanel, NSBackingStore.Buffered, false)
     {
         _settings = settings;
         _store = store;
         _platform = platform;
+        _canTranscribe = canTranscribe;
         ReleaseWhenClosed(false);
         FloatingPanel = true;
         HidesOnDeactivate = false;
@@ -63,6 +67,7 @@ internal sealed class RecordingBar : NSPanel
         _highlight.ToolTip = "Une traînée jaune suit la souris tant que le raccourci est maintenu ; elle apparaît dans la vidéo";
         _microphone = Toggle("Micro", Microphone_Changed);
         _systemAudio = Toggle("Son du Mac", SystemAudio_Changed);
+        _transcription = Toggle("Sous-titres", Transcription_Changed);
         _microphoneBox.ToolTip = "Micro utilisé";
         _microphoneBox.Activated += (_, _) =>
         {
@@ -80,7 +85,7 @@ internal sealed class RecordingBar : NSPanel
         _cancel = NSButton.CreateButton("Annuler", () => CancelRequested?.Invoke(this, EventArgs.Empty));
         _cancel.ToolTip = "Abandonner : rien n'est enregistré";
 
-        _stack = NSStackView.FromViews([_dot, _status, _highlight, _microphone, _microphoneBox, _systemAudio, _start, _stop, _cancel]);
+        _stack = NSStackView.FromViews([_dot, _status, _highlight, _microphone, _microphoneBox, _systemAudio, _transcription, _start, _stop, _cancel]);
         _stack.Orientation = NSUserInterfaceLayoutOrientation.Horizontal;
         _stack.Spacing = 8;
         _stack.EdgeInsets = new NSEdgeInsets(6, 12, 6, 12);
@@ -268,6 +273,12 @@ internal sealed class RecordingBar : NSPanel
             ? "Nécessite " + _platform.SystemAudioRequirement + " : introuvable sur ce Mac."
             : _settings.RecordSystemAudio ? "Le son du Mac est enregistré. Cliquer pour le couper."
                 : "Son du Mac coupé. Cliquer pour l'enregistrer.";
+
+        var transcription = SubtitleToggle.For(_canTranscribe, microphoneOn, _settings.TranscribeMicrophone, _audioLocked);
+        _transcription.State = transcription.IsChecked ? NSCellStateValue.On : NSCellStateValue.Off;
+        _transcription.Enabled = transcription.IsEnabled;
+        SetSymbol(_transcription, transcription.IsChecked ? "captions.bubble.fill" : "captions.bubble");
+        _transcription.ToolTip = transcription.ToolTip;
         Fit();
     }
 
@@ -287,6 +298,13 @@ internal sealed class RecordingBar : NSPanel
     private void SystemAudio_Changed()
     {
         _settings.RecordSystemAudio = _systemAudio.State == NSCellStateValue.On;
+        _store.TrySave(_settings);
+        UpdateAudioToggles();
+    }
+
+    private void Transcription_Changed()
+    {
+        _settings.TranscribeMicrophone = _transcription.State == NSCellStateValue.On;
         _store.TrySave(_settings);
         UpdateAudioToggles();
     }

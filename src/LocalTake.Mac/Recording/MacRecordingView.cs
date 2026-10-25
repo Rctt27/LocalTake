@@ -2,6 +2,7 @@ using LocalTake.Core.Geometry;
 using LocalTake.Core.Ports;
 using LocalTake.Core.Recording;
 using LocalTake.Core.Settings;
+using LocalTake.Core.Transcription;
 
 namespace LocalTake.Mac.Recording;
 
@@ -11,11 +12,12 @@ internal sealed class MacRecordingView : IRecordingView
     private readonly RecordingBar _bar;
     private RecordingFrame? _frame;
 
-    public MacRecordingView(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, PixelRect area, bool fullScreen)
+    public MacRecordingView(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, bool canTranscribe,
+        PixelRect area, bool fullScreen)
     {
         if (!fullScreen)
             _frame = new RecordingFrame(area, windows);
-        _bar = new RecordingBar(settings, store, platform, windows);
+        _bar = new RecordingBar(settings, store, platform, windows, canTranscribe);
         _bar.StartRequested += (_, _) => StartRequested?.Invoke(this, EventArgs.Empty);
         _bar.StopRequested += (_, _) => StopRequested?.Invoke(this, EventArgs.Empty);
         _bar.CancelRequested += (_, _) => CancelRequested?.Invoke(this, EventArgs.Empty);
@@ -56,8 +58,9 @@ internal sealed class MacRecordingView : IRecordingView
     }
 }
 
-internal sealed class MacRecordingViewFactory(AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows)
-    : IRecordingViewFactory
+internal sealed class MacRecordingViewFactory(
+    AppSettings settings, ISettingsStore store, IFfmpegPlatform platform, INativeWindows windows, MicrophoneTracks tracks) : IRecordingViewFactory
 {
-    public IRecordingView Show(PixelRect area, bool fullScreen) => new MacRecordingView(settings, store, platform, windows, area, fullScreen);
+    public IRecordingView Show(PixelRect area, bool fullScreen) =>
+        new MacRecordingView(settings, store, platform, windows, tracks.CanTranscribe, area, fullScreen);
 }
