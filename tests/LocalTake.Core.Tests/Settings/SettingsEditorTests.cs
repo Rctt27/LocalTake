@@ -94,7 +94,8 @@ public sealed class SettingsEditorTests
     [Fact]
     public void A_missing_ffmpeg_file_is_refused() =>
         _editor.TryApply(Form() with { FfmpegPath = Path.Combine(Root, "ffmpeg.exe") })
-            .ShouldBe("Le fichier ffmpeg indiqué n'existe pas. Laissez le champ vide pour une détection automatique.");
+            // Deliberate change: an empty field now means the ffmpeg shipped with LocalTake.
+            .ShouldBe("Le fichier ffmpeg indiqué n'existe pas. Laissez le champ vide pour utiliser celui livré avec LocalTake.");
 
     [Fact]
     public void An_existing_ffmpeg_file_is_kept()

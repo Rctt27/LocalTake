@@ -5,7 +5,8 @@
 # Signing: with MACOS_SIGNING_P12 (a base64 .p12 holding the "LocalTake" self-signed code-signing certificate) and
 # MACOS_SIGNING_PASSWORD, the app is signed with that certificate, which stays the same from one version to the next,
 # so macOS keeps the Screen Recording and Microphone permissions it was given. Without them (a fork, an outside pull
-# request), it is signed ad hoc. See docs/macos-signing.md.
+# request), it is signed ad hoc, unless REQUIRE_SIGNING=1 (the release), which then stops: an ad hoc release would
+# make every user grant the permissions again. See docs/macos-signing.md.
 #
 # Usage: package-macos.sh <LocalTake.app> <zip>
 set -euo pipefail
@@ -50,7 +51,11 @@ if [ -n "${MACOS_SIGNING_P12:-}" ]; then
   security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
   identity=LocalTake
 else
-  echo "No signing certificate: signed ad hoc"
+  if [ "${REQUIRE_SIGNING:-}" = 1 ]; then
+    fail "MACOS_SIGNING_P12 is missing: a release is signed with the LocalTake certificate (docs/macos-signing.md)"
+  fi
+  # Shown in the run's summary too.
+  echo "::warning::No signing certificate: signed ad hoc"
   identity=-
 fi
 

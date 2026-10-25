@@ -103,7 +103,7 @@ public sealed class SettingsEditor(AppSettings settings, ISettingsStore store, I
 
         var ffmpegPath = form.FfmpegPath.Trim();
         if (ffmpegPath.Length > 0 && !fileSystem.File.Exists(ffmpegPath))
-            return "Le fichier ffmpeg indiqué n'existe pas. Laissez le champ vide pour une détection automatique.";
+            return "Le fichier ffmpeg indiqué n'existe pas. Laissez le champ vide pour utiliser celui livré avec LocalTake.";
         var modelPath = form.TranscriptionModelPath.Trim();
         if (modelPath.Length > 0 && !fileSystem.File.Exists(modelPath))
             return "Le modèle de transcription indiqué n'existe pas. Laissez le champ vide pour utiliser celui livré avec LocalTake.";

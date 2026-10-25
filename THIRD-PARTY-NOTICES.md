@@ -7,7 +7,9 @@ LocalTake est livré avec les programmes et données ci-dessous. Chacun garde sa
 Encode les vidéos, lit le son pour la transcription. LocalTake le lance comme un programme séparé.
 
 - Licence : GNU General Public License, version 3 (ffmpeg est compilé avec x264). Texte : `licenses/GPL-3.0.txt`.
-- Code source exact : https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+- Code source exact : https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz ; les bibliothèques liées (dont x264) et leurs
+  versions sont listées par `ffmpeg -buildconf` et sur les pages des builds ci-dessous, qui publient leurs recettes de
+  compilation (gyan.dev : https://www.gyan.dev/ffmpeg/builds/ ; M. Riedl : https://ffmpeg.martin-riedl.de/).
 - Binaires : Windows, build « essentials » de gyan.dev (https://www.gyan.dev/ffmpeg/builds/) ; macOS, builds de
   Martin Riedl (https://ffmpeg.martin-riedl.de/) pour Apple silicon et Intel, réunis en un binaire universel.
 - Site : https://ffmpeg.org

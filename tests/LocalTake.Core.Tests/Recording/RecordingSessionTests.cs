@@ -87,16 +87,29 @@ public sealed class RecordingSessionTests
     }
 
     [Fact]
-    public async Task Without_ffmpeg_nothing_starts_and_the_user_is_told_how_to_install_it()
+    public async Task Without_the_shipped_ffmpeg_nothing_starts_and_the_user_is_told_to_reinstall()
     {
-        _settings.FfmpegPath = Path.Combine(Root, "missing.exe");
+        _settings.FfmpegPath = "";
         await ReadyAsync();
 
         // Deliberate change: ffmpeg now ships with LocalTake, so the message no longer says how to install it.
         _dialogs.Received(1).ShowWarning(Arg.Is<string>(m =>
-            m.StartsWith("ffmpeg est introuvable", StringComparison.Ordinal) && m.Contains("livré avec LocalTake", StringComparison.Ordinal)));
+            m.StartsWith("ffmpeg est introuvable", StringComparison.Ordinal) && m.Contains("extrayez de nouveau tout le zip", StringComparison.Ordinal)));
         _session.IsBusy.ShouldBeFalse();
         await _picker.DidNotReceiveWithAnyArgs().PickAsync(default);
+    }
+
+    [Fact]
+    public async Task A_configured_ffmpeg_that_is_gone_says_to_empty_the_setting()
+    {
+        var missing = Path.Combine(Root, "old", "ffmpeg.exe");
+        _settings.FfmpegPath = missing;
+        await ReadyAsync();
+
+        _dialogs.Received(1).ShowWarning(Arg.Is<string>(m =>
+            m.Contains(missing, StringComparison.Ordinal) && m.Contains("videz le champ", StringComparison.Ordinal) &&
+            m.Contains("celui livré avec LocalTake", StringComparison.Ordinal) && !m.Contains("extrayez", StringComparison.Ordinal)));
+        _session.IsBusy.ShouldBeFalse();
     }
 
     [Fact]

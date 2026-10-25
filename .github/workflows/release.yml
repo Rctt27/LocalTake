@@ -69,6 +69,8 @@ jobs:
         env:
           MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
           MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+          # Never an ad hoc release: users would have to grant Screen Recording and Microphone again.
+          REQUIRE_SIGNING: 1
         run: bash build/package-macos.sh src/LocalTake.Mac/bin/Release/net10.0-macos/LocalTake.app "dist/LocalTake-${GITHUB_REF_NAME#v}-macos.zip"
       - uses: actions/upload-artifact@v4
         with:

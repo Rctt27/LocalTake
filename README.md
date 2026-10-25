@@ -12,7 +12,7 @@ Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt
 - **Enregistrement de l'écran**, à la première capture ; LocalTake doit être relancé après l'avoir accordée ;
 - **Micro**, à la première vidéo avec le micro.
 
-Les mises à jour gardent ces autorisations : l'app est toujours signée avec le même certificat (`docs/macos-signing.md`).
+À partir de la version 0.5.0, les mises à jour gardent ces autorisations : l'app est toujours signée avec le même certificat (`docs/macos-signing.md`).
 
 ## Raccourcis par défaut
 

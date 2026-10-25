@@ -110,6 +110,7 @@ Pour l'installer : décompresser `LocalTake-macos.zip`, glisser `LocalTake.app` 
 
 Si la politique de votre entreprise bloque l'une de ces lignes (app non signée par un développeur identifié), on s'arrête là pour en reparler.
 
+- [ ] Parcours d'un utilisateur : zip téléchargé avec le navigateur (il est mis en quarantaine), décompressé et ouvert par clic droit > Ouvrir **sans le déplacer** ; une vidéo avec le micro s'enregistre, macOS attribue les demandes d'autorisation à LocalTake, et la ligne ffmpeg de `open -a LocalTake --args --diagnostics` pointe dans `…/AppTranslocation/…/LocalTake.app/Contents/MacOS/ffmpeg`.
 - [ ] Mise à jour : après avoir installé une nouvelle version (signée avec le certificat LocalTake) par-dessus l'ancienne, l'Enregistrement de l'écran et le Micro n'ont pas à être redonnés.
 
 ### Étape 2 : capture de l'écran

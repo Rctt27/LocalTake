@@ -91,7 +91,11 @@ public sealed class RecordingSession(
 
         if (locator.Find(settings.FfmpegPath) is not { } ffmpeg)
         {
-            dialogs.ShowWarning("ffmpeg est introuvable : LocalTake s'en sert pour encoder les vidéos.\n\n" + platform.InstallHint);
+            // A configured ffmpeg that has gone (moved by an upgrade) is fixed in the settings, not by reinstalling.
+            dialogs.ShowWarning(string.IsNullOrWhiteSpace(settings.FfmpegPath)
+                ? "ffmpeg est introuvable : LocalTake s'en sert pour encoder les vidéos.\n\n" + platform.InstallHint
+                : $"Le ffmpeg indiqué dans les réglages est introuvable : {settings.FfmpegPath}\n\n" +
+                  "Ouvrez les réglages et videz le champ ffmpeg pour utiliser celui livré avec LocalTake.");
             return;
         }
 
