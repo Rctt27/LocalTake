@@ -233,7 +233,7 @@ internal sealed class RecordingBar : NSPanel
         var frame = Frame;
         var x = frame.X;
         if (Screen?.VisibleFrame is { } visible)
-            x = Math.Max(visible.X, Math.Min(x, visible.X + visible.Width - size.Width));
+            x = nfloat.Max(visible.X, nfloat.Min(x, visible.X + visible.Width - size.Width));
         SetFrame(new CGRect(x, frame.Y + frame.Height - size.Height, size.Width, size.Height), true);
         return size;
     }
