@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The macOS app: AppKit and AVKit views and adapters over the core, through .NET's Apple bindings.
+    Builds on a Mac only (workload "macos" and the Xcode it requires); ShowTime.Mac.slnx holds it.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-macos</TargetFramework>
+    <SupportedOSPlatformVersion>14.0</SupportedOSPlatformVersion>
+    <!-- One universal app for Apple silicon and Intel Macs. -->
+    <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+    <!--
+      Keep only what the app uses of .NET's libraries and Apple's bindings: untrimmed, the bundle carries the whole
+      runtime and links every Apple framework. ShowTime's own assemblies stay whole; a trim warning fails the build.
+    -->
+    <TrimMode>partial</TrimMode>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ShowTime</AssemblyName>
+    <RootNamespace>ShowTime.Mac</RootNamespace>
+    <ApplicationId>io.github.rctt27.showtime</ApplicationId>
+    <ApplicationTitle>ShowTime</ApplicationTitle>
+    <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+    <ApplicationVersion>$(Version)</ApplicationVersion>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShowTime.Core\ShowTime.Core.csproj" />
+    <!--
+      None of Whisper's native libraries from the build: build/package-macos.sh adds the macOS ones to the bundle as they
+      are. Built into the app, they stopped it at launch: one could no longer find another (@rpath/libggml-base-whisper.0.dylib).
+    -->
+    <ProjectReference Include="..\ShowTime.Infrastructure\ShowTime.Infrastructure.csproj" AdditionalProperties="WhisperRuntimes=false" />
+    <ProjectReference Include="..\ShowTime.Platform.MacOS\ShowTime.Platform.MacOS.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <!--
+    Whisper.net also declares its functions against __Internal, for the Apple platforms that link whisper.cpp
+    statically, and the macOS SDK passes every __Internal function to the native linker. On macOS, Whisper.net loads
+    libwhisper.dylib at run time instead: these functions are left out of the link (Whisper.net 1.9.1's list).
+  -->
+  <ItemGroup>
+    <ReferenceNativeSymbol Include="whisper_ctx_init_openvino_encoder_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_free" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_free_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_free_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_default_params_by_ref" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_no_speech_prob_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_t0_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_t1_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_segment_text_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_token_data_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_token_p_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_get_token_text_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_lang_id_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_n_segments_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_n_tokens_from_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_full_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_init_from_buffer_with_params_no_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_init_from_file_with_params_no_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_init_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_auto_detect_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_id" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_max_id" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_lang_str" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_log_set" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_pcm_to_mel_with_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_print_system_info" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_default_context_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_default_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_detect_speech" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_detect_speech_no_reset" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_free" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_free_segments" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_init_from_file_with_params" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_reset_state" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_from_probs" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_get_segment_t0" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_get_segment_t1" SymbolType="Function" SymbolMode="Ignore" />
+    <ReferenceNativeSymbol Include="whisper_vad_segments_n_segments" SymbolType="Function" SymbolMode="Ignore" />
+  </ItemGroup>
+
+</Project>

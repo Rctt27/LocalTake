@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Windows app: WPF views and adapters over the core; Win32 goes through ShowTime.Platform.Windows. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WPF and WinForms share many type names; usings stay explicit. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\ShowTime.ico</ApplicationIcon>
+    <!-- WFAC010 targets WinForms-only apps; a WPF app declares its DPI awareness in the manifest. -->
+    <!-- WFO0003 likewise. -->
+    <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
+    <AssemblyName>ShowTime</AssemblyName>
+    <RootNamespace>ShowTime</RootNamespace>
+    <!-- Published as one exe: symbols inside it, and no XML docs or .pdb of the libraries beside it. -->
+    <DebugType>embedded</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\ShowTime.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShowTime.Windows.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShowTime.Core\ShowTime.Core.csproj" />
+    <ProjectReference Include="..\ShowTime.Infrastructure\ShowTime.Infrastructure.csproj" />
+    <ProjectReference Include="..\ShowTime.Platform.Windows\ShowTime.Platform.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <!--
+    Whisper.net.Runtime brings the native libraries of every platform, which Whisper.net loads from runtimes\<rid> next
+    to the exe (a single-file exe cannot hold them): a published ShowTime keeps its own platform's only.
+  -->
+  <Target Name="KeepOnlyThisPlatformsWhisperRuntime" AfterTargets="Publish"
+          Condition="'$(RuntimeIdentifier)' != '' And Exists('$(PublishDir)runtimes')">
+    <ItemGroup>
+      <OtherWhisperRuntime Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)runtimes'))"
+                           Exclude="$(PublishDir)runtimes\$(RuntimeIdentifier)" />
+    </ItemGroup>
+    <RemoveDir Directories="@(OtherWhisperRuntime)" />
+    <Delete Files="$(PublishDir)ggml-metal.metal" />
+  </Target>
+
+</Project>

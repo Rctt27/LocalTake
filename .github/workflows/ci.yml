@@ -23,8 +23,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - name: Install ffmpeg
-        run: choco install ffmpeg --no-progress -y
+      # The ffmpeg ShowTime ships: the tests run against it.
+      - name: Fetch the shipped ffmpeg
+        shell: bash
+        run: |
+          bash build/fetch-ffmpeg.sh windows "$RUNNER_TEMP/ffmpeg"
+          echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
       # The smallest Whisper model, for the transcription tests (skipped without one). Pinned and checked.
       - name: Download a Whisper model for the tests
         shell: bash
@@ -33,13 +37,13 @@ jobs:
           curl -sSfL -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/ggml-tiny.bin"
           echo "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin" > ggml-tiny.bin.sha256
           if command -v sha256sum > /dev/null; then sha256sum -c ggml-tiny.bin.sha256; else shasum -a 256 -c ggml-tiny.bin.sha256; fi
-          echo "LOCALTAKE_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
+          echo "SHOWTIME_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
       - name: Format
-        run: dotnet format LocalTake.slnx --verify-no-changes
+        run: dotnet format ShowTime.slnx --verify-no-changes
       - name: Build
-        run: dotnet build LocalTake.slnx -c Release
+        run: dotnet build ShowTime.slnx -c Release
       - name: Test
-        run: dotnet test --solution LocalTake.slnx -c Release --no-build
+        run: dotnet test --solution ShowTime.slnx -c Release --no-build
 
   # The portable projects (core, infrastructure, platform adapters) on Linux and macOS.
   portable:
@@ -53,9 +57,15 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      # On macOS, the ffmpeg ShowTime ships, which the tests then run against; Linux has no ShowTime app.
       - name: Install ffmpeg
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else sudo apt-get update && sudo apt-get install -y ffmpeg; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            bash build/fetch-ffmpeg.sh macos "$RUNNER_TEMP/ffmpeg"
+            echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
+          else
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
       # The smallest Whisper model, for the transcription tests (skipped without one). Pinned and checked.
       - name: Download a Whisper model for the tests
         shell: bash
@@ -64,15 +74,74 @@ jobs:
           curl -sSfL -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/ggml-tiny.bin"
           echo "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin" > ggml-tiny.bin.sha256
           if command -v sha256sum > /dev/null; then sha256sum -c ggml-tiny.bin.sha256; else shasum -a 256 -c ggml-tiny.bin.sha256; fi
-          echo "LOCALTAKE_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
+          echo "SHOWTIME_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
+      # The Mac's sync is measured by hand with this script: its clip, measured against itself, must be in sync.
+      - name: Self-test of the sync check
+        if: runner.os == 'macOS'
+        run: |
+          bash build/sync-check.sh clip "$RUNNER_TEMP/sync.mp4"
+          bash build/sync-check.sh measure "$RUNNER_TEMP/sync.mp4"
       - name: Core tests with coverage
-        run: dotnet test --project tests/LocalTake.Core.Tests -c Release --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
+        run: dotnet test --project tests/ShowTime.Core.Tests -c Release --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
       - name: Core coverage of at least 90 %
         run: python3 build/check-coverage.py TestResults/core.cobertura.xml 90
       - name: Integration tests
-        run: dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c Release
+        run: dotnet test --project tests/ShowTime.Infrastructure.IntegrationTests -c Release
       - name: Platform tests
-        run: dotnet test --project tests/LocalTake.Platform.Tests -c Release
+        run: dotnet test --project tests/ShowTime.Platform.Tests -c Release
+
+  # The macOS app, universal (Apple silicon and Intel), with ffmpeg, signed with the LocalTake certificate when the
+  # secrets are set (ad hoc otherwise), to try out on a Mac.
+  macos-app:
+    runs-on: macos-26
+    env:
+      # Each .NET for macOS requires one Xcode. Workload set 10.0.401 holds .NET for macOS 26.5.10318, which builds with
+      # Xcode 26.6; the newer sets want an Xcode this runner does not have yet. Change both together.
+      MACOS_WORKLOAD_SET: 10.0.401
+      XCODE: /Applications/Xcode_26.6.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Install the macOS workload
+        run: dotnet workload install macos --version "$MACOS_WORKLOAD_SET"
+      - name: Build
+        run: dotnet build src/ShowTime.Mac -c Release
+      - name: Format
+        run: dotnet format ShowTime.Mac.slnx --verify-no-changes
+      - name: Add ffmpeg, sign and zip
+        env:
+          MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+        run: bash build/package-macos.sh src/ShowTime.Mac/bin/Release/net10.0-macos/ShowTime.app dist/ShowTime-macos.zip
+      # The packaged app loads whisper.cpp and the model it ships, on both architectures when the runner has Rosetta.
+      # The runner has no Screen Recording permission, so the report fails elsewhere: only its transcription line counts.
+      - name: Check that the packaged app can transcribe
+        run: |
+          check() {
+            out=$("$@" 2>&1 || true)
+            echo "$out"
+            grep -F "[ok]   transcription:" <<< "$out" > /dev/null || { otool -L "$bin"; return 1; }
+          }
+          rm -rf "$RUNNER_TEMP/app" && mkdir "$RUNNER_TEMP/app"
+          ditto -x -k dist/ShowTime-macos.zip "$RUNNER_TEMP/app"
+          bin="$RUNNER_TEMP/app/ShowTime.app/Contents/MacOS/ShowTime"
+          # macOS has no timeout command.
+          check perl -e 'alarm shift; exec @ARGV' 300 "$bin" --diagnostics
+          if arch -x86_64 /usr/bin/true 2> /dev/null; then
+            check perl -e 'alarm shift; exec @ARGV' 300 arch -x86_64 "$bin" --diagnostics
+          else
+            echo "::warning::No Rosetta on this runner: Whisper's x86_64 library is not checked"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ShowTime-macos
+          path: dist/ShowTime-macos.zip
 
   # The Windows build to try out.
   package-windows:
@@ -83,10 +152,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      # LocalTake.exe and Whisper's native libraries (runtimes\win-x64); without the model, which only releases ship.
-      - name: Publish LocalTake.exe
-        run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      # ShowTime.exe, Whisper's native libraries (runtimes\win-x64), ffmpeg.exe and the licence notices; without the
+      # model, which only releases ship.
+      - name: Publish ShowTime.exe
+        run: dotnet publish src/ShowTime.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      - name: Add ffmpeg and the licence notices
+        shell: bash
+        run: |
+          bash build/fetch-ffmpeg.sh windows dist
+          cp THIRD-PARTY-NOTICES.md dist/
+          cp -r licenses dist/
+          test -f dist/ShowTime.exe && test -f dist/ffmpeg.exe && test -f dist/licenses/GPL-3.0.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: LocalTake-windows
+          name: ShowTime-windows
           path: dist/

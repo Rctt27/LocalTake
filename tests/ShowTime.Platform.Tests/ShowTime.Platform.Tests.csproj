@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Each platform's adapters, run on that platform only (the others are skipped). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ShowTime.Platform.Windows\ShowTime.Platform.Windows.csproj" />
+    <ProjectReference Include="..\..\src\ShowTime.Platform.MacOS\ShowTime.Platform.MacOS.csproj" />
+  </ItemGroup>
+
+</Project>

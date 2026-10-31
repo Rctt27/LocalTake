@@ -1,7 +1,7 @@
 name: Release
 
-# Pushing a tag vX.Y.Z on main builds LocalTake for Windows and publishes it as a GitHub release: a zip holding
-# LocalTake.exe, Whisper's native libraries and the transcription model.
+# Pushing a tag vX.Y.Z on main builds ShowTime for Windows and macOS and publishes both as a GitHub release. The
+# Windows zip and the macOS app hold Whisper's native libraries and the transcription model.
 on:
   push:
     tags: ['v*.*.*']
@@ -12,10 +12,6 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  # The Whisper model shipped with LocalTake: LocalTake itself never downloads anything. Pinned and checked.
-  WHISPER_MODELS_REVISION: 5359861c739e955e79d9a303bcbc70fb988958b1
-  WHISPER_MODEL: ggml-small-q5_1.bin
-  WHISPER_MODEL_SHA256: ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb
 
 jobs:
   windows:
@@ -25,27 +21,57 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      # LocalTake.exe, Whisper's native libraries in runtimes\win-x64, and the model in models: all three side by side.
-      - run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o build/LocalTake
+      # ShowTime.exe, Whisper's native libraries in runtimes\win-x64, and the model in models: all three side by side.
+      - run: dotnet publish src/ShowTime.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o build/ShowTime
       - name: Add the Whisper model
         shell: bash
+        # ShowTime itself never downloads anything: the model is pinned and checked (build/fetch-whisper-model.sh).
+        run: bash build/fetch-whisper-model.sh build/ShowTime/models
+      - name: Add ffmpeg and the licence notices
+        shell: bash
         run: |
-          mkdir -p build/LocalTake/models
-          cd build/LocalTake/models
-          curl -sSfL -o "$WHISPER_MODEL" "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/$WHISPER_MODEL"
-          echo "$WHISPER_MODEL_SHA256  $WHISPER_MODEL" | sha256sum -c -
+          bash build/fetch-ffmpeg.sh windows build/ShowTime
+          cp THIRD-PARTY-NOTICES.md build/ShowTime/
+          cp -r licenses build/ShowTime/
+          test -f build/ShowTime/ShowTime.exe && test -f build/ShowTime/ffmpeg.exe && test -f build/ShowTime/licenses/GPL-3.0.txt
       - name: Zip it, named after the version
         shell: pwsh
         run: |
           New-Item -ItemType Directory dist | Out-Null
-          Compress-Archive -Path build/LocalTake -DestinationPath "dist/LocalTake-$($env:GITHUB_REF_NAME.TrimStart('v'))-windows-x64.zip"
+          Compress-Archive -Path build/ShowTime -DestinationPath "dist/ShowTime-$($env:GITHUB_REF_NAME.TrimStart('v'))-windows-x64.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: dist/*.zip
 
+  # The same build as the CI's macos-app job; keep the workload set and Xcode in step with it.
+  macos:
+    runs-on: macos-26
+    env:
+      MACOS_WORKLOAD_SET: 10.0.401
+      XCODE: /Applications/Xcode_26.6.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: sudo xcode-select -s "$XCODE"
+      - run: dotnet workload install macos --version "$MACOS_WORKLOAD_SET"
+      - run: dotnet build src/ShowTime.Mac -c Release
+      - name: Add ffmpeg, sign and zip, named after the version
+        env:
+          MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+          # Never an ad hoc release: users would have to grant Screen Recording and Microphone again.
+          REQUIRE_SIGNING: 1
+        run: bash build/package-macos.sh src/ShowTime.Mac/bin/Release/net10.0-macos/ShowTime.app "dist/ShowTime-${GITHUB_REF_NAME#v}-macos.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.zip
+
   publish:
-    needs: [windows]
+    needs: [windows, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,4 +88,8 @@ jobs:
             echo "The tag $GITHUB_REF_NAME does not match <Version> in Directory.Build.props" >&2
             exit 1
           fi
-          gh release create "$GITHUB_REF_NAME" dist/* --title "LocalTake $version" --generate-notes
+          # ffmpeg is GPL: each release says where its exact source is.
+          ffmpeg_version="$(sed -n 's/^FFMPEG_VERSION=//p' build/fetch-ffmpeg.sh)"
+          source_url="https://ffmpeg.org/releases/ffmpeg-$ffmpeg_version.tar.xz"
+          echo "Contient ffmpeg $ffmpeg_version (GPL v3) ; code source : $source_url. Voir THIRD-PARTY-NOTICES.md." > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* --title "ShowTime $version" --notes-file notes.md --generate-notes

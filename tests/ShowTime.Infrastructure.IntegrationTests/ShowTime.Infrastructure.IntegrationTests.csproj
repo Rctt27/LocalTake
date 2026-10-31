@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Real files and a real ffmpeg (tests needing ffmpeg are skipped when it is not installed). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ShowTime.Infrastructure\ShowTime.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+</Project>

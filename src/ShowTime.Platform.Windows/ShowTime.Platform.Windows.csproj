@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Windows implementations of the core's ports, through Win32 only (no WPF, no WinForms), so that the Avalonia app
+    uses them. It targets net10.0 rather than net10.0-windows: the app builds on every system and picks the
+    platform at run time.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>ShowTime.Platform.Windows</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShowTime.Core\ShowTime.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WASAPI loopback for the computer sound: COM interop only, no native binary. -->
+    <PackageReference Include="NAudio.Wasapi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>windows</_Parameter1>
+    </AssemblyAttribute>
+    <InternalsVisibleTo Include="ShowTime.Platform.Tests" />
+  </ItemGroup>
+
+</Project>

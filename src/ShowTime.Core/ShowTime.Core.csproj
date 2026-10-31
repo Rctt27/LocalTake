@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain rules and use cases. No UI framework, no operating system API: everything platform-specific is a port. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ShowTime.Core</RootNamespace>
+    <!-- The macOS app is trimmed: reflection on .NET's types is reported here, on every OS. -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="TestableIO.System.IO.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ShowTime.Core.Tests" />
+  </ItemGroup>
+
+</Project>

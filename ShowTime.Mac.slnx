@@ -1,0 +1,20 @@
+<Solution>
+  <!-- The macOS app and what it is built from; it needs a Mac with the "macos" workload. ShowTime.slnx holds the rest. -->
+  <Folder Name="/src/">
+    <Project Path="src/ShowTime.Core/ShowTime.Core.csproj" />
+    <Project Path="src/ShowTime.Infrastructure/ShowTime.Infrastructure.csproj" />
+    <Project Path="src/ShowTime.Platform.MacOS/ShowTime.Platform.MacOS.csproj" />
+    <Project Path="src/ShowTime.Mac/ShowTime.Mac.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ShowTime.Core.Tests/ShowTime.Core.Tests.csproj" />
+    <Project Path="tests/ShowTime.Infrastructure.IntegrationTests/ShowTime.Infrastructure.IntegrationTests.csproj" />
+    <Project Path="tests/ShowTime.Platform.Tests/ShowTime.Platform.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+  </Folder>
+</Solution>
