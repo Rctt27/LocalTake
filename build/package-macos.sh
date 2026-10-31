@@ -64,7 +64,8 @@ if [ -n "${MACOS_SIGNING_P12:-}" ]; then
   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" > /dev/null
   # shellcheck disable=SC2046 # the existing keychains, one per line
   security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-  identity=ShowTime
+  # The certificate keeps the app's former name (docs/macos-signing.md).
+  identity=LocalTake
 else
   if [ "${REQUIRE_SIGNING:-}" = 1 ]; then
     fail "MACOS_SIGNING_P12 is missing: a release is signed with the LocalTake certificate (docs/macos-signing.md)"
