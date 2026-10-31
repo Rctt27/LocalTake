@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - Branche `feature/macos-app` ; commits terminés par les lignes d'attribution de la session.
-- Tests en local : `tests/LocalTake.Core.Tests` et `tests/LocalTake.Infrastructure.IntegrationTests` seulement. `LocalTake.Platform.Tests` et `LocalTake.Windows.Tests` passent par la CI (`gh workflow run CI --ref feature/macos-app`, puis `gh run watch <id> --exit-status`) : ils affichent des fenêtres ou captent du son, ce qui fait planter une autre application sur le PC de l'utilisateur.
-- L'app Mac ne se compile que sur la CI (job `macos-app`) et n'a pas de tests automatisés : ce qui se teste va dans le cœur ; le reste se vérifie à la main (`docs/test-checklist.md`, artefact `LocalTake-macos`).
+- Tests en local : `tests/ShowTime.Core.Tests` et `tests/ShowTime.Infrastructure.IntegrationTests` seulement. `ShowTime.Platform.Tests` et `ShowTime.Windows.Tests` passent par la CI (`gh workflow run CI --ref feature/macos-app`, puis `gh run watch <id> --exit-status`) : ils affichent des fenêtres ou captent du son, ce qui fait planter une autre application sur le PC de l'utilisateur.
+- L'app Mac ne se compile que sur la CI (job `macos-app`) et n'a pas de tests automatisés : ce qui se teste va dans le cœur ; le reste se vérifie à la main (`docs/test-checklist.md`, artefact `ShowTime-macos`).
 - Couverture du cœur ≥ 90 % (`python build/check-coverage.py`).
 - L'app ne télécharge rien : modèle `ggml-small-q5_1.bin`, révision `5359861c739e955e79d9a303bcbc70fb988958b1`, SHA-256 `ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb`, récupéré au build seulement.
 - Pas de régression Windows : mêmes textes, mêmes comportements, `TranscriptPanelTests` / `VideoPreview*Tests` / `RecordingBarTests` inchangés et verts, sauf le pas de 10 s → 5 s (infobulles « Reculer de 5 secondes (←) », « Avancer de 5 secondes (→) »).
@@ -35,7 +35,7 @@
 
 **Files:**
 - Create: `build/fetch-whisper-model.sh`
-- Modify: `src/LocalTake.Infrastructure/LocalTake.Infrastructure.csproj` (cible `DropWhisperRuntimes`), `src/LocalTake.Mac/LocalTake.Mac.csproj`, `src/LocalTake.Mac/Composition.cs`, `build/package-macos.sh`, `.github/workflows/ci.yml` (job `macos-app`), `.github/workflows/release.yml` (étape « Add the Whisper model » de Windows)
+- Modify: `src/ShowTime.Infrastructure/ShowTime.Infrastructure.csproj` (cible `DropWhisperRuntimes`), `src/ShowTime.Mac/ShowTime.Mac.csproj`, `src/ShowTime.Mac/Composition.cs`, `build/package-macos.sh`, `.github/workflows/ci.yml` (job `macos-app`), `.github/workflows/release.yml` (étape « Add the Whisper model » de Windows)
 
 **Interfaces:**
 - Produces: `bash build/fetch-whisper-model.sh <dir>` écrit `<dir>/ggml-small-q5_1.bin`, vérifié par SHA-256, et échoue sinon ; le bundle contient `Contents/Resources/models/ggml-small-q5_1.bin` et les bibliothèques de Whisper là où Whisper.net les cherche (`AppContext.BaseDirectory` + `runtimes/macos-<arch>/`, soit `Contents/MonoBundle/runtimes/…`).
@@ -46,7 +46,7 @@
 
 - [ ] **Step 3: `package-macos.sh`** : appelle `fetch-whisper-model.sh "$app/Contents/Resources/models"` (l'artefact de CI porte donc le modèle : le Mac se teste sans rien installer) ; vérifie que `Contents/MonoBundle/runtimes/macos-arm64/libwhisper.dylib` et `…/macos-x64/libwhisper.dylib` existent (`fail` sinon, avec `find "$app" -name 'libwhisper*'` dans le message) ; signe chaque `.dylib` de `Contents/MonoBundle/runtimes` avec `$identity` avant l'app, comme `ffmpeg`.
 
-- [ ] **Step 4: preuve sur la CI.** Dans le job `macos-app`, après l'empaquetage : extraire le zip dans `$RUNNER_TEMP`, lancer `LocalTake.app/Contents/MacOS/LocalTake --diagnostics` sous une limite de 300 s (`perl -e 'alarm shift; exec @ARGV' 300 …` : macOS n'a pas `timeout`), sans exiger un code de sortie nul (l'écran n'est pas autorisé sur le runner), puis exiger la ligne `[ok]   transcription:` dans la sortie (`grep -F`). Même chose sous `arch -x86_64` si `arch -x86_64 /usr/bin/true` réussit, sinon un `::warning::` « Rosetta absent : Whisper x86_64 non vérifié ».
+- [ ] **Step 4: preuve sur la CI.** Dans le job `macos-app`, après l'empaquetage : extraire le zip dans `$RUNNER_TEMP`, lancer `ShowTime.app/Contents/MacOS/ShowTime --diagnostics` sous une limite de 300 s (`perl -e 'alarm shift; exec @ARGV' 300 …` : macOS n'a pas `timeout`), sans exiger un code de sortie nul (l'écran n'est pas autorisé sur le runner), puis exiger la ligne `[ok]   transcription:` dans la sortie (`grep -F`). Même chose sous `arch -x86_64` si `arch -x86_64 /usr/bin/true` réussit, sinon un `::warning::` « Rosetta absent : Whisper x86_64 non vérifié ».
 
 - [ ] **Step 5: CI.** Commit, push, `gh workflow run CI --ref feature/macos-app`, `gh run watch`. Attendu : `macos-app` vert, la ligne `[ok]   transcription: …/Contents/Resources/models/ggml-small-q5_1.bin (… MB), language fr` dans son journal. Si les bibliothèques ne sont pas sous `Contents/MonoBundle/runtimes` : les y placer depuis le csproj Mac (éléments `None` sur `$(NuGetPackageRoot)whisper.net.runtime/1.9.1/build/macos-*/*.dylib`, `Link="runtimes/macos-<arch>/%(Filename)%(Extension)"`, `CopyToOutputDirectory="PreserveNewest"`), puis relancer.
 
@@ -55,8 +55,8 @@
 ### Task 2: pas de 5 s du lecteur (`PlayerSeek`), appliqué à Windows
 
 **Files:**
-- Create: `src/LocalTake.Core/Recording/PlayerSeek.cs`, `tests/LocalTake.Core.Tests/Recording/PlayerSeekTests.cs`
-- Modify: `src/LocalTake.Windows/Recording/VideoPreviewWindow.xaml` (deux infobulles), `src/LocalTake.Windows/Recording/VideoPreviewWindow.xaml.cs` (`JumpSeconds` supprimé, résumé de classe « 5-second jumps »)
+- Create: `src/ShowTime.Core/Recording/PlayerSeek.cs`, `tests/ShowTime.Core.Tests/Recording/PlayerSeekTests.cs`
+- Modify: `src/ShowTime.Windows/Recording/VideoPreviewWindow.xaml` (deux infobulles), `src/ShowTime.Windows/Recording/VideoPreviewWindow.xaml.cs` (`JumpSeconds` supprimé, résumé de classe « 5-second jumps »)
 
 **Interfaces:**
 - Produces: `public static class PlayerSeek { public static readonly TimeSpan Step; public static TimeSpan Back(TimeSpan position); public static TimeSpan Forward(TimeSpan position, TimeSpan duration); }`
@@ -73,16 +73,16 @@
 [Fact] public void Forward_without_a_duration_still_moves() => PlayerSeek.Forward(S(12), TimeSpan.Zero).ShouldBe(S(17));
 ```
 
-- [ ] **Step 2:** `dotnet test --project tests/LocalTake.Core.Tests` → échec de compilation (`PlayerSeek` inconnu).
+- [ ] **Step 2:** `dotnet test --project tests/ShowTime.Core.Tests` → échec de compilation (`PlayerSeek` inconnu).
 - [ ] **Step 3: implémenter `PlayerSeek`** ; Windows : `SeekBar.LargeChange = PlayerSeek.Step.TotalSeconds`, ←/→ et les boutons passent par `Back` / `Forward`.
-- [ ] **Step 4:** tests du cœur verts ; `dotnet build LocalTake.slnx -c Release` sans avertissement.
+- [ ] **Step 4:** tests du cœur verts ; `dotnet build ShowTime.slnx -c Release` sans avertissement.
 - [ ] **Step 5: commit** `Jump 5 seconds in the player`.
 
 ### Task 3: règles d'affichage partagées (bandeau, lisibilité, bascule de la barre)
 
 **Files:**
-- Create: `src/LocalTake.Core/Transcription/SubtitlePlacement.cs`, `src/LocalTake.Core/Transcription/CueReadability.cs`, `src/LocalTake.Core/Recording/SubtitleToggle.cs`, et leurs tests dans `tests/LocalTake.Core.Tests/Transcription/` et `…/Recording/`
-- Modify: `src/LocalTake.Windows/Recording/VideoPreviewWindow.xaml.cs` (`PlaceSubtitle`), `src/LocalTake.Windows/Recording/TranscriptPanel.xaml.cs` (`CueRow.ShowReadability`), `src/LocalTake.Windows/Recording/RecordingBar.xaml.cs` (état de `TranscriptionToggle`)
+- Create: `src/ShowTime.Core/Transcription/SubtitlePlacement.cs`, `src/ShowTime.Core/Transcription/CueReadability.cs`, `src/ShowTime.Core/Recording/SubtitleToggle.cs`, et leurs tests dans `tests/ShowTime.Core.Tests/Transcription/` et `…/Recording/`
+- Modify: `src/ShowTime.Windows/Recording/VideoPreviewWindow.xaml.cs` (`PlaceSubtitle`), `src/ShowTime.Windows/Recording/TranscriptPanel.xaml.cs` (`CueRow.ShowReadability`), `src/ShowTime.Windows/Recording/RecordingBar.xaml.cs` (état de `TranscriptionToggle`)
 
 **Interfaces:**
 - Produces:
@@ -123,8 +123,8 @@ SubtitleToggle.For(true, true, false, false).ToolTip.ShouldBe("Pas de sous-titre
 ### Task 4: `SubtitleEditor`, la logique du panneau de sous-titres dans le cœur
 
 **Files:**
-- Create: `src/LocalTake.Core/Transcription/SubtitleEditor.cs`, `tests/LocalTake.Core.Tests/Transcription/SubtitleEditorTests.cs`
-- Modify: `src/LocalTake.Windows/Recording/TranscriptPanel.xaml.cs` (délègue au `SubtitleEditor` ; ne garde que les lignes, le focus, le centrage et les pinceaux)
+- Create: `src/ShowTime.Core/Transcription/SubtitleEditor.cs`, `tests/ShowTime.Core.Tests/Transcription/SubtitleEditorTests.cs`
+- Modify: `src/ShowTime.Windows/Recording/TranscriptPanel.xaml.cs` (délègue au `SubtitleEditor` ; ne garde que les lignes, le focus, le centrage et les pinceaux)
 
 **Interfaces:**
 - Consumes: `SubtitleFile`, `Transcriptions`, `TranscriptionJob`, `SubtitleDocument`, `Timecode`, `IUiThread`, `TimeProvider`.
@@ -186,7 +186,7 @@ Les textes d'état sont ceux de `TranscriptPanel` aujourd'hui, mot pour mot (att
 ### Task 5: panneau de sous-titres Mac (`TranscriptPanelView`)
 
 **Files:**
-- Create: `src/LocalTake.Mac/Video/TranscriptPanelView.cs`
+- Create: `src/ShowTime.Mac/Video/TranscriptPanelView.cs`
 
 **Interfaces:**
 - Consumes: `SubtitleEditor` (tâche 4), `CueReadability` (tâche 3), `Timecode`, `SubtitleDocument.MinDuration`.
@@ -203,8 +203,8 @@ Les textes d'état sont ceux de `TranscriptPanel` aujourd'hui, mot pour mot (att
 ### Task 6: lecteur Mac : panneau, bandeau, « Générer les sous-titres », touches, Corbeille
 
 **Files:**
-- Modify: `src/LocalTake.Mac/Video/VideoPreviewWindowController.cs`, `src/LocalTake.Mac/StatusMenu.cs`, `src/LocalTake.Mac/Composition.cs`, `src/LocalTake.Mac/AppDelegate.cs`
-- Create: `src/LocalTake.Mac/Video/SeekingPlayerView.cs`
+- Modify: `src/ShowTime.Mac/Video/VideoPreviewWindowController.cs`, `src/ShowTime.Mac/StatusMenu.cs`, `src/ShowTime.Mac/Composition.cs`, `src/ShowTime.Mac/AppDelegate.cs`
+- Create: `src/ShowTime.Mac/Video/SeekingPlayerView.cs`
 
 **Interfaces:**
 - Consumes: `SubtitleEditor`, `TranscriptPanelView`, `SubtitlePlacement`, `PlayerSeek`, `Transcriptions`, `SubtitleFile`, `VideoSavedEventArgs.MicrophoneTrackPath` / `.Transcribe`.
@@ -222,13 +222,13 @@ Les textes d'état sont ceux de `TranscriptPanel` aujourd'hui, mot pour mot (att
 ### Task 7: barre et réglages Mac, documentation
 
 **Files:**
-- Modify: `src/LocalTake.Mac/Recording/RecordingBar.cs`, `src/LocalTake.Mac/Recording/MacRecordingView.cs` (s'il fabrique la barre), `src/LocalTake.Mac/Settings/SettingsWindowController.cs`, `README.md`, `CLAUDE.md`, `docs/test-checklist.md`
+- Modify: `src/ShowTime.Mac/Recording/RecordingBar.cs`, `src/ShowTime.Mac/Recording/MacRecordingView.cs` (s'il fabrique la barre), `src/ShowTime.Mac/Settings/SettingsWindowController.cs`, `README.md`, `CLAUDE.md`, `docs/test-checklist.md`
 
 **Interfaces:**
 - Consumes: `SubtitleToggle.For` (tâche 3), `Transcriptions.CanTranscribe` (ou `TranscriptionModelLocator.Find`), `SettingsForm.TranscriptionLanguages`.
 
 - [ ] **Step 1: bascule « Sous-titres » sur la barre**, après celles du micro et du son, avec l'état de `SubtitleToggle.For(canTranscribe, micro activé, settings.TranscribeMicrophone, verrouillé)` recalculé quand le micro change et à l'entrée en enregistrement ; un clic écrit `TranscribeMicrophone` et `TrySave` comme les deux autres bascules.
-- [ ] **Step 2: section « Sous-titres » des réglages** : case « Transcrire le micro en sous-titres après l'enregistrement » avec la phrase d'aide de Windows, « Langue » (`SettingsForm.TranscriptionLanguages`), « Modèle » (champ, « Parcourir… » filtré sur `.bin`, état « Livré avec LocalTake : … » / « Modèle trouvé. » / « Modèle introuvable : les vidéos ne pourront pas être transcrites. Laissez le champ vide pour utiliser celui livré avec LocalTake. » en rouge) ; la case est grisée sans modèle sauf si elle est cochée ; `Save` passe les trois valeurs du formulaire (fin du commentaire « not on macOS yet ») ; « Valeurs par défaut » les remet.
+- [ ] **Step 2: section « Sous-titres » des réglages** : case « Transcrire le micro en sous-titres après l'enregistrement » avec la phrase d'aide de Windows, « Langue » (`SettingsForm.TranscriptionLanguages`), « Modèle » (champ, « Parcourir… » filtré sur `.bin`, état « Livré avec ShowTime : … » / « Modèle trouvé. » / « Modèle introuvable : les vidéos ne pourront pas être transcrites. Laissez le champ vide pour utiliser celui livré avec ShowTime. » en rouge) ; la case est grisée sans modèle sauf si elle est cochée ; `Save` passe les trois valeurs du formulaire (fin du commentaire « not on macOS yet ») ; « Valeurs par défaut » les remet.
 - [ ] **Step 3: documentation.** README : sous-titres sur Mac, ←/→ de 5 s. CLAUDE.md : `SubtitleEditor` et les règles partagées (section Transcription), whisper.cpp et le modèle dans le bundle (Versioning and releases, `package-macos.sh`), plus de « The app does not transcribe yet ». Checklist : 5 s dans la partie Windows ; dans la partie Mac, la section Sous-titres de Windows adaptée (bascule, transcription après l'enregistrement, panneau, bandeau, « Générer les sous-titres », « Réessayer », ⌘Z, Supprimer / Refaire avec le `.srt`, nouvel enregistrement pendant une transcription, ←/→/Début/Espace, et ces touches pendant la saisie d'un sous-titre), plus « sur un Mac Intel, la transcription fonctionne ».
 - [ ] **Step 4: CI** verte sur tous les jobs.
 - [ ] **Step 5: commit** `Offer subtitles on the Mac bar and in its settings`.

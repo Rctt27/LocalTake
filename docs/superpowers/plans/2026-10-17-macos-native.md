@@ -1,15 +1,15 @@
-# LocalTake macOS natif — plan d'implémentation
+# ShowTime macOS natif — plan d'implémentation
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal :** une vraie app Mac en C# (barre des menus, capture, éditeur, vidéo avec lecteur intégré, réglages) sur le cœur commun, livrée en v0.5.0 (la v0.4.0 est sortie pour Windows seul, avec le surlignage à la souris).
 
 **Architecture :**
-- `LocalTake.Mac` (`net10.0-macos`, AppKit et AVKit) ne contient que des vues et des adaptateurs écrits avec les bindings Apple de .NET.
-- `LocalTake.Platform.MacOS` (`net10.0`, testable sur n'importe quel runner) garde ce que les bindings ne couvrent pas :
+- `ShowTime.Mac` (`net10.0-macos`, AppKit et AVKit) ne contient que des vues et des adaptateurs écrits avec les bindings Apple de .NET.
+- `ShowTime.Platform.MacOS` (`net10.0`, testable sur n'importe quel runner) garde ce que les bindings ne couvrent pas :
   - les raccourcis Carbon ;
   - la géométrie des écrans, en points et pixels, avec l'origine Cocoa en bas à gauche.
-- La logique reste dans `LocalTake.Core` et l'enregistrement passe par ffmpeg (`AvFoundation`, déjà testé).
+- La logique reste dans `ShowTime.Core` et l'enregistrement passe par ffmpeg (`AvFoundation`, déjà testé).
 
 **Tech stack :**
 - .NET 10 et le workload `macos` (Xcode 26.x requis, version exacte imposée par le workload) ;
@@ -26,19 +26,19 @@
 - **macOS minimum :** 14.0 (`SupportedOSPlatformVersion`).
 - **Puces :** `RuntimeIdentifiers` = `osx-arm64;osx-x64`, soit un seul `.app` universel.
 - **Identité de l'app :**
-  - bundle `io.github.rctt27.localtake` ; nom affiché `LocalTake` ; exécutable `LocalTake` ;
+  - bundle `io.github.rctt27.showtime` ; nom affiché `ShowTime` ; exécutable `ShowTime` ;
   - `LSUIElement=true` (pas d'icône dans le Dock) ;
-  - `NSMicrophoneUsageDescription` = « LocalTake enregistre le micro dans vos vidéos, uniquement sur cet ordinateur. ».
-- **Réglages :** `~/Library/Application Support/LocalTake/settings.json`, valeurs par défaut `SettingsDefaults.ForMacOS`. Les raccourcis par défaut (`Ctrl+Maj+1/2/3/4`, `Ctrl+Maj+R/D`) s'affichent avec `HotkeyNaming.MacOS`.
+  - `NSMicrophoneUsageDescription` = « ShowTime enregistre le micro dans vos vidéos, uniquement sur cet ordinateur. ».
+- **Réglages :** `~/Library/Application Support/ShowTime/settings.json`, valeurs par défaut `SettingsDefaults.ForMacOS`. Les raccourcis par défaut (`Ctrl+Maj+1/2/3/4`, `Ctrl+Maj+R/D`) s'affichent avec `HotkeyNaming.MacOS`.
 - **Signature :** ad hoc (`codesign --sign -`). Ni notarisation ni Developer ID tant que l'utilisateur n'a pas décidé (voir le plan d'ensemble).
-- **Solutions :** `LocalTake.slnx` n'inclut pas `LocalTake.Mac` (il doit se compiler sous Windows) ; `LocalTake.Mac.slnx` = Core, Infrastructure, Platform.MacOS, `LocalTake.Mac` et leurs tests.
+- **Solutions :** `ShowTime.slnx` n'inclut pas `ShowTime.Mac` (il doit se compiler sous Windows) ; `ShowTime.Mac.slnx` = Core, Infrastructure, Platform.MacOS, `ShowTime.Mac` et leurs tests.
 - **Build :** `TreatWarningsAsErrors` et analyzers comme le reste.
 - **Tests automatiques :** l'app Mac n'en a pas, car il n'y a pas d'hôte de test `net10.0-macos` fiable en CI. Toute logique qui mérite un test va donc dans Core ou `Platform.MacOS`. La vérification fonctionnelle passe par la checklist de chaque tâche, déroulée par l'utilisateur sur son Mac avec l'artefact CI.
 - **Push et PR :** chaque artefact exige un push. On demande l'accord de l'utilisateur une fois, au début du plan, pour pousser la branche `feature/macos-app` à chaque tâche (dépôt public).
 
 ## Review Focus
 
-1. **Autorisation « Enregistrement de l'écran » absente ou refusée :** au lieu d'une capture noire ou réduite au fond d'écran, un message en français dit où l'accorder (Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran), puis LocalTake se relance. Pris en charge par la tâche 2.
+1. **Autorisation « Enregistrement de l'écran » absente ou refusée :** au lieu d'une capture noire ou réduite au fond d'écran, un message en français dit où l'accorder (Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran), puis ShowTime se relance. Pris en charge par la tâche 2.
 2. **Deux écrans d'échelles différentes** (Retina 2× et écran externe 1×) : chaque capture a la taille en pixels de son écran, et les zones des écrans ne se chevauchent pas dans l'espace global. Tests dans la tâche 2.
 3. **Écran secondaire en vidéo :** l'index « Capture screen N » d'ffmpeg peut ne pas suivre l'ordre de `NSScreen.Screens`. Le diagnostic affiche les deux listes, et la tâche 5 vérifie la vidéo sur le second écran.
 4. **Raccourci déjà pris par une autre app :** un avertissement liste les raccourcis refusés, comme sous Windows (comportement du cœur). Point de checklist de la tâche 3.
@@ -50,13 +50,13 @@
 
 **Files:**
 - Create :
-  - `LocalTake.Mac.slnx` ;
-  - `src/LocalTake.Mac/LocalTake.Mac.csproj` ;
-  - `src/LocalTake.Mac/Main.cs` ;
-  - `src/LocalTake.Mac/AppDelegate.cs` ;
-  - `src/LocalTake.Mac/Composition.cs` ;
-  - `src/LocalTake.Mac/Info.plist` ;
-  - `src/LocalTake.Mac/Resources/` : icône de l'app en catalogue `AppIcon.appiconset`, généré depuis `LocalTake.ico` ; icône de barre des menus `StatusIcon.png` et `StatusIcon@2x.png` en modèle monochrome (*template image*) de 18 pt.
+  - `ShowTime.Mac.slnx` ;
+  - `src/ShowTime.Mac/ShowTime.Mac.csproj` ;
+  - `src/ShowTime.Mac/Main.cs` ;
+  - `src/ShowTime.Mac/AppDelegate.cs` ;
+  - `src/ShowTime.Mac/Composition.cs` ;
+  - `src/ShowTime.Mac/Info.plist` ;
+  - `src/ShowTime.Mac/Resources/` : icône de l'app en catalogue `AppIcon.appiconset`, généré depuis `ShowTime.ico` ; icône de barre des menus `StatusIcon.png` et `StatusIcon@2x.png` en modèle monochrome (*template image*) de 18 pt.
 - Modify :
   - `.github/workflows/ci.yml` : job `macos-app` ;
   - `docs/test-checklist.md` : section macOS réécrite, une sous-section par tâche.
@@ -78,7 +78,7 @@ Le projet reprend les valeurs des Global Constraints, ainsi que `ApplicationDisp
 
 - Avec `--diagnostics` : résoudre `DiagnosticsReport` et écrire sur `Console.Out` et dans `<logs>/diagnostics.txt`, puis quitter avec son code.
 - Sinon : `NSApplication.Init()`, puis `ActivationPolicy = Accessory` et `Run()`.
-- Le menu de l'icône contient « LocalTake <version> » (désactivé), un séparateur et « Quitter LocalTake ».
+- Le menu de l'icône contient « ShowTime <version> » (désactivé), un séparateur et « Quitter ShowTime ».
 - Une seconde instance est détectée avec `NSRunningApplication.GetRunningApplications(bundleId)`. Si une autre instance existe, l'app quitte et ne crée pas d'icône.
 
 - [ ] **Step 3 : job CI `macos-app`**
@@ -88,18 +88,18 @@ Sur `runs-on: macos-26` :
 2. `setup-dotnet` (avec `global.json`) ;
 3. `sudo xcode-select -s /Applications/Xcode_<version exigée>.app`, puis `xcodebuild -version` ;
 4. `dotnet workload install macos` ;
-5. `dotnet format LocalTake.Mac.slnx --verify-no-changes` ;
-6. `dotnet build src/LocalTake.Mac -c Release` ;
+5. `dotnet format ShowTime.Mac.slnx --verify-no-changes` ;
+6. `dotnet build src/ShowTime.Mac -c Release` ;
 7. `codesign --force --deep --sign - <app>` (si le SDK ne signe pas déjà en ad hoc) ;
-8. `ditto -c -k --keepParent <app> dist/LocalTake-macos.zip` ;
-9. `upload-artifact` sous le nom `LocalTake-macos`.
+8. `ditto -c -k --keepParent <app> dist/ShowTime-macos.zip` ;
+9. `upload-artifact` sous le nom `ShowTime-macos`.
 
 La version de Xcode est celle qu'exige le workload : c'est le message d'erreur du premier build qui la donne. On la fige ensuite dans le workflow.
 
 - [ ] **Step 4 : vérifier**
 
 Push avec l'accord de l'utilisateur.
-Attendu : le job `macos-app` est vert, l'artefact contient `LocalTake.app`, et `lipo -archs LocalTake.app/Contents/MacOS/LocalTake` affiche `x86_64 arm64`.
+Attendu : le job `macos-app` est vert, l'artefact contient `ShowTime.app`, et `lipo -archs ShowTime.app/Contents/MacOS/ShowTime` affiche `x86_64 arm64`.
 
 - [ ] **Step 5 : checklist utilisateur, tâche 1**
 
@@ -108,7 +108,7 @@ Attendu : le job `macos-app` est vert, l'artefact contient `LocalTake.app`, et `
 - L'icône est dans la barre des menus, pas dans le Dock ; « Quitter » ferme l'app.
 - Un second lancement ne crée pas de seconde icône.
 - `brew install ffmpeg` est possible.
-- `LocalTake.app/Contents/MacOS/LocalTake --diagnostics` produit un rapport, à renvoyer.
+- `ShowTime.app/Contents/MacOS/ShowTime --diagnostics` produit un rapport, à renvoyer.
 
 **Si un prérequis est bloqué par la politique de l'entreprise, on s'arrête là et on en reparle.**
 
@@ -118,18 +118,18 @@ Attendu : le job `macos-app` est vert, l'artefact contient `LocalTake.app`, et `
 
 **Files:**
 - Create :
-  - `src/LocalTake.Platform.MacOS/MacScreenSpace.cs` ;
-  - `src/LocalTake.Mac/Platform/MacScreenGrabber.cs` (ScreenCaptureKit) ;
-  - `src/LocalTake.Mac/Platform/MacNativeWindows.cs` ;
-  - `src/LocalTake.Mac/Platform/MacClipboard.cs` ;
-  - `src/LocalTake.Mac/Platform/MacShell.cs` (avec `MacFileTrash`) ;
-  - `src/LocalTake.Mac/Platform/MacStartupRegistration.cs` ;
-  - `src/LocalTake.Mac/Adapters/MacImage.cs` ;
-  - `src/LocalTake.Mac/Adapters/MacImageCodec.cs`.
+  - `src/ShowTime.Platform.MacOS/MacScreenSpace.cs` ;
+  - `src/ShowTime.Mac/Platform/MacScreenGrabber.cs` (ScreenCaptureKit) ;
+  - `src/ShowTime.Mac/Platform/MacNativeWindows.cs` ;
+  - `src/ShowTime.Mac/Platform/MacClipboard.cs` ;
+  - `src/ShowTime.Mac/Platform/MacShell.cs` (avec `MacFileTrash`) ;
+  - `src/ShowTime.Mac/Platform/MacStartupRegistration.cs` ;
+  - `src/ShowTime.Mac/Adapters/MacImage.cs` ;
+  - `src/ShowTime.Mac/Adapters/MacImageCodec.cs`.
 - Delete :
   - de `Platform.MacOS` : `MacScreenGrabber.cs`, `MacServices.cs`, et les parties ObjC et ImageIO de `Native.cs`. Il reste Carbon, `MacHotkeys` et `MacKeys` ;
-  - les tests correspondants dans `tests/LocalTake.Platform.Tests/MacOS/`.
-- Test : `tests/LocalTake.Platform.Tests/MacOS/MacScreenSpaceTests.cs` (logique pure, exécutée sur tous les runners).
+  - les tests correspondants dans `tests/ShowTime.Platform.Tests/MacOS/`.
+- Test : `tests/ShowTime.Platform.Tests/MacOS/MacScreenSpaceTests.cs` (logique pure, exécutée sur tous les runners).
 
 **Interfaces:**
 - Produces :
@@ -138,7 +138,7 @@ Attendu : le job `macos-app` est vert, l'artefact contient `LocalTake.app`, et `
     - `public static IReadOnlyList<PixelRect> Layout(IReadOnlyList<ScreenFrame> screens)` : écran principal à l'index 0 ; Y retourné vers le bas ; origine = points × plus grande échelle ; taille = points × échelle propre de l'écran, donc jamais de chevauchement ;
     - `public static PixelPoint ToPixel(ScreenFrame screen, PixelRect laidOut, double pointX, double pointY)`.
   - Les adaptateurs implémentent les ports existants :
-    - `IScreenGrabber` : `SCScreenshotManager` par écran, assemblé selon `Layout` ; `VisibleWindows` via `SCShareableContent.Windows`, à la couche 0 et hors LocalTake ;
+    - `IScreenGrabber` : `SCScreenshotManager` par écran, assemblé selon `Layout` ; `VisibleWindows` via `SCShareableContent.Windows`, à la couche 0 et hors ShowTime ;
     - `INativeWindows` : `SharingType = None` ; `Level = NSWindowLevel.ScreenSaver` ;
     - `INativeClipboard` : `NSPasteboard`, PNG et TIFF ;
     - `IShell` : `NSWorkspace.ActivateFileViewer` et `OpenUrl` ;
@@ -156,16 +156,16 @@ Attendu : le job `macos-app` est vert, l'artefact contient `LocalTake.app`, et `
 
 - [ ] **Step 2 : vérifier l'échec**
 
-Run : `dotnet test --project tests/LocalTake.Platform.Tests -c Release`
+Run : `dotnet test --project tests/ShowTime.Platform.Tests -c Release`
 Attendu : la compilation échoue.
 
 - [ ] **Step 3 : implémenter `MacScreenSpace`, puis les adaptateurs**
 
-Si ScreenCaptureKit refuse faute d'autorisation, `MacScreenGrabber.Grab` lève une `UnauthorizedAccessException` avec ce message exact : « LocalTake n'a pas l'autorisation d'enregistrer l'écran. Ouvrez Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran, cochez LocalTake, puis relancez-le. » Le diagnostic et `CaptureWorkflow` l'affichent tel quel (Review Focus 1). Avant la première capture, l'app appelle `CGRequestScreenCaptureAccess()` pour que macOS propose l'autorisation.
+Si ScreenCaptureKit refuse faute d'autorisation, `MacScreenGrabber.Grab` lève une `UnauthorizedAccessException` avec ce message exact : « ShowTime n'a pas l'autorisation d'enregistrer l'écran. Ouvrez Réglages Système > Confidentialité et sécurité > Enregistrement de l'écran, cochez ShowTime, puis relancez-le. » Le diagnostic et `CaptureWorkflow` l'affichent tel quel (Review Focus 1). Avant la première capture, l'app appelle `CGRequestScreenCaptureAccess()` pour que macOS propose l'autorisation.
 
 - [ ] **Step 4 : vérifier**
 
-Run : `dotnet test --project tests/LocalTake.Platform.Tests -c Release` sous Windows, puis la CI.
+Run : `dotnet test --project tests/ShowTime.Platform.Tests -c Release` sous Windows, puis la CI.
 Attendu : tout est vert sur les trois OS, et le job `macos-app` est vert.
 
 - [ ] **Step 5 : checklist utilisateur, tâche 2**
@@ -180,12 +180,12 @@ Attendu : tout est vert sur les trois OS, et le job `macos-app` est vert.
 
 **Files:**
 - Create :
-  - `src/LocalTake.Mac/Capture/SelectionOverlay.cs` : une fenêtre sans bordure par `NSScreen`, au niveau `ScreenSaver`, qui couvre aussi la barre des menus et le Dock ;
-  - `src/LocalTake.Mac/Capture/MacScreen.cs` (`IScreen`, `IAreaPicker`) ;
-  - `src/LocalTake.Mac/StatusMenu.cs` ;
-  - `src/LocalTake.Mac/Adapters/MacDialogs.cs` (`NSAlert`, `NSSavePanel`) ;
-  - `src/LocalTake.Mac/Adapters/MacNotifications.cs` ;
-  - `src/LocalTake.Mac/Adapters/MainThread.cs`.
+  - `src/ShowTime.Mac/Capture/SelectionOverlay.cs` : une fenêtre sans bordure par `NSScreen`, au niveau `ScreenSaver`, qui couvre aussi la barre des menus et le Dock ;
+  - `src/ShowTime.Mac/Capture/MacScreen.cs` (`IScreen`, `IAreaPicker`) ;
+  - `src/ShowTime.Mac/StatusMenu.cs` ;
+  - `src/ShowTime.Mac/Adapters/MacDialogs.cs` (`NSAlert`, `NSSavePanel`) ;
+  - `src/ShowTime.Mac/Adapters/MacNotifications.cs` ;
+  - `src/ShowTime.Mac/Adapters/MainThread.cs`.
 - Modify : `Composition.cs`, `AppDelegate.cs`.
 
 **Interfaces:**
@@ -216,7 +216,7 @@ Il reprend le comportement de Windows :
 
 Les quatre réglages « Après une capture » sont couverts.
 
-- [ ] **Step 3 : vérifier** — `macos-app` est vert ; tous les tests de `LocalTake.Mac.slnx` passent en CI.
+- [ ] **Step 3 : vérifier** — `macos-app` est vert ; tous les tests de `ShowTime.Mac.slnx` passent en CI.
 
 - [ ] **Step 4 : checklist utilisateur, tâche 3**
 
@@ -234,10 +234,10 @@ Les quatre réglages « Après une capture » sont couverts.
 
 **Files:**
 - Create :
-  - `src/LocalTake.Mac/Editor/EditorWindowController.cs` ;
-  - `src/LocalTake.Mac/Editor/AnnotationView.cs` (`NSView` retournée, origine en haut à gauche, en pixels de l'image) ;
-  - `src/LocalTake.Mac/Editor/Annotations.cs` (les annotations à dessiner, en `record`s) ;
-  - `src/LocalTake.Mac/Editor/EditorToolbar.cs`.
+  - `src/ShowTime.Mac/Editor/EditorWindowController.cs` ;
+  - `src/ShowTime.Mac/Editor/AnnotationView.cs` (`NSView` retournée, origine en haut à gauche, en pixels de l'image) ;
+  - `src/ShowTime.Mac/Editor/Annotations.cs` (les annotations à dessiner, en `record`s) ;
+  - `src/ShowTime.Mac/Editor/EditorToolbar.cs`.
 - Delete : le `IEditorLauncher` temporaire de la tâche 3.
 
 **Interfaces:**
@@ -278,15 +278,15 @@ Les quatre réglages « Après une capture » sont couverts.
 
 **Files:**
 - Create :
-  - `src/LocalTake.Mac/Recording/RecordingBar.cs` (`NSPanel`) ;
-  - `src/LocalTake.Mac/Recording/RecordingFrame.cs` (quatre fenêtres hors de la zone enregistrée) ;
-  - `src/LocalTake.Mac/Recording/MacRecordingView.cs` ;
-  - `src/LocalTake.Mac/Video/VideoPreviewWindowController.cs` (`AVPlayerView`).
-- Create : `src/LocalTake.Core/Ports/IDisplays.cs`, `src/LocalTake.Mac/Platform/MacDisplays.cs`.
+  - `src/ShowTime.Mac/Recording/RecordingBar.cs` (`NSPanel`) ;
+  - `src/ShowTime.Mac/Recording/RecordingFrame.cs` (quatre fenêtres hors de la zone enregistrée) ;
+  - `src/ShowTime.Mac/Recording/MacRecordingView.cs` ;
+  - `src/ShowTime.Mac/Video/VideoPreviewWindowController.cs` (`AVPlayerView`).
+- Create : `src/ShowTime.Core/Ports/IDisplays.cs`, `src/ShowTime.Mac/Platform/MacDisplays.cs`.
 - Modify :
   - `Composition.cs` : `AvFoundation` comme `IFfmpegPlatform`, avec `() => displays.Screens()` comme liste d'écrans ;
-  - `src/LocalTake.Infrastructure/Diagnostics/DiagnosticsReport.cs` : nouveau paramètre optionnel `IDisplays? displays = null` ; s'il est fourni, une ligne « screens » liste les écrans dans l'ordre qu'utilise l'enregistrement (Review Focus 3). Sous Windows, `IDisplays` n'est pas enregistré et la ligne n'apparaît pas.
-- Test : `tests/LocalTake.Infrastructure.IntegrationTests/Diagnostics/DiagnosticsReportTests.cs` (cas `Screens_are_listed` et `No_screen_line_without_displays`).
+  - `src/ShowTime.Infrastructure/Diagnostics/DiagnosticsReport.cs` : nouveau paramètre optionnel `IDisplays? displays = null` ; s'il est fourni, une ligne « screens » liste les écrans dans l'ordre qu'utilise l'enregistrement (Review Focus 3). Sous Windows, `IDisplays` n'est pas enregistré et la ligne n'apparaît pas.
+- Test : `tests/ShowTime.Infrastructure.IntegrationTests/Diagnostics/DiagnosticsReportTests.cs` (cas `Screens_are_listed` et `No_screen_line_without_displays`).
 
 **Interfaces:**
 - Consumes :
@@ -326,7 +326,7 @@ La checklist demande aussi à l'utilisateur de coller la sortie de `ffmpeg -f av
 
 - [ ] **Step 2 : vérifier l'échec, implémenter, vérifier le succès**
 
-Run : `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c Release`
+Run : `dotnet test --project tests/ShowTime.Infrastructure.IntegrationTests -c Release`
 
 - [ ] **Step 3 : implémenter la barre, le cadre, la vue et le lecteur** — `macos-app` est vert.
 
@@ -344,8 +344,8 @@ Run : `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c 
 
 **Files:**
 - Create :
-  - `src/LocalTake.Mac/Settings/SettingsWindowController.cs` (formulaire en `NSGridView`) ;
-  - `src/LocalTake.Mac/Settings/HotkeyField.cs`.
+  - `src/ShowTime.Mac/Settings/SettingsWindowController.cs` (formulaire en `NSGridView`) ;
+  - `src/ShowTime.Mac/Settings/HotkeyField.cs`.
 - Modify : `StatusMenu.cs`, qui active « Réglages… ».
 
 **Interfaces:**
@@ -359,7 +359,7 @@ Run : `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c 
 - [ ] **Step 1 : implémenter**
 
 - Mêmes champs que sous Windows.
-- La case « Lancer LocalTake à l'ouverture de session » s'appuie sur `SMAppService`.
+- La case « Lancer ShowTime à l'ouverture de session » s'appuie sur `SMAppService`.
 - Sous la case « Son de l'ordinateur », un texte d'aide : `platform.SystemAudioRequirement`.
 
 - [ ] **Step 2 : vérifier** — `macos-app` est vert ; `SettingsEditorTests` passent.
@@ -380,17 +380,17 @@ Run : `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c 
 
 **Files:**
 - Modify :
-  - `.github/workflows/release.yml` : job `macos`, identique au build CI, qui produit `LocalTake-<version>-macos.zip` ; `publish` dépend de `windows` et de `macos` ;
+  - `.github/workflows/release.yml` : job `macos`, identique au build CI, qui produit `ShowTime-<version>-macos.zip` ; `publish` dépend de `windows` et de `macos` ;
   - `Directory.Build.props` : `<Version>0.5.0</Version>` ;
   - `README.md` : section macOS (installation, clic droit > Ouvrir, autorisations, `brew install ffmpeg`, BlackHole, `--diagnostics`) ;
-  - `CLAUDE.md` : app Mac, `LocalTake.Mac.slnx`, version de Xcode ;
+  - `CLAUDE.md` : app Mac, `ShowTime.Mac.slnx`, version de Xcode ;
   - `docs/test-checklist.md` : checklist macOS complète, regroupant les checklists des tâches 1 à 6.
 
 - [ ] **Step 1 : mettre à jour les fichiers**
 
 - [ ] **Step 2 : vérifier** — CI verte sur les quatre jobs.
 
-- [ ] **Step 3 : commit** — `Prepare LocalTake 0.5.0 for Windows and macOS`
+- [ ] **Step 3 : commit** — `Prepare ShowTime 0.5.0 for Windows and macOS`
 
 - [ ] **Step 4 : remettre la main à l'utilisateur**
 

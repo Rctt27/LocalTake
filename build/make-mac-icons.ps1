@@ -1,9 +1,9 @@
-# Draws the macOS app icon (asset catalog) and the menu bar template icon from the design of LocalTake.ico.
-# Usage: powershell -File build/make-mac-icons.ps1 -Root src/LocalTake.Mac
+# Draws the macOS app icon (asset catalog) and the menu bar template icon from the design of ShowTime.ico.
+# Usage: powershell -File build/make-mac-icons.ps1 -Root src/ShowTime.Mac
 param([string]$Root)
 Add-Type -AssemblyName System.Drawing
 
-# Design of LocalTake.ico, in a 240-unit square: corner brackets 24 thick from 36 to 204, a dot of radius 32 at 120.
+# Design of ShowTime.ico, in a 240-unit square: corner brackets 24 thick from 36 to 204, a dot of radius 32 at 120.
 function Draw-Mark($g, [double]$ox, [double]$oy, [double]$s, $brush, $dotBrush) {
     $pen = New-Object Drawing.Pen ($brush, [single](24 * $s))
     $pen.StartCap = 'Round'; $pen.EndCap = 'Round'; $pen.LineJoin = 'Miter'

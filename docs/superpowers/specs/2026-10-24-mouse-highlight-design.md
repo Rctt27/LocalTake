@@ -15,7 +15,7 @@ et peut être un bouton latéral de souris.
 
 Principe : **une fenêtre transparente, au premier plan et traversable par les clics, dessine la traînée à l'écran ;
 comme elle n'est PAS exclue de la capture, ffmpeg l'enregistre telle quelle.** C'est l'inverse de `RecordingFrame`
-(`src/LocalTake.Windows/Recording/RecordingFrame.cs`), qui appelle `ExcludeFromCapture` justement pour ne pas
+(`src/ShowTime.Windows/Recording/RecordingFrame.cs`), qui appelle `ExcludeFromCapture` justement pour ne pas
 apparaître dans la vidéo. Ce que voit le présentateur est ce que verra le spectateur. La commande ffmpeg ne change
 pas, rien n'est réencodé, et `SyncTests` n'est pas touché.
 
@@ -91,7 +91,7 @@ Une seule main suffit (auriculaire sur Ctrl gauche, pouce sur Espace), sans rega
 
 ## Conception
 
-### Cœur (`src/LocalTake.Core`, testable, couverture 90 %)
+### Cœur (`src/ShowTime.Core`, testable, couverture 90 %)
 - `Recording/HighlightTrigger` : valeur parsée depuis le réglage, soit une `Hotkey`, soit un `MouseButton`
   (`XButton1`, `XButton2`). `TryParse` / `Format` comme `Hotkey`, noms français dans l'UI.
 - `Recording/HighlightTrail` : modèle pur sur `TimeProvider`. `Begin(point)`, `Add(point)`, `Release()`,
@@ -111,7 +111,7 @@ Une seule main suffit (auriculaire sur Ctrl gauche, pouce sur Espace), sans rega
 - `Platform.Windows/WindowsHighlightInput` : touche → `RegisterHotKey` sur la fenêtre message-only existante, puis
   sondage `GetAsyncKeyState` pour le relâchement. Bouton → `SetWindowsHookEx(WH_MOUSE_LL)` sur le thread UI :
   `WM_XBUTTONDOWN/UP` du bon bouton avalés, tout le reste passe tout de suite (le hook doit répondre vite).
-- `LocalTake.Windows/Recording/HighlightOverlay` (WinForms, à côté de `RecordingFrame`) : bornes = zone enregistrée
+- `ShowTime.Windows/Recording/HighlightOverlay` (WinForms, à côté de `RecordingFrame`) : bornes = zone enregistrée
   en pixels physiques, `WM_DPICHANGED` ignoré, **sans** `ExcludeFromCapture`, `Opacity` animée pour le fondu.
 - `RecordingBar` : affiche « Maintenir Ctrl+Espace pour surligner » (format du déclencheur).
 - Réglages WPF : champ « Surligner (maintenir) », capture des boutons latéraux et avertissement si la touche sert à écrire.
@@ -146,7 +146,7 @@ Une seule main suffit (auriculaire sur Ctrl gauche, pouce sur Espace), sans rega
   multi-écran, 150 % DPI ; fondu fluide dans le MP4.
 
 ## Vérification de bout en bout
-1. `dotnet test --solution LocalTake.slnx` et seuil de couverture du cœur.
-2. `dotnet run --project src/LocalTake.Windows`, enregistrer une zone, maintenir `Ctrl+Espace` en survolant un bouton,
+1. `dotnet test --solution ShowTime.slnx` et seuil de couverture du cœur.
+2. `dotnet run --project src/ShowTime.Windows`, enregistrer une zone, maintenir `Ctrl+Espace` en survolant un bouton,
    relâcher, puis refaire avec un bouton latéral.
 3. `ffmpeg -i file.mp4 -vf "fps=10" frames/%03d.png` et vérifier la traînée puis le fondu sur les images.

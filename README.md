@@ -1,15 +1,15 @@
-# LocalTake
+# ShowTime
 
-Outil de capture d'écran et d'enregistrement vidéo pour **Windows** et **macOS**, inspiré de TinyTake, sans compte ni cloud : les captures restent sur l'ordinateur. LocalTake n'envoie rien nulle part, pas même des statistiques ; son journal est un fichier local.
+Outil de capture d'écran et d'enregistrement vidéo pour **Windows** et **macOS**, sans compte ni cloud : les captures restent sur l'ordinateur. ShowTime n'envoie rien nulle part, pas même des statistiques ; son journal est un fichier local.
 
 ## Installation
 
 Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt27/LocalTake/releases).
 
-**Windows 10 (2004) ou 11** : `LocalTake-x.y.z-windows-x64.zip`, à extraire dans un dossier, puis lancer `LocalTake.exe`. Gardez ensemble ce qu'il contient : `LocalTake.exe`, `ffmpeg.exe` (l'encodeur vidéo), le dossier `runtimes` (la bibliothèque de transcription) et le dossier `models` (le modèle de transcription). Rien d'autre à installer. Il nécessite le [runtime .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) (« .NET Desktop Runtime »).
+**Windows 10 (2004) ou 11** : `ShowTime-x.y.z-windows-x64.zip`, à extraire dans un dossier, puis lancer `ShowTime.exe`. Gardez ensemble ce qu'il contient : `ShowTime.exe`, `ffmpeg.exe` (l'encodeur vidéo), le dossier `runtimes` (la bibliothèque de transcription) et le dossier `models` (le modèle de transcription). Rien d'autre à installer. Il nécessite le [runtime .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) (« .NET Desktop Runtime »).
 
-**macOS 14 (Sonoma) ou plus récent**, puce Apple ou Intel : `LocalTake-x.y.z-macos.zip`. Décompressez-le, glissez `LocalTake.app` dans Applications, puis ouvrez-le par **clic droit > Ouvrir** : l'app n'est pas signée par un développeur identifié, macOS le demande une fois (sinon : Réglages Système > Confidentialité et sécurité > « Ouvrir quand même »). ffmpeg et la transcription (whisper.cpp et son modèle) sont inclus dans l'app : rien d'autre à installer. L'icône de LocalTake se trouve dans la barre des menus. macOS demande ensuite deux autorisations, à accorder dans Réglages Système > Confidentialité et sécurité :
-- **Enregistrement de l'écran**, à la première capture ; LocalTake doit être relancé après l'avoir accordée ;
+**macOS 14 (Sonoma) ou plus récent**, puce Apple ou Intel : `ShowTime-x.y.z-macos.zip`. Décompressez-le, glissez `ShowTime.app` dans Applications, puis ouvrez-le par **clic droit > Ouvrir** : l'app n'est pas signée par un développeur identifié, macOS le demande une fois (sinon : Réglages Système > Confidentialité et sécurité > « Ouvrir quand même »). ffmpeg et la transcription (whisper.cpp et son modèle) sont inclus dans l'app : rien d'autre à installer. L'icône de ShowTime se trouve dans la barre des menus. macOS demande ensuite deux autorisations, à accorder dans Réglages Système > Confidentialité et sécurité :
+- **Enregistrement de l'écran**, à la première capture ; ShowTime doit être relancé après l'avoir accordée ;
 - **Micro**, à la première vidéo avec le micro.
 
 À partir de la version 0.5.0, les mises à jour gardent ces autorisations : l'app est toujours signée avec le même certificat (`docs/macos-signing.md`).
@@ -25,9 +25,9 @@ Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt
 | Démarrer / arrêter l'enregistrement (actifs seulement pendant une vidéo) | `Ctrl+R` / `Ctrl+D` | `Ctrl+Maj+R` / `Ctrl+Maj+D` |
 | Surligner avec la souris (maintenir, seulement pendant l'enregistrement) | `Ctrl+Espace` | `Option+Espace` |
 
-Un Mac n'a pas de touche Impr. écran, et `Cmd+Maj+3/4/5` appartiennent à macOS. Les raccourcis se modifient dans les réglages, depuis l'icône LocalTake. On peut aussi y attribuer un raccourci à la capture de la dernière zone et à la vidéo de tout l'écran. Si le système refuse un raccourci, c'est qu'un autre outil l'utilise déjà (TinyTake, l'Outil Capture d'écran…).
+Un Mac n'a pas de touche Impr. écran, et `Cmd+Maj+3/4/5` appartiennent à macOS. Les raccourcis se modifient dans les réglages, depuis l'icône ShowTime. On peut aussi y attribuer un raccourci à la capture de la dernière zone et à la vidéo de tout l'écran. Si le système refuse un raccourci, c'est qu'un autre outil l'utilise déjà (un autre logiciel de capture, l'Outil Capture d'écran…).
 
-Tant que le raccourci de surlignage est maintenu, une traînée jaune translucide suit la souris et apparaît dans la vidéo ; elle s'estompe au relâchement. Il peut aussi être une touche seule (Espace, qui n'écrit alors plus rien pendant l'enregistrement) ou, sous Windows, un bouton latéral de la souris : cliquez avec dans le champ des réglages. Sur Mac, il se maintient au clavier (`Option+Espace`, car `Ctrl+Espace` y change la source de saisie). Les boutons supplémentaires des souris gaming s'associent à une touche `F13` à `F24` dans le logiciel du fabricant, puis à LocalTake.
+Tant que le raccourci de surlignage est maintenu, une traînée jaune translucide suit la souris et apparaît dans la vidéo ; elle s'estompe au relâchement. Il peut aussi être une touche seule (Espace, qui n'écrit alors plus rien pendant l'enregistrement) ou, sous Windows, un bouton latéral de la souris : cliquez avec dans le champ des réglages. Sur Mac, il se maintient au clavier (`Option+Espace`, car `Ctrl+Espace` y change la source de saisie). Les boutons supplémentaires des souris gaming s'associent à une touche `F13` à `F24` dans le logiciel du fabricant, puis à ShowTime.
 
 ## Éditeur
 
@@ -48,7 +48,7 @@ La vidéo s'ouvre ensuite dans un aperçu qui la lit aussitôt, avec l'image à 
 
 ### Sous-titres
 
-La bascule **Sous-titres** de la barre d'enregistrement fait transcrire le micro dès la fin de l'enregistrement. Sans elle, le bouton **Générer les sous-titres**, en haut de la fenêtre de lecture, le fait après coup : il apparaît tant que la vidéo n'a pas de sous-titres, et transcrit la piste du micro gardée pendant que la fenêtre est ouverte, ou à défaut le son de la vidéo. La transcription se fait sur l'ordinateur, avec le modèle [Whisper](https://github.com/ggerganov/whisper.cpp) livré avec LocalTake (dossier `models` sous Windows, dans l'app sur Mac) : rien n'est envoyé. Elle prend environ un tiers de la durée de la vidéo, et attend la fin d'un enregistrement en cours.
+La bascule **Sous-titres** de la barre d'enregistrement fait transcrire le micro dès la fin de l'enregistrement. Sans elle, le bouton **Générer les sous-titres**, en haut de la fenêtre de lecture, le fait après coup : il apparaît tant que la vidéo n'a pas de sous-titres, et transcrit la piste du micro gardée pendant que la fenêtre est ouverte, ou à défaut le son de la vidéo. La transcription se fait sur l'ordinateur, avec le modèle [Whisper](https://github.com/ggerganov/whisper.cpp) livré avec ShowTime (dossier `models` sous Windows, dans l'app sur Mac) : rien n'est envoyé. Elle prend environ un tiers de la durée de la vidéo, et attend la fin d'un enregistrement en cours.
 
 Les sous-titres sont découpés comme pour un tutoriel : une ligne de 42 caractères au plus (environ 5 à 7 mots), coupée à une fin de phrase, une virgule ou avant « et », « qui », « sur »…, jamais après un article, chaque bloc durant de 1 à 5 secondes ; un silence d'une demi-seconde termine un bloc. À côté des temps de chaque bloc, sa vitesse de lecture passe en orange au-delà de 15 caractères par seconde et en rouge au-delà de 17, avec l'explication en infobulle.
 
@@ -58,26 +58,28 @@ Ils s'affichent à gauche de la vidéo, bloc par bloc, avec les intervalles sans
 
 Les sous-titres sont enregistrés à chaque modification dans un fichier `.srt` du même nom que la vidéo, que les lecteurs (VLC, Lecteur multimédia…) affichent avec elle. La langue (français, anglais ou détection automatique) et un autre modèle Whisper (fichier `ggml-*.bin`) se choisissent dans les réglages.
 
-ffmpeg, qui encode les vidéos, est livré avec LocalTake (version épinglée ; LocalTake ne télécharge rien). Un autre ffmpeg peut être indiqué dans les réglages. Le son de l'ordinateur :
+ffmpeg, qui encode les vidéos, est livré avec ShowTime (version épinglée ; ShowTime ne télécharge rien). Un autre ffmpeg peut être indiqué dans les réglages. Le son de l'ordinateur :
 - Windows : capté directement depuis la sortie audio par défaut, sans pilote à installer ;
-- macOS : capté directement par LocalTake (ScreenCaptureKit), sans pilote à installer ; il demande l'autorisation Enregistrement de l'écran, déjà nécessaire pour la vidéo.
+- macOS : capté directement par ShowTime (ScreenCaptureKit), sans pilote à installer ; il demande l'autorisation Enregistrement de l'écran, déjà nécessaire pour la vidéo.
 
 ## Fichiers
 
 | | Windows | macOS |
 | --- | --- | --- |
-| Captures | `Images\LocalTake`, ou `%USERPROFILE%\Captures LocalTake` si le dossier Images est synchronisé par OneDrive | `~/Pictures/LocalTake` |
+| Captures | `Images\ShowTime`, ou `%USERPROFILE%\Captures ShowTime` si le dossier Images est synchronisé par OneDrive | `~/Pictures/ShowTime` |
 | Sous-titres | à côté de chaque vidéo, même nom en `.srt` | à côté de chaque vidéo, même nom en `.srt` |
-| Modèle de transcription | `models` à côté de `LocalTake.exe`, sinon `%LOCALAPPDATA%\LocalTake\models` | dans l'app (`Contents/Resources/models`), sinon `~/Library/Application Support/LocalTake/models` |
-| Piste du micro en attente de transcription | `%LOCALAPPDATA%\LocalTake\work`, effacée une fois transcrite | `~/Library/Caches/LocalTake`, effacée une fois transcrite |
-| Réglages | `%APPDATA%\LocalTake\settings.json` | `~/Library/Application Support/LocalTake/settings.json` |
-| Journal (7 jours) | `%LOCALAPPDATA%\LocalTake\logs` | `~/Library/Logs/LocalTake` |
+| Modèle de transcription | `models` à côté de `ShowTime.exe`, sinon `%LOCALAPPDATA%\ShowTime\models` | dans l'app (`Contents/Resources/models`), sinon `~/Library/Application Support/ShowTime/models` |
+| Piste du micro en attente de transcription | `%LOCALAPPDATA%\ShowTime\work`, effacée une fois transcrite | `~/Library/Caches/ShowTime`, effacée une fois transcrite |
+| Réglages | `%APPDATA%\ShowTime\settings.json` | `~/Library/Application Support/ShowTime/settings.json` |
+| Journal (7 jours) | `%LOCALAPPDATA%\ShowTime\logs` | `~/Library/Logs/ShowTime` |
+
+ShowTime s'appelait LocalTake jusqu'à la version 0.4 et ne reprend pas ses réglages. Les dossiers `LocalTake` aux mêmes endroits peuvent être supprimés ; décochez « Lancer LocalTake au démarrage » dans ses réglages avant de le désinstaller.
 
 ## Un problème ?
 
-Le diagnostic vérifie, sans ouvrir de fenêtre, ce dont LocalTake a besoin : ffmpeg, les périphériques audio, la capture d'écran, la transcription, les raccourcis, et sur Mac les écrans. Quittez LocalTake avant, sinon ses propres raccourcis apparaissent comme déjà pris. Dans un terminal :
-- Windows : `LocalTake.exe --diagnostics` ;
-- macOS : `open -a LocalTake --args --diagnostics`, puis `open ~/Library/Logs/LocalTake/diagnostics.txt` (lancé directement depuis `Contents/MacOS`, il testerait les autorisations du Terminal plutôt que celles de LocalTake).
+Le diagnostic vérifie, sans ouvrir de fenêtre, ce dont ShowTime a besoin : ffmpeg, les périphériques audio, la capture d'écran, la transcription, les raccourcis, et sur Mac les écrans. Quittez ShowTime avant, sinon ses propres raccourcis apparaissent comme déjà pris. Dans un terminal :
+- Windows : `ShowTime.exe --diagnostics` ;
+- macOS : `open -a ShowTime --args --diagnostics`, puis `open ~/Library/Logs/ShowTime/diagnostics.txt` (lancé directement depuis `Contents/MacOS`, il testerait les autorisations du Terminal plutôt que celles de ShowTime).
 
 Le rapport est aussi enregistré dans `diagnostics.txt`, dans le dossier du journal : joignez-le, avec le journal, à votre signalement.
 
@@ -86,18 +88,18 @@ Le rapport est aussi enregistré dans `diagnostics.txt`, dans le dossier du jour
 Nécessite le SDK .NET 10 (`global.json`). L'architecture, les commandes et les règles du dépôt sont décrites dans [CLAUDE.md](CLAUDE.md).
 
 ```
-dotnet build LocalTake.slnx
-dotnet test --solution LocalTake.slnx
-dotnet run --project src/LocalTake.Windows
+dotnet build ShowTime.slnx
+dotnet test --solution ShowTime.slnx
+dotnet run --project src/ShowTime.Windows
 ```
 
 L'app macOS se construit sur un Mac avec Xcode et le workload `macos` (voir CLAUDE.md) ; `build/package-macos.sh` y ajoute ffmpeg, whisper.cpp et le modèle :
 
 ```
-dotnet build src/LocalTake.Mac -c Release
-bash build/package-macos.sh src/LocalTake.Mac/bin/Release/net10.0-macos/LocalTake.app dist/LocalTake-macos.zip
+dotnet build src/ShowTime.Mac -c Release
+bash build/package-macos.sh src/ShowTime.Mac/bin/Release/net10.0-macos/ShowTime.app dist/ShowTime-macos.zip
 ```
 
 ## Licences
 
-LocalTake est livré avec ffmpeg (GPL v3), whisper.cpp et un modèle Whisper (MIT) : voir `THIRD-PARTY-NOTICES.md`, joint à chaque version.
+ShowTime est livré avec ffmpeg (GPL v3), whisper.cpp et un modèle Whisper (MIT) : voir `THIRD-PARTY-NOTICES.md`, joint à chaque version.

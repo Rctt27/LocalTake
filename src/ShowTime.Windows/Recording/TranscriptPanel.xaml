@@ -1,0 +1,27 @@
+<UserControl x:Class="ShowTime.TranscriptPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#252526" FontSize="13">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="10,8" BorderBrush="#111" BorderThickness="0,0,0,1">
+            <StackPanel>
+                <DockPanel>
+                    <Button x:Name="RetryButton" DockPanel.Dock="Right" Style="{StaticResource ActionButton}" Focusable="False"
+                            Visibility="Collapsed" Click="Retry_Click" ToolTip="Relancer la transcription du micro">Réessayer</Button>
+                    <TextBlock Text="Sous-titres" Foreground="#EEE" FontFamily="Segoe UI Semibold" FontSize="14" VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBlock x:Name="StatusText" Foreground="#999" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                <ProgressBar x:Name="Progress" Height="3" Margin="0,6,0,0" Maximum="1" Visibility="Collapsed"
+                             Foreground="#0A64AD" Background="#333" BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <TextBlock x:Name="HintText" DockPanel.Dock="Bottom" Foreground="#777" Margin="10,6" TextWrapping="Wrap" FontSize="11"
+                   Text="Clic : aller au passage · Entrée : valider · Maj+Entrée : nouvelle ligne · Échap : annuler · Ctrl+Z : défaire"/>
+
+        <!-- Not virtualized: a few hundred cues at most, and each row keeps its text boxes, so the one being edited keeps the focus. -->
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <StackPanel x:Name="Rows" Margin="0,4"/>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

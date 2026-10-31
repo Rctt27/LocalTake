@@ -1,7 +1,7 @@
 # Test fixtures
 
-`legacy/` holds the behaviour of LocalTake v0.1.0, recorded by calling the original WPF code before it was split
-into `LocalTake.Core`. The characterization tests compare the core against these files, so that file names,
+`legacy/` holds the behaviour of v0.1.0 (when ShowTime was named LocalTake), recorded by calling the original WPF code before it was split
+into `ShowTime.Core`. The characterization tests compare the core against these files, so that file names,
 shortcuts, ffmpeg arguments and settings files keep working as they did.
 
 - `expand-pattern.json`: file name pattern, counter and the name produced (date 2026-03-07 09:05:02).

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Sur Windows, enregistrer le son de l'ordinateur sans le pilote `virtual-audio-capturer` de TinyTake : LocalTake le capte en loopback WASAPI et le donne à ffmpeg par un named pipe.
+**Goal:** Sur Windows, enregistrer le son de l'ordinateur sans pilote audio virtuel (`virtual-audio-capturer`) : ShowTime le capte en loopback WASAPI et le donne à ffmpeg par un named pipe.
 
-**Architecture:** Report sur l'architecture 0.2.0 de la branche `feature/wasapi-system-audio`, construite par erreur sur la v0.1.0. Ce qui ne dépend d'aucun OS va dans `LocalTake.Core` : format brut, ordre des entrées, arguments. La capture WASAPI va dans `LocalTake.Platform.Windows`, derrière un port du cœur. L'enregistreur ffmpeg d'`Infrastructure` possède la capture pendant l'enregistrement. macOS ne change pas (BlackHole).
+**Architecture:** Report sur l'architecture 0.2.0 de la branche `feature/wasapi-system-audio`, construite par erreur sur la v0.1.0. Ce qui ne dépend d'aucun OS va dans `ShowTime.Core` : format brut, ordre des entrées, arguments. La capture WASAPI va dans `ShowTime.Platform.Windows`, derrière un port du cœur. L'enregistreur ffmpeg d'`Infrastructure` possède la capture pendant l'enregistrement. macOS ne change pas (BlackHole).
 
 **Tech Stack:** .NET 10, NAudio.Wasapi 2.2.1 (version centrale), xunit v3, Shouldly, NSubstitute.
 
@@ -27,7 +27,7 @@
 ## Global Constraints
 
 - Aucun appel réseau. Interface en français, code et commentaires en anglais.
-- Analyseurs `latest-recommended`, avertissements en erreurs, `dotnet format LocalTake.slnx --verify-no-changes` propre. Versions de paquets dans `Directory.Packages.props`.
+- Analyseurs `latest-recommended`, avertissements en erreurs, `dotnet format ShowTime.slnx --verify-no-changes` propre. Versions de paquets dans `Directory.Packages.props`.
 - Couverture du cœur ≥ 90 % (`build/check-coverage.py`).
 - `tests/fixtures/legacy` n'est jamais régénéré. Les cas `system-audio` et `both` de `ffmpeg-arguments.json` changent volontairement : le test le dit dans un commentaire.
 - `RecordSystemAudio` garde son nom et son sens. Ne pas toucher `<Version>` (prochaine version : 0.3.0, décidée par Renaud).
@@ -45,9 +45,9 @@
 ### Task 1: Cœur — format brut, ordre des entrées, arguments
 
 **Files:**
-- Create: `src/LocalTake.Core/Recording/PipedAudio.cs` (`RawAudioFormat`, `PipedAudio`, `SilencePadding`)
+- Create: `src/ShowTime.Core/Recording/PipedAudio.cs` (`RawAudioFormat`, `PipedAudio`, `SilencePadding`)
 - Modify: `CaptureInputs.cs` (`TrailingAudioInputs`), `RecordingCommand.cs`, `IFfmpegPlatform.cs`, `DirectShowGdigrab.cs`, `AvFoundation.cs`
-- Test: `tests/LocalTake.Core.Tests/Recording/PipedAudioTests.cs`, `RecordingCommandTests.cs`, `DirectShowDeviceListTests.cs`, `AvFoundationTests.cs`
+- Test: `tests/ShowTime.Core.Tests/Recording/PipedAudioTests.cs`, `RecordingCommandTests.cs`, `DirectShowDeviceListTests.cs`, `AvFoundationTests.cs`
 
 **Interfaces:**
 - Produces:
@@ -63,14 +63,14 @@
   - `SystemAudio` sans pipe → `ArgumentException`.
   - `CanRecordSystemAudio` vaut `hasAudioOutput()` sous Windows, et pour AvFoundation `devices.Count == 0 || devices.Contains("BlackHole 2ch")`.
   - Cas legacy `system-audio`/`both` : comparés à v0.1.0 sauf pour le son de l'ordinateur, avec un commentaire.
-- [ ] Les voir échouer, implémenter, `dotnet test --project tests/LocalTake.Core.Tests` vert, couverture ≥ 90 %, commit.
+- [ ] Les voir échouer, implémenter, `dotnet test --project tests/ShowTime.Core.Tests` vert, couverture ≥ 90 %, commit.
 
 ### Task 2: Port et capture WASAPI
 
 **Files:**
-- Modify: `src/LocalTake.Core/Ports/IRecordingPorts.cs` (`ISystemAudioSource`, `ISystemAudioCapture`)
-- Create: `src/LocalTake.Platform.Windows/WasapiSystemAudio.cs` ; package NAudio.Wasapi dans `Directory.Packages.props` et le projet
-- Test: `tests/LocalTake.Platform.Tests/Windows/WasapiSystemAudioTests.cs`
+- Modify: `src/ShowTime.Core/Ports/IRecordingPorts.cs` (`ISystemAudioSource`, `ISystemAudioCapture`)
+- Create: `src/ShowTime.Platform.Windows/WasapiSystemAudio.cs` ; package NAudio.Wasapi dans `Directory.Packages.props` et le projet
+- Test: `tests/ShowTime.Platform.Tests/Windows/WasapiSystemAudioTests.cs`
 
 **Interfaces:**
 - Produces: `public interface ISystemAudioSource { bool IsAvailable(); ISystemAudioCapture Start(); }` ; `public interface ISystemAudioCapture : IDisposable { PipedAudio Input { get; } }` ; `public sealed class WasapiSystemAudio : ISystemAudioSource`. Le nom du pipe se lit dans `Input.PipePath`.
@@ -85,8 +85,8 @@
 ### Task 3: L'enregistreur possède la capture
 
 **Files:**
-- Modify: `src/LocalTake.Infrastructure/Recording/FfmpegVideoRecorderFactory.cs`, `FfmpegVideoRecorder.cs`
-- Test: `tests/LocalTake.Infrastructure.IntegrationTests/Recording/FfmpegRecorderTests.cs`
+- Modify: `src/ShowTime.Infrastructure/Recording/FfmpegVideoRecorderFactory.cs`, `FfmpegVideoRecorder.cs`
+- Test: `tests/ShowTime.Infrastructure.IntegrationTests/Recording/FfmpegRecorderTests.cs`
 
 **Interfaces:**
 - Consumes: `ISystemAudioSource`, `ISystemAudioCapture`, `IFfmpegPlatform.BuildInputs(…, PipedAudio?)`.
@@ -102,7 +102,7 @@
 
 **Files:**
 - Modify: `RecordingSession.cs` (`platform.CanRecordSystemAudio(devices)`, message « L'enregistrement n'a pas pu démarrer : »), `RecordingBar.xaml.cs`, `SettingsWindow.xaml.cs`, `DiagnosticsReport.cs`, `App.xaml.cs` (DI), `README.md`, `CLAUDE.md`, `docs/test-checklist.md`
-- Test: `RecordingSessionTests.cs`, `DiagnosticsReportTests.cs`, `tests/LocalTake.Windows.Tests/Recording/SyncTests.cs` (repris de la v1, Device)
+- Test: `RecordingSessionTests.cs`, `DiagnosticsReportTests.cs`, `tests/ShowTime.Windows.Tests/Recording/SyncTests.cs` (repris de la v1, Device)
 
 - [ ] Tests d'abord :
   - la session suit `CanRecordSystemAudio` ;
@@ -116,4 +116,4 @@
   - README : la phrase sur le son de l'ordinateur ;
   - CLAUDE.md : section Video ;
   - checklist : débrancher un casque, Annuler pendant « Démarrage… ».
-- [ ] Vérification : `dotnet build LocalTake.slnx -c Release`, `dotnet test --solution LocalTake.slnx`, `dotnet format --verify-no-changes`. Commit.
+- [ ] Vérification : `dotnet build ShowTime.slnx -c Release`, `dotnet test --solution ShowTime.slnx`, `dotnet format --verify-no-changes`. Commit.

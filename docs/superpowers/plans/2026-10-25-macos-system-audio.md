@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** sur Mac, « Son du Mac » enregistre ce que joue l'ordinateur sans BlackHole : LocalTake le capte avec ScreenCaptureKit et le passe à ffmpeg par un tuyau (FIFO), comme `WasapiSystemAudio` sous Windows.
+**Goal:** sur Mac, « Son du Mac » enregistre ce que joue l'ordinateur sans BlackHole : ShowTime le capte avec ScreenCaptureKit et le passe à ffmpeg par un tuyau (FIFO), comme `WasapiSystemAudio` sous Windows.
 
-**Architecture:** même schéma que Windows (`ISystemAudioSource` → `ISystemAudioCapture` → `PipedAudio`, entrée ffmpeg ouverte après l'écran). La logique testable est dans le cœur (`AudioTimeline` : placer chaque paquet de son à sa date, combler par du silence ; `PlanarAudio` : entrelacer les canaux) et dans `LocalTake.Platform.MacOS` (`MacAudioPipe` : FIFO, attente de ffmpeg, écriture, comblement). L'app Mac n'ajoute que la capture ScreenCaptureKit (`MacSystemAudio`) et son branchement.
+**Architecture:** même schéma que Windows (`ISystemAudioSource` → `ISystemAudioCapture` → `PipedAudio`, entrée ffmpeg ouverte après l'écran). La logique testable est dans le cœur (`AudioTimeline` : placer chaque paquet de son à sa date, combler par du silence ; `PlanarAudio` : entrelacer les canaux) et dans `ShowTime.Platform.MacOS` (`MacAudioPipe` : FIFO, attente de ffmpeg, écriture, comblement). L'app Mac n'ajoute que la capture ScreenCaptureKit (`MacSystemAudio`) et son branchement.
 
 **Tech Stack:** .NET 10, C#, ScreenCaptureKit / CoreMedia (liaisons .NET pour macOS), libc `mkfifo` en `LibraryImport`, ffmpeg 9.0.2 livré, xunit v3 + Shouldly.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Branche `feature/macos-app` ; commits terminés par les lignes d'attribution de la session.
-- Tests en local : l'utilisateur autorise `tests/LocalTake.Core.Tests` et `tests/LocalTake.Infrastructure.IntegrationTests`. `LocalTake.Platform.Tests` et `LocalTake.Windows.Tests` passent par la CI : `git push origin feature/macos-app`, `gh workflow run CI --ref feature/macos-app`, `gh run watch <id> --exit-status`. Les tests propres au Mac ne tournent que sur le runner macOS.
+- Tests en local : l'utilisateur autorise `tests/ShowTime.Core.Tests` et `tests/ShowTime.Infrastructure.IntegrationTests`. `ShowTime.Platform.Tests` et `ShowTime.Windows.Tests` passent par la CI : `git push origin feature/macos-app`, `gh workflow run CI --ref feature/macos-app`, `gh run watch <id> --exit-status`. Les tests propres au Mac ne tournent que sur le runner macOS.
 - L'app Mac ne se compile que sur la CI (job `macos-app`) ; la capture ScreenCaptureKit (images et son) ne se teste pas sur les runners (pas d'autorisation Enregistrement de l'écran) : elle se vérifie à la main avec `docs/test-checklist.md`.
 - Format du son sur le tuyau : PCM `f32le`, 48 000 Hz, 2 canaux (`new RawAudioFormat("f32le", 48000, 2)`), demandé tel quel à ScreenCaptureKit.
 - Ordre des entrées ffmpeg : micro (`AudioInputs[0]`, la piste de transcription en dépend), écran, puis le tuyau (`CaptureInputs.TrailingAudioInputs`) ; l'écran et le tuyau sans sondage (`-probesize 32 -analyzeduration 0`), comme `DirectShowGdigrab`.
@@ -36,8 +36,8 @@
 ### Task 1: `AudioTimeline` et `PlanarAudio` (cœur)
 
 **Files:**
-- Create: `src/LocalTake.Core/Recording/AudioTimeline.cs`, `src/LocalTake.Core/Recording/PlanarAudio.cs`
-- Test: `tests/LocalTake.Core.Tests/Recording/AudioTimelineTests.cs`, `tests/LocalTake.Core.Tests/Recording/PlanarAudioTests.cs`
+- Create: `src/ShowTime.Core/Recording/AudioTimeline.cs`, `src/ShowTime.Core/Recording/PlanarAudio.cs`
+- Test: `tests/ShowTime.Core.Tests/Recording/AudioTimelineTests.cs`, `tests/ShowTime.Core.Tests/Recording/PlanarAudioTests.cs`
 
 **Interfaces:**
 - Consumes: `RawAudioFormat` (`PipedAudio.cs`).
@@ -101,7 +101,7 @@
 
 `Frames(n)` : `n × 8` octets non nuls (pour les distinguer du silence) ; `Floats(...)` : `MemoryMarshal.AsBytes` d'un `float[]` copié.
 
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/LocalTake.Core.Tests`. Expected: échec de compilation (`AudioTimeline`, `PlanarAudio`).
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/ShowTime.Core.Tests`. Expected: échec de compilation (`AudioTimeline`, `PlanarAudio`).
 - [ ] **Step 3: Implémenter.** `Place` : indice de début (arrondi) ; s'il dépasse `FramesWritten`, silence jusque-là puis le paquet ; s'il est en deçà, ne garder que la fin non couverte (rien si tout est couvert). `PadTo` : silence jusqu'à l'indice de `now − Slack` s'il dépasse `FramesWritten`, sinon vide. Doc XML : pourquoi (ffmpeg lit le PCM sans horodatage, le nombre de trames fait le temps ; ScreenCaptureKit peut ne rien livrer quand rien ne joue, et ses paquets arrivent avec quelques dizaines de ms de retard, d'où la marge).
 - [ ] **Step 4: Vérifier le succès** — même commande ; PASS.
 - [ ] **Step 5: Commit** — `git commit -m "Place captured sound on the timeline and pad the gaps with silence"`
@@ -111,8 +111,8 @@
 ### Task 2: `AvFoundation` lit le son du Mac dans le tuyau
 
 **Files:**
-- Modify: `src/LocalTake.Core/Recording/AvFoundation.cs`
-- Test: `tests/LocalTake.Core.Tests/Recording/AvFoundationTests.cs`
+- Modify: `src/ShowTime.Core/Recording/AvFoundation.cs`
+- Test: `tests/ShowTime.Core.Tests/Recording/AvFoundationTests.cs`
 
 **Interfaces:**
 - Produces: `AvFoundation.BuildInputs(area, options, systemAudio)` lit le son du Mac dans `systemAudio` (entrée en fin de liste) ; `CanRecordSystemAudio(devices)` vaut toujours `true` ; `SystemAudioDevice` reste `"BlackHole 2ch"` (tri des micros seulement) ; `SystemAudioRequirement` = « l'autorisation Enregistrement de l'écran ».
@@ -121,26 +121,26 @@
   - `The_computer_sound_is_read_from_the_pipe_after_the_screen` : `BuildInputs(area, new VideoOptions(30, "MacBook Pro Microphone", true), Pipe)` → `AudioInputs` vaut `[["-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":MacBook Pro Microphone"]]` ; `TrailingAudioInputs` vaut `[["-f", "f32le", "-ar", "48000", "-ac", "2", "-thread_queue_size", "1024", "-probesize", "32", "-analyzeduration", "0", "-i", "/tmp/lt.pcm"]]` ; `VideoInput` contient la séquence `"-probesize", "32", "-analyzeduration", "0"` avant `"-i"` ; aucune entrée ne contient `BlackHole`.
   - `Without_the_computer_sound_the_screen_is_probed_as_before` : sans son du Mac, `VideoInput` est inchangé (pas de `-probesize`) et `TrailingAudioInputs` est null.
   - `The_computer_sound_needs_its_pipe` : `SystemAudio = true` avec `systemAudio: null` → `ArgumentException`.
-  - Remplacer `The_computer_sound_needs_BlackHole` et `BlackHole_is_tried_anyway_when_ffmpeg_could_not_list_the_devices` par `The_computer_sound_needs_no_driver` : `CanRecordSystemAudio([])` et `CanRecordSystemAudio(["MacBook Pro Microphone"])` valent `true` (commentaire `// Deliberate change: LocalTake captures the Mac's sound itself; BlackHole is no longer needed.`).
+  - Remplacer `The_computer_sound_needs_BlackHole` et `BlackHole_is_tried_anyway_when_ffmpeg_could_not_list_the_devices` par `The_computer_sound_needs_no_driver` : `CanRecordSystemAudio([])` et `CanRecordSystemAudio(["MacBook Pro Microphone"])` valent `true` (commentaire `// Deliberate change: ShowTime captures the Mac's sound itself; BlackHole is no longer needed.`).
   - `Each_audio_input_is_opened_by_name` : n'attend plus l'entrée `:BlackHole 2ch`.
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/LocalTake.Core.Tests`.
-- [ ] **Step 3: Implémenter**, sur le modèle de `DirectShowGdigrab.BuildInputs` (même `NoProbe`, même entrée de tuyau ; pas de `DownmixToStereo`, le son est déjà stéréo). Doc XML de la classe : le son du Mac vient de LocalTake par un tuyau ; BlackHole n'est plus lu.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/ShowTime.Core.Tests`.
+- [ ] **Step 3: Implémenter**, sur le modèle de `DirectShowGdigrab.BuildInputs` (même `NoProbe`, même entrée de tuyau ; pas de `DownmixToStereo`, le son est déjà stéréo). Doc XML de la classe : le son du Mac vient de ShowTime par un tuyau ; BlackHole n'est plus lu.
 - [ ] **Step 4: Vérifier le succès** — même commande ; PASS.
-- [ ] **Step 5: Commit** — `git commit -m "Read the Mac's sound from LocalTake's pipe instead of BlackHole"`
+- [ ] **Step 5: Commit** — `git commit -m "Read the Mac's sound from ShowTime's pipe instead of BlackHole"`
 
 ---
 
 ### Task 3: `MacAudioPipe` (FIFO pour ffmpeg)
 
 **Files:**
-- Create: `src/LocalTake.Platform.MacOS/MacAudioPipe.cs`
-- Modify: `src/LocalTake.Platform.MacOS/Native.cs` (`mkfifo`, `open`, `close` de libc)
-- Test: `tests/LocalTake.Platform.Tests/MacOS/MacAudioPipeTests.cs` (sautés hors macOS, comme les tests voisins)
+- Create: `src/ShowTime.Platform.MacOS/MacAudioPipe.cs`
+- Modify: `src/ShowTime.Platform.MacOS/Native.cs` (`mkfifo`, `open`, `close` de libc)
+- Test: `tests/ShowTime.Platform.Tests/MacOS/MacAudioPipeTests.cs` (sautés hors macOS, comme les tests voisins)
 
 **Interfaces:**
 - Consumes: `AudioTimeline` (tâche 1), `PipedAudio`, `RawAudioFormat`.
 - Produces: `public sealed class MacAudioPipe : IDisposable`
-  - `public MacAudioPipe(string directory, RawAudioFormat format, Func<TimeSpan> clock)` — crée `localtake-audio-<pid>-<guid>.pcm` dans `directory` (`mkfifo`, mode `0600`) et attend ffmpeg sur un thread de fond (ouverture en écriture, bloquante) ;
+  - `public MacAudioPipe(string directory, RawAudioFormat format, Func<TimeSpan> clock)` — crée `showtime-audio-<pid>-<guid>.pcm` dans `directory` (`mkfifo`, mode `0600`) et attend ffmpeg sur un thread de fond (ouverture en écriture, bloquante) ;
   - `PipedAudio Input { get; }` ;
   - `event Action? Opened` — levé sur ce thread quand ffmpeg ouvre le FIFO ; l'origine du temps est `clock()` à cet instant ;
   - `void Write(TimeSpan at, ReadOnlySpan<byte> pcm)` — sûr entre threads ; ignoré avant `Opened` et après `Dispose` ; passe par `AudioTimeline.Place` ;
@@ -163,8 +163,8 @@
 ### Task 4: capture ScreenCaptureKit dans l'app Mac, branchement, barre et réglages
 
 **Files:**
-- Create: `src/LocalTake.Mac/Platform/MacSystemAudio.cs`
-- Modify: `src/LocalTake.Mac/Composition.cs`, `src/LocalTake.Mac/Recording/RecordingBar.cs:148-153,247`, `src/LocalTake.Mac/Settings/SettingsWindowController.cs:146,232-259`
+- Create: `src/ShowTime.Mac/Platform/MacSystemAudio.cs`
+- Modify: `src/ShowTime.Mac/Composition.cs`, `src/ShowTime.Mac/Recording/RecordingBar.cs:148-153,247`, `src/ShowTime.Mac/Settings/SettingsWindowController.cs:146,232-259`
 
 **Interfaces:**
 - Consumes: `MacAudioPipe` (tâche 3), `PlanarAudio` (tâche 1), `ISystemAudioSource` / `ISystemAudioCapture` (cœur), `AvFoundation.CanRecordSystemAudio` (tâche 2).
@@ -177,7 +177,7 @@
   - Échec du démarrage (autorisation refusée, erreur) : consigné au journal ; le tuyau continue de combler par du silence (la vidéo s'enregistre, son du Mac muet), comme `WasapiSystemAudio` quand la sortie est perdue.
   - `Dispose` : `StopCapture` (sans attendre au-delà de 1 s), puis `pipe.Dispose()`.
 - [ ] **Step 2: Branchement** — `Composition` : `services.AddSingleton<ISystemAudioSource, MacSystemAudio>();` (`FfmpegVideoRecorderFactory` le reçoit par injection).
-- [ ] **Step 3: Barre et réglages** — comme sous Windows : `_hasSystemAudio = _platform.CanRecordSystemAudio(devices)` (et à la construction `CanRecordSystemAudio([])`) au lieu de `devices.Contains(_platform.SystemAudioDevice)` ; même chose dans les réglages ; aide des réglages : « Son de l'ordinateur : capté par LocalTake, sans pilote à installer. » ; le résumé XML qui parle de BlackHole est corrigé.
+- [ ] **Step 3: Barre et réglages** — comme sous Windows : `_hasSystemAudio = _platform.CanRecordSystemAudio(devices)` (et à la construction `CanRecordSystemAudio([])`) au lieu de `devices.Contains(_platform.SystemAudioDevice)` ; même chose dans les réglages ; aide des réglages : « Son de l'ordinateur : capté par ShowTime, sans pilote à installer. » ; le résumé XML qui parle de BlackHole est corrigé.
 - [ ] **Step 4: Vérifier** — CI dispatchée. Expected: `macos-app` vert (compile, trim sans avertissement, format), autres jobs verts.
 - [ ] **Step 5: Commit** — `git commit -m "Capture the Mac's sound with ScreenCaptureKit"`
 
@@ -190,15 +190,15 @@
 - Modify: `.github/workflows/ci.yml` (job `portable`, macOS : auto-test du script), `docs/test-checklist.md` (macOS, étape vidéo), `README.md`, `CLAUDE.md` (« Computer sound »)
 
 **Interfaces:**
-- Produces: `build/sync-check.sh clip <out.mp4>` (clip de test : écran noir avec un flash blanc de 0,1 s toutes les 2 s, et un bip de 1 kHz de 0,1 s en même temps, 12 s) et `build/sync-check.sh measure <recording.mp4>` (pour chaque flash, l'écart avec le bip le plus proche, puis la moyenne ; code de sortie 0 si chaque écart est dans ±0,1 s). Utilise `ffmpeg` du PATH ou `FFMPEG` (sur Mac : `/Applications/LocalTake.app/Contents/MacOS/ffmpeg`). Mesure comme `SyncTests` : `signalstats` (YAVG > 128) pour les flashs, `silencedetect=noise=-30dB:d=0.05` pour les bips.
+- Produces: `build/sync-check.sh clip <out.mp4>` (clip de test : écran noir avec un flash blanc de 0,1 s toutes les 2 s, et un bip de 1 kHz de 0,1 s en même temps, 12 s) et `build/sync-check.sh measure <recording.mp4>` (pour chaque flash, l'écart avec le bip le plus proche, puis la moyenne ; code de sortie 0 si chaque écart est dans ±0,1 s). Utilise `ffmpeg` du PATH ou `FFMPEG` (sur Mac : `/Applications/ShowTime.app/Contents/MacOS/ffmpeg`). Mesure comme `SyncTests` : `signalstats` (YAVG > 128) pour les flashs, `silencedetect=noise=-30dB:d=0.05` pour les bips.
 
 - [ ] **Step 1: Écrire le script** (`set -euo pipefail`, sorties de ffmpeg dans des variables, comme `fetch-ffmpeg.sh`).
 - [ ] **Step 2: Auto-test en CI** — job `portable`, macOS seulement, après « Install ffmpeg » : `bash build/sync-check.sh clip "$RUNNER_TEMP/sync.mp4" && bash build/sync-check.sh measure "$RUNNER_TEMP/sync.mp4"` (le clip mesuré contre lui-même : écarts ≈ 0).
 - [ ] **Step 3: Checklist macOS** (étape vidéo, remplace le prérequis BlackHole) :
   - Son du Mac sans pilote : sur un Mac sans BlackHole, « Son du Mac » est actif ; une vidéo qui joue pendant l'enregistrement s'entend dans le MP4.
-  - Synchronisation : `bash build/sync-check.sh clip ~/Desktop/sync.mp4`, le lire en plein écran dans QuickTime, l'enregistrer avec LocalTake (son du Mac seul, plein écran), puis `bash build/sync-check.sh measure <la vidéo>` : tous les écarts dans ±0,1 s ; sinon, noter la moyenne et la signaler (elle dit dans quel sens ajuster l'ordre ou le sondage des entrées).
+  - Synchronisation : `bash build/sync-check.sh clip ~/Desktop/sync.mp4`, le lire en plein écran dans QuickTime, l'enregistrer avec ShowTime (son du Mac seul, plein écran), puis `bash build/sync-check.sh measure <la vidéo>` : tous les écarts dans ±0,1 s ; sinon, noter la moyenne et la signaler (elle dit dans quel sens ajuster l'ordre ou le sondage des entrées).
   - Silence : enregistrer 10 s sans rien jouer, avec le micro : la piste a la durée de la vidéo et la voix garde son niveau.
-  - Capture du son en échec (le journal `~/Library/Logs/LocalTake` le dit) : la vidéo s'enregistre quand même, avec un son du Mac muet de la durée de la vidéo.
-- [ ] **Step 4: README et CLAUDE.md** — README : plus de BlackHole ni de « Périphérique à sorties multiples » ; « Son du Mac : capté par LocalTake, sans pilote ». CLAUDE.md, « Computer sound » : macOS aussi capte lui-même (`MacSystemAudio` : ScreenCaptureKit → `MacAudioPipe`, FIFO), `AudioTimeline` place les paquets à leur date et comble par du silence, BlackHole seulement écarté des micros ; vérification de la synchronisation sur Mac par `build/sync-check.sh`.
+  - Capture du son en échec (le journal `~/Library/Logs/ShowTime` le dit) : la vidéo s'enregistre quand même, avec un son du Mac muet de la durée de la vidéo.
+- [ ] **Step 4: README et CLAUDE.md** — README : plus de BlackHole ni de « Périphérique à sorties multiples » ; « Son du Mac : capté par ShowTime, sans pilote ». CLAUDE.md, « Computer sound » : macOS aussi capte lui-même (`MacSystemAudio` : ScreenCaptureKit → `MacAudioPipe`, FIFO), `AudioTimeline` place les paquets à leur date et comble par du silence, BlackHole seulement écarté des micros ; vérification de la synchronisation sur Mac par `build/sync-check.sh`.
 - [ ] **Step 5: Vérifier** — CI dispatchée ; Expected: `portable (macos-latest)` vert avec l'auto-test du script.
 - [ ] **Step 6: Commit** — `git commit -m "Check the Mac's sound sync by hand with build/sync-check.sh, and document it"`

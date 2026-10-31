@@ -4,7 +4,7 @@
 
 **Goal:** sur Mac, pendant l'enregistrement, maintenir `Option+Espace` dessine la même traînée jaune que sous Windows (25 %, 14,4 points, pause de 0,3 s puis fondu de 0,5 s), visible dans la vidéo ; au clavier seulement.
 
-**Architecture:** le cœur (`Highlighter`, `HighlightTrail`, `HighlightTrigger`) est déjà partagé ; l'app Mac remplace ses bouchons (`NoHighlightInput`, `NoHighlightOverlayFactory`) par deux adaptateurs : `MacHighlightInput` (raccourci Carbon avec relâchement, état des modificateurs, position de la souris) et `MacHighlightOverlay` (une `NSWindow` transparente que les clics traversent, au-dessus des fenêtres, **capturée** par ffmpeg). La conversion d'une position de souris Cocoa en pixels LocalTake va dans `MacScreenSpace` (testée sur tous les runners).
+**Architecture:** le cœur (`Highlighter`, `HighlightTrail`, `HighlightTrigger`) est déjà partagé ; l'app Mac remplace ses bouchons (`NoHighlightInput`, `NoHighlightOverlayFactory`) par deux adaptateurs : `MacHighlightInput` (raccourci Carbon avec relâchement, état des modificateurs, position de la souris) et `MacHighlightOverlay` (une `NSWindow` transparente que les clics traversent, au-dessus des fenêtres, **capturée** par ffmpeg). La conversion d'une position de souris Cocoa en pixels ShowTime va dans `MacScreenSpace` (testée sur tous les runners).
 
 **Tech Stack:** .NET 10, C#, AppKit (liaisons .NET pour macOS), Carbon (`MacHotkeys`), xunit v3 + Shouldly.
 
@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - Branche `feature/macos-app` ; commits terminés par les lignes d'attribution de la session.
-- Tests en local : `tests/LocalTake.Core.Tests` et `tests/LocalTake.Infrastructure.IntegrationTests` seulement. `LocalTake.Platform.Tests` et `LocalTake.Windows.Tests` passent par la CI (`gh workflow run CI --ref feature/macos-app`, `gh run watch <id> --exit-status`) : ils affichent des fenêtres ou captent du son, ce qui fait planter une autre application sur le PC de l'utilisateur.
-- L'app Mac ne se compile que sur la CI (job `macos-app`) et n'a pas de tests automatisés : ce qui se teste va dans le cœur ou `LocalTake.Platform.MacOS` ; le reste se vérifie à la main (`docs/test-checklist.md`).
+- Tests en local : `tests/ShowTime.Core.Tests` et `tests/ShowTime.Infrastructure.IntegrationTests` seulement. `ShowTime.Platform.Tests` et `ShowTime.Windows.Tests` passent par la CI (`gh workflow run CI --ref feature/macos-app`, `gh run watch <id> --exit-status`) : ils affichent des fenêtres ou captent du son, ce qui fait planter une autre application sur le PC de l'utilisateur.
+- L'app Mac ne se compile que sur la CI (job `macos-app`) et n'a pas de tests automatisés : ce qui se teste va dans le cœur ou `ShowTime.Platform.MacOS` ; le reste se vérifie à la main (`docs/test-checklist.md`).
 - Aucune autorisation Accessibilité ni Surveillance de l'entrée : pas d'event tap ; boutons latéraux de souris non pris en charge sur Mac (le champ des réglages n'accepte que le clavier).
 - Défaut macOS : `Alt+Space` dans `settings.json` (affiché « Option+Space ») ; Windows garde `Ctrl+Space`. S'il est refusé par macOS sur le runner (tâche 1), le défaut macOS devient `Ctrl+Shift+Space` (décision de l'utilisateur).
 - Rendu identique à Windows : jaune `#FFD400`, opacité de fenêtre `HighlightTrail.FullOpacity` (0,25), trait de 14,4 points (Windows : 14,4 px à 100 %, multiplié par l'échelle), bouts et jointures arrondis, fondu par l'opacité de la fenêtre.
@@ -34,8 +34,8 @@
 ### Task 1: défaut macOS `Option+Espace`, vérifié sur le runner
 
 **Files:**
-- Modify: `src/LocalTake.Core/Settings/SettingsDefaults.cs` (`ForMacOS`)
-- Test: `tests/LocalTake.Core.Tests/Settings/SettingsDefaultsTests.cs`, `tests/LocalTake.Platform.Tests/MacOS/MacPlatformTests.cs`
+- Modify: `src/ShowTime.Core/Settings/SettingsDefaults.cs` (`ForMacOS`)
+- Test: `tests/ShowTime.Core.Tests/Settings/SettingsDefaultsTests.cs`, `tests/ShowTime.Platform.Tests/MacOS/MacPlatformTests.cs`
 
 **Interfaces:**
 - Produces: `SettingsDefaults.ForMacOS(...).HighlightTrigger == "Alt+Space"` (ou `"Ctrl+Shift+Space"` si l'étape 4 le décide).
@@ -43,7 +43,7 @@
 - [ ] **Step 1: Tests en échec**
   - `SettingsDefaultsTests` : remplacer `Both_platforms_highlight_with_Ctrl_Space` par `Each_platform_has_its_highlight_shortcut` — Windows `"Ctrl+Space"`, macOS `"Alt+Space"`, et `Hotkey.TryParse("Alt+Space", …)` formaté en `HotkeyNaming.MacOS` donne `"Option+Space"` (commentaire `// Deliberate change: Ctrl+Space selects the input source on a Mac.`).
   - `MacPlatformTests` (macOS seulement, comme `A_shortcut_can_be_registered_and_released`) : `The_default_highlight_shortcut_can_be_registered` — `MacKeys.IsSystemShortcut` faux pour `Alt+Space`, et `new MacHotkeys(...).Register(hotkey, () => { }, () => { })` vrai, puis `UnregisterAll()`.
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/LocalTake.Core.Tests` (local). Expected: `Each_platform_has_its_highlight_shortcut` échoue sur macOS.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/ShowTime.Core.Tests` (local). Expected: `Each_platform_has_its_highlight_shortcut` échoue sur macOS.
 - [ ] **Step 3: Implémenter** — `ForMacOS` : `HighlightTrigger: "Alt+Space"`, doc XML : Ctrl+Espace change la source de saisie sur Mac.
 - [ ] **Step 4: Vérifier** — local (cœur) PASS, puis CI : `portable (macos-latest)` exécute `The_default_highlight_shortcut_can_be_registered`.
   - S'il échoue (macOS refuse les raccourcis à Option seule) : passer le défaut à `"Ctrl+Shift+Space"` (tests ajustés), ajouter au cœur `Hotkey.RejectedByMacOS` (`Modifiers` vaut `Alt` ou `Alt | Shift`) avec ses tests, et faire refuser ces combinaisons par le champ des réglages Mac (tâche 4) avec le message « macOS refuse les raccourcis faits seulement d'Option (et de Maj) : ajoutez Ctrl ou Cmd. ». Consigner la décision au registre.
@@ -51,11 +51,11 @@
 
 ---
 
-### Task 2: position de la souris en pixels LocalTake (`MacScreenSpace`)
+### Task 2: position de la souris en pixels ShowTime (`MacScreenSpace`)
 
 **Files:**
-- Modify: `src/LocalTake.Platform.MacOS/MacScreenSpace.cs`
-- Test: `tests/LocalTake.Platform.Tests/MacOS/MacScreenSpaceTests.cs` (code managé : exécuté sur tous les runners)
+- Modify: `src/ShowTime.Platform.MacOS/MacScreenSpace.cs`
+- Test: `tests/ShowTime.Platform.Tests/MacOS/MacScreenSpaceTests.cs` (code managé : exécuté sur tous les runners)
 
 **Interfaces:**
 - Produces: `public static PixelPoint MacScreenSpace.PointToPixel(IReadOnlyList<ScreenFrame> screens, IReadOnlyList<PixelRect> layout, double pointX, double pointY)` — l'écran dont le cadre Cocoa contient le point, sinon le plus proche ; puis `ToPixel`.
@@ -64,18 +64,18 @@
   - `A_point_on_the_main_screen_is_scaled_from_the_top_left` : le point Cocoa `(100, 800)` donne le pixel `(200, 200)`.
   - `A_point_on_the_second_screen_uses_its_scale` : `(1540, 980)` donne `ToPixel(second, layout[1], 1540, 980)`.
   - `A_point_off_every_screen_uses_the_nearest` : `(-50, 450)` (à gauche du principal) donne `ToPixel(principal, layout[0], -50, 450)`.
-- [ ] **Step 2: Vérifier l'échec** — `dotnet build tests/LocalTake.Platform.Tests` (échec de compilation) ; les tests tournent ensuite par la CI.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet build tests/ShowTime.Platform.Tests` (échec de compilation) ; les tests tournent ensuite par la CI.
 - [ ] **Step 3: Implémenter** — distance du point au rectangle de chaque écran (0 s'il est dedans), le minimum l'emporte.
 - [ ] **Step 4: Vérifier** — CI : jobs `windows`, `portable` verts (les trois tests passent partout).
-- [ ] **Step 5: Commit** — `git commit -m "Convert a mouse position in Cocoa points to LocalTake's pixels"`
+- [ ] **Step 5: Commit** — `git commit -m "Convert a mouse position in Cocoa points to ShowTime's pixels"`
 
 ---
 
 ### Task 3: `MacHighlightInput` et `MacHighlightOverlay` (app Mac)
 
 **Files:**
-- Create: `src/LocalTake.Mac/Platform/MacHighlightInput.cs`, `src/LocalTake.Mac/Recording/MacHighlightOverlay.cs`
-- Delete: `src/LocalTake.Mac/Recording/NoHighlight.cs`
+- Create: `src/ShowTime.Mac/Platform/MacHighlightInput.cs`, `src/ShowTime.Mac/Recording/MacHighlightOverlay.cs`
+- Delete: `src/ShowTime.Mac/Recording/NoHighlight.cs`
 
 **Interfaces:**
 - Consumes: `IHighlightInput`, `IHighlightOverlay`, `IHighlightOverlayFactory` (cœur) ; `MacHotkeys.Register(hotkey, pressed, released)` ; `MacScreenSpace.PointToPixel` (tâche 2) ; `ScreenInfo` ; `HighlightTrail.FullOpacity`.
@@ -88,7 +88,7 @@
   - `Unregister` / `Dispose` : `UnregisterAll`, état remis à faux.
 - [ ] **Step 2: `MacHighlightOverlay`**
   - Fenêtre sans bordure sur la zone (`ScreenInfo.Holding(area).ToCocoa(area)`), `IsOpaque = false`, fond transparent, sans ombre, `IgnoresMouseEvents = true`, `ReleaseWhenClosed(false)`, au-dessus de tout (`INativeWindows.RaiseAboveEverything`) et **pas** `ExcludeFromCapture` (commentaire : à l'inverse du cadre rouge, la vidéo doit la montrer).
-  - Vue de dessin : les points (pixels LocalTake) convertis en points de la vue — `x = (p.X − area.X) / scale`, `y = (area.Bottom − p.Y) / scale` (origine Cocoa en bas à gauche) ; `NSBezierPath` jaune `#FFD400`, largeur 14,4, bouts et jointures arrondis ; un seul point → disque de même diamètre.
+  - Vue de dessin : les points (pixels ShowTime) convertis en points de la vue — `x = (p.X − area.X) / scale`, `y = (area.Bottom − p.Y) / scale` (origine Cocoa en bas à gauche) ; `NSBezierPath` jaune `#FFD400`, largeur 14,4, bouts et jointures arrondis ; un seul point → disque de même diamètre.
   - `Draw` : copie des points, `NeedsDisplay = true`, `OrderFrontRegardless` si cachée ; `SetOpacity` : `AlphaValue` ; `Hide` : points vidés, `OrderOut` ; `Dispose` : `Close`.
 - [ ] **Step 3: Vérifier** — CI : `macos-app` vert (compilation, trim sans avertissement, format).
 - [ ] **Step 4: Commit** — `git commit -m "Draw the highlight trail on a Mac, from Carbon's press and release"`
@@ -98,7 +98,7 @@
 ### Task 4: branchement, barre et réglages Mac
 
 **Files:**
-- Modify: `src/LocalTake.Mac/Composition.cs`, `src/LocalTake.Mac/Recording/MacRecordingView.cs`, `src/LocalTake.Mac/Recording/RecordingBar.cs`, `src/LocalTake.Mac/Settings/SettingsWindowController.cs`, `src/LocalTake.Mac/Settings/HotkeyField.cs`
+- Modify: `src/ShowTime.Mac/Composition.cs`, `src/ShowTime.Mac/Recording/MacRecordingView.cs`, `src/ShowTime.Mac/Recording/RecordingBar.cs`, `src/ShowTime.Mac/Settings/SettingsWindowController.cs`, `src/ShowTime.Mac/Settings/HotkeyField.cs`
 
 **Interfaces:**
 - Consumes: `MacHighlightInput`, `MacHighlightOverlayFactory` (tâche 3) ; `HighlightTrigger.BlocksTyping` (cœur).

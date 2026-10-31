@@ -14,7 +14,7 @@
 
 - Rien ne quitte la machine : aucun appel réseau.
 - Textes d'interface en français ; code et commentaires en anglais ; densité de commentaires du code voisin.
-- Analyzers `latest-recommended`, warnings as errors ; `dotnet format LocalTake.slnx` avant chaque commit (la CI refuse le code non formaté).
+- Analyzers `latest-recommended`, warnings as errors ; `dotnet format ShowTime.slnx` avant chaque commit (la CI refuse le code non formaté).
 - Couverture de lignes du cœur ≥ 90 % (`python build/check-coverage.py TestResults/core.cobertura.xml 90`).
 - Coordonnées écran en **pixels physiques** partout (`PixelRect`, nouveau `PixelPoint`).
 - `settings.json` est une interface publique : nouvelle clé `HighlightTrigger`, un ancien fichier doit continuer à se charger (défaut de la plateforme).
@@ -41,14 +41,14 @@
 ### Task 1: `PixelPoint` et `HighlightTrigger`
 
 **Files:**
-- Create: `src/LocalTake.Core/Geometry/PixelPoint.cs`
-- Create: `src/LocalTake.Core/Recording/HighlightTrigger.cs`
-- Modify: `src/LocalTake.Core/Hotkeys/Hotkey.cs` (`TryParse`)
-- Test: `tests/LocalTake.Core.Tests/Recording/HighlightTriggerTests.cs`, `tests/LocalTake.Core.Tests/Hotkeys/HotkeyTests.cs`
+- Create: `src/ShowTime.Core/Geometry/PixelPoint.cs`
+- Create: `src/ShowTime.Core/Recording/HighlightTrigger.cs`
+- Modify: `src/ShowTime.Core/Hotkeys/Hotkey.cs` (`TryParse`)
+- Test: `tests/ShowTime.Core.Tests/Recording/HighlightTriggerTests.cs`, `tests/ShowTime.Core.Tests/Hotkeys/HotkeyTests.cs`
 
 **Interfaces:**
 - Produces:
-  - `public readonly record struct PixelPoint(int X, int Y);` (namespace `LocalTake.Core.Geometry`)
+  - `public readonly record struct PixelPoint(int X, int Y);` (namespace `ShowTime.Core.Geometry`)
   - `Hotkey.TryParse(string? text, out Hotkey hotkey, bool allowPlainKey)` ; l'overload existant à deux paramètres appelle celui-ci avec `false`.
   - `public enum SideMouseButton { XButton1, XButton2 }`
   - `public readonly record struct HighlightTrigger` avec `Hotkey? Key`, `SideMouseButton? Button`, `static HighlightTrigger FromKey(Hotkey)`, `static HighlightTrigger FromButton(SideMouseButton)`, `static bool TryParse(string? text, out HighlightTrigger trigger)`, `string Format(HotkeyNaming naming)`, `ToString()` (forme du fichier), `bool BlocksTyping`.
@@ -112,7 +112,7 @@ Dans `HotkeyTests` :
 
 - [ ] **Step 2: Vérifier l'échec**
 
-Run: `dotnet test --project tests/LocalTake.Core.Tests`
+Run: `dotnet test --project tests/ShowTime.Core.Tests`
 Expected: échec de compilation (`HighlightTrigger`, `PixelPoint`, overload de `TryParse` inconnus).
 
 - [ ] **Step 3: Implémenter**
@@ -121,14 +121,14 @@ Expected: échec de compilation (`HighlightTrigger`, `PixelPoint`, overload de `
 
 - [ ] **Step 4: Vérifier le succès**
 
-Run: `dotnet test --project tests/LocalTake.Core.Tests`
+Run: `dotnet test --project tests/ShowTime.Core.Tests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-dotnet format LocalTake.slnx
-git add src/LocalTake.Core tests/LocalTake.Core.Tests
+dotnet format ShowTime.slnx
+git add src/ShowTime.Core tests/ShowTime.Core.Tests
 git commit -m "Parse the highlight trigger: a shortcut, a plain key or a side mouse button"
 ```
 
@@ -137,8 +137,8 @@ git commit -m "Parse the highlight trigger: a shortcut, a plain key or a side mo
 ### Task 2: `HighlightTrail`
 
 **Files:**
-- Create: `src/LocalTake.Core/Recording/HighlightTrail.cs`
-- Test: `tests/LocalTake.Core.Tests/Recording/HighlightTrailTests.cs`
+- Create: `src/ShowTime.Core/Recording/HighlightTrail.cs`
+- Test: `tests/ShowTime.Core.Tests/Recording/HighlightTrailTests.cs`
 
 **Interfaces:**
 - Consumes: `PixelPoint` (tâche 1).
@@ -189,7 +189,7 @@ public void The_fade_is_fast_then_gentle(int milliseconds, double opacity) =>
 }
 ```
 
-- [ ] **Step 2: Vérifier l'échec** — Run: `dotnet test --project tests/LocalTake.Core.Tests` ; Expected: échec de compilation.
+- [ ] **Step 2: Vérifier l'échec** — Run: `dotnet test --project tests/ShowTime.Core.Tests` ; Expected: échec de compilation.
 
 - [ ] **Step 3: Implémenter `HighlightTrail`**
 
@@ -204,10 +204,10 @@ Distance euclidienne au dernier point, comparée au carré à `MinStep²`. `Add`
 ### Task 3: ports et `Highlighter`
 
 **Files:**
-- Create: `src/LocalTake.Core/Ports/IHighlightPorts.cs`
-- Create: `src/LocalTake.Core/Recording/Highlighter.cs`
-- Modify: `tests/LocalTake.Core.Tests/Fakes.cs`
-- Test: `tests/LocalTake.Core.Tests/Recording/HighlighterTests.cs`
+- Create: `src/ShowTime.Core/Ports/IHighlightPorts.cs`
+- Create: `src/ShowTime.Core/Recording/Highlighter.cs`
+- Modify: `tests/ShowTime.Core.Tests/Fakes.cs`
+- Test: `tests/ShowTime.Core.Tests/Recording/HighlighterTests.cs`
 
 **Interfaces:**
 - Consumes: `HighlightTrigger`, `HighlightTrail`, `PixelPoint`, `PixelRect`, `IUiThread`, `AppSettings.HighlightTrigger` (ajoutée ici à `AppSettings` en propriété `public string HighlightTrigger { get; set; } = "Ctrl+Space";` ; la tâche 4 la branche sur `SettingsDefaults`).
@@ -327,7 +327,7 @@ public void An_empty_or_invalid_trigger_enables_nothing(string text)
 
 `HoldAt(p)` : `Enable`, `Pointer = p`, `IsHeld = true`, `Press()`. `Advance(d)` : avance par pas de `FrameInterval`.
 
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/LocalTake.Core.Tests` ; échec de compilation.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/ShowTime.Core.Tests` ; échec de compilation.
 - [ ] **Step 3: Implémenter les ports et `Highlighter`** selon le comportement ci-dessus.
 - [ ] **Step 4: Vérifier le succès** — même commande ; PASS.
 - [ ] **Step 5: Commit** — `git commit -m "Draw a highlight trail while the trigger is held, then fade it out"`.
@@ -337,9 +337,9 @@ public void An_empty_or_invalid_trigger_enables_nothing(string text)
 ### Task 4: réglage `HighlightTrigger`
 
 **Files:**
-- Modify: `src/LocalTake.Core/Settings/SettingsDefaults.cs`, `AppSettings.cs`, `SettingsEditor.cs` (`SettingsForm`)
-- Modify: `src/LocalTake.Windows/Settings/SettingsWindow.xaml.cs:246` (passer `_settings.HighlightTrigger` pour compiler ; le champ arrive en tâche 8)
-- Test: `tests/LocalTake.Core.Tests/Settings/SettingsDefaultsTests.cs`, `SettingsEditorTests.cs`, `tests/LocalTake.Infrastructure.IntegrationTests/Settings/JsonSettingsStoreTests.cs`, `tests/LocalTake.Platform.Tests/MacOS/MacPlatformTests.cs`
+- Modify: `src/ShowTime.Core/Settings/SettingsDefaults.cs`, `AppSettings.cs`, `SettingsEditor.cs` (`SettingsForm`)
+- Modify: `src/ShowTime.Windows/Settings/SettingsWindow.xaml.cs:246` (passer `_settings.HighlightTrigger` pour compiler ; le champ arrive en tâche 8)
+- Test: `tests/ShowTime.Core.Tests/Settings/SettingsDefaultsTests.cs`, `SettingsEditorTests.cs`, `tests/ShowTime.Infrastructure.IntegrationTests/Settings/JsonSettingsStoreTests.cs`, `tests/ShowTime.Platform.Tests/MacOS/MacPlatformTests.cs`
 
 **Interfaces:**
 - Produces: paramètre positionnel `string HighlightTrigger` en dernier dans `SettingsDefaults` ; `AppSettings.HighlightTrigger` initialisée depuis les défauts (doc : « Held during a recording to highlight with the mouse: a shortcut, a plain key, or XButton1/XButton2. ») ; `SettingsForm.HighlightTrigger` juste après `HotkeyVideoStop`, incluse dans `Hotkeys` (contrôle des doublons), copiée et `Trim()` par `From`/`ApplyTo`.
@@ -349,9 +349,9 @@ public void An_empty_or_invalid_trigger_enables_nothing(string text)
   - `SettingsEditorTests` : `The_highlight_trigger_cannot_reuse_a_session_shortcut` (`Form() with { HighlightTrigger = "Ctrl+R" }` → `"Le raccourci Ctrl+R est attribué deux fois."`) ; `The_highlight_trigger_is_saved_trimmed` (`" XButton1 "` → `_settings.HighlightTrigger == "XButton1"`).
   - `JsonSettingsStoreTests` : liste des clés écrites `+ "HighlightTrigger"` avec le commentaire `// Deliberate change: the highlight trigger is a new key, which older files simply lack.` ; renommer le test en `..._the_transcription_and_the_highlight` ; dans le test de chargement de v0.1.0, `s.HighlightTrigger.ShouldBe("Ctrl+Space");`.
   - `MacPlatformTests.Every_default_macOS_shortcut_can_be_registered` : ajouter `d.HighlightTrigger`.
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --solution LocalTake.slnx` ; échecs de compilation et d'assertion.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --solution ShowTime.slnx` ; échecs de compilation et d'assertion.
 - [ ] **Step 3: Implémenter** (retirer l'initialiseur provisoire de la tâche 3 dans `AppSettings`).
-- [ ] **Step 4: Vérifier le succès** — `dotnet test --solution LocalTake.slnx` ; PASS.
+- [ ] **Step 4: Vérifier le succès** — `dotnet test --solution ShowTime.slnx` ; PASS.
 - [ ] **Step 5: Commit** — `git commit -m "Add the HighlightTrigger setting, Ctrl+Space by default"`.
 
 ---
@@ -359,11 +359,11 @@ public void An_empty_or_invalid_trigger_enables_nothing(string text)
 ### Task 5: `RecordingSession` active le surlignage pendant l'enregistrement, la barre l'indique
 
 **Files:**
-- Modify: `src/LocalTake.Core/Ports/IRecordingPorts.cs` (`IRecordingView`)
-- Modify: `src/LocalTake.Core/Recording/RecordingSession.cs` (constructeur, `SetState`, `Dispose`)
-- Modify: `src/LocalTake.Windows/Recording/WpfRecordingView.cs`, `RecordingBar.xaml`, `RecordingBar.xaml.cs`
-- Modify: `tests/LocalTake.Core.Tests/Fakes.cs` (`FakeRecordingView`)
-- Test: `tests/LocalTake.Core.Tests/Recording/RecordingSessionTests.cs`, `tests/LocalTake.Windows.Tests/Recording/RecordingBarTests.cs`
+- Modify: `src/ShowTime.Core/Ports/IRecordingPorts.cs` (`IRecordingView`)
+- Modify: `src/ShowTime.Core/Recording/RecordingSession.cs` (constructeur, `SetState`, `Dispose`)
+- Modify: `src/ShowTime.Windows/Recording/WpfRecordingView.cs`, `RecordingBar.xaml`, `RecordingBar.xaml.cs`
+- Modify: `tests/ShowTime.Core.Tests/Fakes.cs` (`FakeRecordingView`)
+- Test: `tests/ShowTime.Core.Tests/Recording/RecordingSessionTests.cs`, `tests/ShowTime.Windows.Tests/Recording/RecordingBarTests.cs`
 
 **Interfaces:**
 - Consumes: `Highlighter.Enable(PixelRect) : string?`, `Highlighter.Disable()` (tâche 3).
@@ -415,12 +415,12 @@ public void An_empty_or_invalid_trigger_enables_nothing(string text)
 ```
 
   - `RecordingBarTests` : `The_highlight_shortcut_is_shown_while_recording` : `ShowReady`, `ShowRecording`, `ShowHighlightShortcut("Ctrl+Space")` → `HighlightHint.Text == "Surligner : maintenir Ctrl+Space"` et visible ; `ShowFinishing()` → masqué ; `ShowHighlightShortcut(null)` → masqué.
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --solution LocalTake.slnx` ; échecs de compilation.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --solution ShowTime.slnx` ; échecs de compilation.
 - [ ] **Step 3: Implémenter**
   - `SetState` : mémoriser l'état précédent ; entrée en `Recording` → `_view?.ShowHighlightShortcut(highlighter.Enable(_target))` ; sortie de `Recording` → `highlighter.Disable()`. `Dispose` appelle `highlighter.Dispose()`.
   - `RecordingBar.xaml` : `TextBlock x:Name="HighlightHint"`, `Foreground="#AAA"`, après `StatusHint`, `Visibility="Collapsed"`. `ShowFinishing` le masque.
   - `WpfRecordingView.ShowHighlightShortcut` relaie à la barre.
-- [ ] **Step 4: Vérifier le succès** — `dotnet test --solution LocalTake.slnx` ; PASS.
+- [ ] **Step 4: Vérifier le succès** — `dotnet test --solution ShowTime.slnx` ; PASS.
 - [ ] **Step 5: Commit** — `git commit -m "Enable the highlight only while recording and show its trigger on the bar"`.
 
 ---
@@ -428,10 +428,10 @@ public void An_empty_or_invalid_trigger_enables_nothing(string text)
 ### Task 6: `WindowsHighlightInput`
 
 **Files:**
-- Create: `src/LocalTake.Platform.Windows/WindowsHighlightInput.cs`
-- Modify: `src/LocalTake.Platform.Windows/Win32.cs`
-- Modify: `tests/LocalTake.Windows.Tests/LocalTake.Windows.Tests.csproj` (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` pour le `LibraryImport` de `SendInput` du test)
-- Test: `tests/LocalTake.Windows.Tests/Recording/WindowsHighlightInputTests.cs` (sur le thread `Sta`, qui pompe les messages dont ont besoin `RegisterHotKey` et le hook)
+- Create: `src/ShowTime.Platform.Windows/WindowsHighlightInput.cs`
+- Modify: `src/ShowTime.Platform.Windows/Win32.cs`
+- Modify: `tests/ShowTime.Windows.Tests/ShowTime.Windows.Tests.csproj` (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` pour le `LibraryImport` de `SendInput` du test)
+- Test: `tests/ShowTime.Windows.Tests/Recording/WindowsHighlightInputTests.cs` (sur le thread `Sta`, qui pompe les messages dont ont besoin `RegisterHotKey` et le hook)
 
 **Interfaces:**
 - Consumes: `IHighlightInput`, `HighlightTrigger`, `WindowsHotkeys`, `WindowsKeys.VirtualKey`.
@@ -470,7 +470,7 @@ Comportement :
 
 `SendInput` est traité de façon asynchrone : après chaque envoi, `await Sta.Run(Sta.DoEvents)` avant de lire `IsHeld`. `finally` dans chaque test : relâcher toutes les touches et boutons envoyés, `Unregister`.
 
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/LocalTake.Windows.Tests` ; échec de compilation.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/ShowTime.Windows.Tests` ; échec de compilation.
 - [ ] **Step 3: Implémenter** `Win32` et `WindowsHighlightInput`.
 - [ ] **Step 4: Vérifier le succès** — même commande ; PASS (ou SKIP explicite sans bureau interactif).
 - [ ] **Step 5: Commit** — `git commit -m "Watch the highlight trigger on Windows: shortcut or side mouse button"`.
@@ -480,9 +480,9 @@ Comportement :
 ### Task 7: `HighlightOverlay` (Windows), capturé dans la vidéo
 
 **Files:**
-- Create: `src/LocalTake.Windows/Recording/HighlightOverlay.cs` (avec `HighlightOverlayFactory`)
-- Modify: `src/LocalTake.Windows/Interop/Native.cs` (`GetWindowDisplayAffinity`, si absent ; `GetWindowLong` pour le test)
-- Test: `tests/LocalTake.Windows.Tests/Recording/HighlightOverlayTests.cs`
+- Create: `src/ShowTime.Windows/Recording/HighlightOverlay.cs` (avec `HighlightOverlayFactory`)
+- Modify: `src/ShowTime.Windows/Interop/Native.cs` (`GetWindowDisplayAffinity`, si absent ; `GetWindowLong` pour le test)
+- Test: `tests/ShowTime.Windows.Tests/Recording/HighlightOverlayTests.cs`
 
 **Interfaces:**
 - Consumes: `IHighlightOverlay`, `IHighlightOverlayFactory`, `PixelRect.ToRectangle()`.
@@ -523,7 +523,7 @@ Comportement : reprend `RecordingFrame` (bordure, `ShowWithoutActivation`, `Crea
 ```
 
 Le dernier test lit la sortie binaire d'ffmpeg (`StandardOutput.BaseStream`), pas du texte.
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/LocalTake.Windows.Tests` ; échec de compilation.
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/ShowTime.Windows.Tests` ; échec de compilation.
 - [ ] **Step 3: Implémenter `HighlightOverlay` et `HighlightOverlayFactory`.**
 - [ ] **Step 4: Vérifier le succès** — même commande ; PASS.
 - [ ] **Step 5: Commit** — `git commit -m "Draw the highlight trail in a click-through overlay the video captures"`.
@@ -533,8 +533,8 @@ Le dernier test lit la sortie binaire d'ffmpeg (`StandardOutput.BaseStream`), pa
 ### Task 8: branchement, fenêtre de réglages et documentation
 
 **Files:**
-- Modify: `src/LocalTake.Windows/App.xaml.cs` (`ConfigureServices`, vers la ligne 112)
-- Modify: `src/LocalTake.Windows/Settings/SettingsWindow.xaml`, `SettingsWindow.xaml.cs`
+- Modify: `src/ShowTime.Windows/App.xaml.cs` (`ConfigureServices`, vers la ligne 112)
+- Modify: `src/ShowTime.Windows/Settings/SettingsWindow.xaml`, `SettingsWindow.xaml.cs`
 - Modify: `README.md` (tableau « Raccourcis par défaut »), `docs/test-checklist.md`, `CLAUDE.md` (section Video)
 
 **Interfaces:**
@@ -558,15 +558,15 @@ Le dernier test lit la sortie binaire d'ffmpeg (`StandardOutput.BaseStream`), pa
 - [ ] **Step 4: Vérification complète**
 
 ```
-dotnet build LocalTake.slnx -c Release
-dotnet test --solution LocalTake.slnx
-dotnet test --project tests/LocalTake.Core.Tests --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
+dotnet build ShowTime.slnx -c Release
+dotnet test --solution ShowTime.slnx
+dotnet test --project tests/ShowTime.Core.Tests --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
 python build/check-coverage.py TestResults/core.cobertura.xml 90
-dotnet format LocalTake.slnx --verify-no-changes
+dotnet format ShowTime.slnx --verify-no-changes
 ```
 Expected: build sans warning, tous les tests PASS (ou SKIP motivés), couverture ≥ 90 %, aucun changement de format.
 
-- [ ] **Step 5: Essai réel** — tuer `LocalTake`, `dotnet run --project src/LocalTake.Windows`, enregistrer une zone, dérouler la section ajoutée à `docs/test-checklist.md`, puis `ffmpeg -i <video>.mp4 -vf fps=10 frames/%03d.png` pour voir la traînée et le fondu image par image.
+- [ ] **Step 5: Essai réel** — tuer `ShowTime`, `dotnet run --project src/ShowTime.Windows`, enregistrer une zone, dérouler la section ajoutée à `docs/test-checklist.md`, puis `ffmpeg -i <video>.mp4 -vf fps=10 frames/%03d.png` pour voir la traînée et le fondu image par image.
 
 - [ ] **Step 6: Commit** — `git commit -m "Wire the mouse highlight into the app and the settings window"`.
 
@@ -575,16 +575,16 @@ Expected: build sans warning, tous les tests PASS (ou SKIP motivés), couverture
 ### Task 9: macOS — relâchement des raccourcis Carbon
 
 **Files:**
-- Modify: `src/LocalTake.Platform.MacOS/Native.cs` (`kEventHotKeyReleased = 6`, `uint GetEventKind(nint evt)`)
-- Modify: `src/LocalTake.Platform.MacOS/MacHotkeys.cs`
+- Modify: `src/ShowTime.Platform.MacOS/Native.cs` (`kEventHotKeyReleased = 6`, `uint GetEventKind(nint evt)`)
+- Modify: `src/ShowTime.Platform.MacOS/MacHotkeys.cs`
 - Modify: `docs/superpowers/plans/2026-10-17-macos-native.md` (note de suivi)
-- Test: `tests/LocalTake.Platform.Tests/MacOS/MacPlatformTests.cs`
+- Test: `tests/ShowTime.Platform.Tests/MacOS/MacPlatformTests.cs`
 
 **Interfaces:**
 - Produces: `public bool MacHotkeys.Register(Hotkey hotkey, Action pressed, Action released)` ; `IGlobalHotkeys.Register` appelle cet overload avec une action vide. Le handler s'installe pour `kEventHotKeyPressed` **et** `kEventHotKeyReleased` (deux `EventTypeSpec`) et choisit l'action selon `GetEventKind(evt)`.
 
 - [ ] **Step 1: Test en échec** — `A_shortcut_can_be_registered_with_a_release_action` (macOS seulement, comme le test voisin) : `Register(Ctrl+Alt+Shift+F19, () => { }, () => { })` renvoie true, puis `UnregisterAll()`.
-- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/LocalTake.Platform.Tests` ; échec de compilation (sur toute plateforme).
+- [ ] **Step 2: Vérifier l'échec** — `dotnet test --project tests/ShowTime.Platform.Tests` ; échec de compilation (sur toute plateforme).
 - [ ] **Step 3: Implémenter**, puis ajouter au plan macOS une section « Surlignage » : `MacHighlightInput` (Carbon appui/relâchement, position par `CGEventGetLocation(CGEventCreate(0))` convertie en pixels physiques, bouton latéral par moniteur global `NSEvent` sans permission mais sans pouvoir avaler le clic) ; overlay `NSWindow` transparente, `ignoresMouseEvents`, `sharingType` par défaut (capturée) ; vérifier si `Ctrl+Espace` (sources de saisie) est pris par macOS, sinon défaut macOS `Ctrl+Shift+Space`.
 - [ ] **Step 4: Vérifier le succès** — même commande ; PASS (SKIP hors macOS).
 - [ ] **Step 5: Commit** — `git commit -m "Report the release of Carbon shortcuts for the macOS highlight"`.

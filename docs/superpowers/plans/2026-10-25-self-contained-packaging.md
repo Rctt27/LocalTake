@@ -1,10 +1,10 @@
-# Livrer LocalTake sans dépendance (ffmpeg embarqué, signature stable) — plan d'implémentation
+# Livrer ShowTime sans dépendance (ffmpeg embarqué, signature stable) — plan d'implémentation
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** les zips Windows et macOS contiennent ffmpeg (épinglé, vérifié), LocalTake le trouve tout seul, et l'app Mac est signée avec un certificat stable pour que macOS garde ses autorisations d'une version à l'autre.
+**Goal:** les zips Windows et macOS contiennent ffmpeg (épinglé, vérifié), ShowTime le trouve tout seul, et l'app Mac est signée avec un certificat stable pour que macOS garde ses autorisations d'une version à l'autre.
 
-**Architecture:** un script `build/fetch-ffmpeg.sh` récupère la version épinglée de ffmpeg par plateforme et la vérifie (SHA-256, x264, entrées de capture) ; les jobs CI et release l'utilisent pour les zips et aussi pour les tests, qui tournent ainsi sur le binaire livré. Un script `build/package-macos.sh` (commun à la CI et à la release) place ffmpeg dans `LocalTake.app/Contents/MacOS`, signe (certificat des secrets, ou ad hoc sans eux) et zippe. Côté code, seuls changent l'endroit où le Mac cherche ffmpeg et les messages qui disaient de l'installer.
+**Architecture:** un script `build/fetch-ffmpeg.sh` récupère la version épinglée de ffmpeg par plateforme et la vérifie (SHA-256, x264, entrées de capture) ; les jobs CI et release l'utilisent pour les zips et aussi pour les tests, qui tournent ainsi sur le binaire livré. Un script `build/package-macos.sh` (commun à la CI et à la release) place ffmpeg dans `ShowTime.app/Contents/MacOS`, signe (certificat des secrets, ou ad hoc sans eux) et zippe. Côté code, seuls changent l'endroit où le Mac cherche ffmpeg et les messages qui disaient de l'installer.
 
 **Tech Stack:** bash (runners GitHub windows/macos), GitHub Actions, `lipo`, `codesign`, `security`, .NET 10 (cœur, infrastructure), xunit v3 + Shouldly.
 
@@ -23,26 +23,26 @@
   - Le serveur de M. Riedl refuse les requêtes sans User-Agent (403) : `curl` en envoie un par défaut, le garder.
 - Licence : ffmpeg avec x264 est sous GPL v3 ; chaque zip contient `THIRD-PARTY-NOTICES.md` et `licenses/GPL-3.0.txt`, et le corps de chaque release renvoie au code source exact (`https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz`).
 - Dans le bundle Mac, ffmpeg est `Contents/MacOS/ffmpeg`, signé avant l'app.
-- Signature Mac : identité `LocalTake` d'un certificat auto-signé (usage « Code Signing »), importée depuis les secrets `MACOS_SIGNING_P12` (base64) et `MACOS_SIGNING_PASSWORD` ; sans ces secrets, signature ad hoc (`-`).
+- Signature Mac : identité `ShowTime` d'un certificat auto-signé (usage « Code Signing »), importée depuis les secrets `MACOS_SIGNING_P12` (base64) et `MACOS_SIGNING_PASSWORD` ; sans ces secrets, signature ad hoc (`-`).
 - Textes d'interface en français ; code, commentaires et scripts en anglais ; `dotnet format` avant chaque commit ; couverture du cœur ≥ 90 %.
 - Un chemin ffmpeg configuré qui n'existe plus ne trouve rien (comportement voulu, figé par `A_configured_path_that_does_not_exist_finds_nothing_rather_than_another_ffmpeg`) : on n'y touche pas.
 
 ## Review Focus
 
-1. **App Mac déplacée, renommée ou lancée depuis Téléchargements** (`/Users/x/Downloads/LocalTake 2.app`, translocation de Gatekeeper) : ffmpeg est trouvé dans le bundle. → `The_bundled_ffmpeg_is_found_wherever_the_app_is` (tâche 1).
+1. **App Mac déplacée, renommée ou lancée depuis Téléchargements** (`/Users/x/Downloads/ShowTime 2.app`, translocation de Gatekeeper) : ffmpeg est trouvé dans le bundle. → `The_bundled_ffmpeg_is_found_wherever_the_app_is` (tâche 1).
 2. **App Mac lancée hors bundle** (`dotnet run`, développement) : le dossier des assemblies reste le premier cherché, puis PATH et Homebrew. → `Outside_a_bundle_the_assemblies_folder_is_searched` (tâche 1).
-3. **Zip Windows extrait à moitié** (LocalTake.exe copié seul) : le message dit d'extraire tout le zip, et ne parle plus de winget. → `The_install_hint_says_ffmpeg_comes_with_LocalTake` (tâche 1).
+3. **Zip Windows extrait à moitié** (ShowTime.exe copié seul) : le message dit d'extraire tout le zip, et ne parle plus de winget. → `The_install_hint_says_ffmpeg_comes_with_ShowTime` (tâche 1).
 4. **Release ou CI sans les secrets de signature** (fork, PR externe) : le build passe, signé ad hoc. → étape de vérification de la tâche 4.
 5. **Binaire épinglé corrompu ou remplacé chez le fournisseur** : le build échoue sur l'empreinte, rien n'est publié. → étape de vérification de la tâche 2.
 
 ---
 
-### Task 1: le Mac cherche ffmpeg dans son bundle ; messages « livré avec LocalTake »
+### Task 1: le Mac cherche ffmpeg dans son bundle ; messages « livré avec ShowTime »
 
 **Files:**
-- Modify: `src/LocalTake.Infrastructure/Platform/AppPaths.cs` (`CreateFfmpegLocator`)
-- Modify: `src/LocalTake.Core/Recording/AvFoundation.cs`, `src/LocalTake.Core/Recording/DirectShowGdigrab.cs` (`InstallHint`)
-- Test: `tests/LocalTake.Infrastructure.IntegrationTests/Platform/AppPathsTests.cs`, `tests/LocalTake.Core.Tests/Recording/AvFoundationTests.cs`, `tests/LocalTake.Core.Tests/Recording/DirectShowGdigrabTests.cs`, `tests/LocalTake.Core.Tests/Recording/RecordingSessionTests.cs:96`
+- Modify: `src/ShowTime.Infrastructure/Platform/AppPaths.cs` (`CreateFfmpegLocator`)
+- Modify: `src/ShowTime.Core/Recording/AvFoundation.cs`, `src/ShowTime.Core/Recording/DirectShowGdigrab.cs` (`InstallHint`)
+- Test: `tests/ShowTime.Infrastructure.IntegrationTests/Platform/AppPathsTests.cs`, `tests/ShowTime.Core.Tests/Recording/AvFoundationTests.cs`, `tests/ShowTime.Core.Tests/Recording/DirectShowGdigrabTests.cs`, `tests/ShowTime.Core.Tests/Recording/RecordingSessionTests.cs:96`
 
 **Interfaces:**
 - Produces: `public static string AppPaths.FfmpegDirectory(string baseDirectory)` — pour un dossier d'assemblies `…/X.app/Contents/MonoBundle/` (séparateurs `/`, barre finale ou non), renvoie `…/X.app/Contents/MacOS` ; sinon renvoie `baseDirectory` tel quel. `CreateFfmpegLocator` passe `FfmpegDirectory(AppContext.BaseDirectory)` comme dossier de l'app.
@@ -52,32 +52,32 @@
 ```csharp
 // AppPathsTests
 [Theory]
-[InlineData("/Applications/LocalTake.app/Contents/MonoBundle/", "/Applications/LocalTake.app/Contents/MacOS")]
-[InlineData("/Users/moi/Downloads/LocalTake 2.app/Contents/MonoBundle", "/Users/moi/Downloads/LocalTake 2.app/Contents/MacOS")]
-[InlineData("/private/var/folders/ab/T/AppTranslocation/1234/d/LocalTake.app/Contents/MonoBundle/", "/private/var/folders/ab/T/AppTranslocation/1234/d/LocalTake.app/Contents/MacOS")]
+[InlineData("/Applications/ShowTime.app/Contents/MonoBundle/", "/Applications/ShowTime.app/Contents/MacOS")]
+[InlineData("/Users/moi/Downloads/ShowTime 2.app/Contents/MonoBundle", "/Users/moi/Downloads/ShowTime 2.app/Contents/MacOS")]
+[InlineData("/private/var/folders/ab/T/AppTranslocation/1234/d/ShowTime.app/Contents/MonoBundle/", "/private/var/folders/ab/T/AppTranslocation/1234/d/ShowTime.app/Contents/MacOS")]
 public void The_bundled_ffmpeg_is_found_wherever_the_app_is(string assemblies, string expected) =>
     AppPaths.FfmpegDirectory(assemblies).ShouldBe(expected);
 
 [Theory]
-[InlineData(@"C:\Program Files\LocalTake\")]
-[InlineData("/Users/moi/LocalTake/src/LocalTake.Mac/bin/Debug/net10.0-macos/osx-arm64/")]
+[InlineData(@"C:\Program Files\ShowTime\")]
+[InlineData("/Users/moi/ShowTime/src/ShowTime.Mac/bin/Debug/net10.0-macos/osx-arm64/")]
 public void Outside_a_bundle_the_assemblies_folder_is_searched(string assemblies) =>
     AppPaths.FfmpegDirectory(assemblies).ShouldBe(assemblies);
 ```
 
-`AvFoundationTests` : remplacer `The_install_hint_names_Homebrew` par `The_install_hint_says_ffmpeg_comes_with_LocalTake` — `InstallHint` contient « livré dans LocalTake.app » et ne contient ni « brew » ni « Homebrew ». `DirectShowGdigrabTests` : même test — contient « livré avec LocalTake » et « ffmpeg.exe », ne contient pas « winget ». `RecordingSessionTests:96` : l'avertissement contient « livré avec LocalTake » au lieu de « winget install Gyan.FFmpeg » (commentaire `// Deliberate change: ffmpeg now ships with LocalTake.`).
+`AvFoundationTests` : remplacer `The_install_hint_names_Homebrew` par `The_install_hint_says_ffmpeg_comes_with_ShowTime` — `InstallHint` contient « livré dans ShowTime.app » et ne contient ni « brew » ni « Homebrew ». `DirectShowGdigrabTests` : même test — contient « livré avec ShowTime » et « ffmpeg.exe », ne contient pas « winget ». `RecordingSessionTests:96` : l'avertissement contient « livré avec ShowTime » au lieu de « winget install Gyan.FFmpeg » (commentaire `// Deliberate change: ffmpeg now ships with ShowTime.`).
 
-- [ ] **Step 2: Vérifier l'échec** — avec le go de l'utilisateur : `dotnet test --project tests/LocalTake.Core.Tests` et `dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests` ; sinon par la CI (voir Global Constraints). Expected: échec de compilation (`FfmpegDirectory`) et des assertions de messages.
+- [ ] **Step 2: Vérifier l'échec** — avec le go de l'utilisateur : `dotnet test --project tests/ShowTime.Core.Tests` et `dotnet test --project tests/ShowTime.Infrastructure.IntegrationTests` ; sinon par la CI (voir Global Constraints). Expected: échec de compilation (`FfmpegDirectory`) et des assertions de messages.
 
 - [ ] **Step 3: Implémenter**
   - `FfmpegDirectory` : détecter le suffixe `.app/Contents/MonoBundle` (après retrait de la barre finale, comparaison ordinale) et remplacer `MonoBundle` par `MacOS`.
-  - `AvFoundation.InstallHint` : « Il est livré dans LocalTake.app : réinstallez l'app depuis la page des versions, ou indiquez un autre ffmpeg dans les réglages. »
-  - `DirectShowGdigrab.InstallHint` : « Il est livré avec LocalTake : extrayez de nouveau tout le zip, en gardant ffmpeg.exe à côté de LocalTake.exe, ou indiquez un autre ffmpeg dans les réglages. »
-  - Doc XML de `FfmpegLocator` / `CreateFfmpegLocator` : « ffmpeg livré avec LocalTake (à côté de l'exe, ou dans Contents/MacOS), puis le PATH, puis Homebrew (développement) ».
+  - `AvFoundation.InstallHint` : « Il est livré dans ShowTime.app : réinstallez l'app depuis la page des versions, ou indiquez un autre ffmpeg dans les réglages. »
+  - `DirectShowGdigrab.InstallHint` : « Il est livré avec ShowTime : extrayez de nouveau tout le zip, en gardant ffmpeg.exe à côté de ShowTime.exe, ou indiquez un autre ffmpeg dans les réglages. »
+  - Doc XML de `FfmpegLocator` / `CreateFfmpegLocator` : « ffmpeg livré avec ShowTime (à côté de l'exe, ou dans Contents/MacOS), puis le PATH, puis Homebrew (développement) ».
 
 - [ ] **Step 4: Vérifier le succès** — mêmes commandes (ou CI). Expected: PASS.
 
-- [ ] **Step 5: Commit** — `git commit -m "Look for the ffmpeg shipped with LocalTake, in the macOS bundle too"`
+- [ ] **Step 5: Commit** — `git commit -m "Look for the ffmpeg shipped with ShowTime, in the macOS bundle too"`
 
 ---
 
@@ -114,9 +114,9 @@ public void Outside_a_bundle_the_assemblies_folder_is_searched(string assemblies
 **Interfaces:**
 - Consumes: `build/fetch-ffmpeg.sh windows <dir>` (tâche 2), `THIRD-PARTY-NOTICES.md`, `licenses/` (tâche 2).
 
-- [ ] **Step 1: Packaging** — après `dotnet publish … -o <dir>` : `bash build/fetch-ffmpeg.sh windows <dir>`, copie de `THIRD-PARTY-NOTICES.md` et `licenses/` dans `<dir>`. Dans `release.yml`, l'étape vit à côté de « Add the Whisper model ». Contrôle final : `test -f <dir>/ffmpeg.exe && test -f <dir>/LocalTake.exe && test -f <dir>/THIRD-PARTY-NOTICES.md`.
+- [ ] **Step 1: Packaging** — après `dotnet publish … -o <dir>` : `bash build/fetch-ffmpeg.sh windows <dir>`, copie de `THIRD-PARTY-NOTICES.md` et `licenses/` dans `<dir>`. Dans `release.yml`, l'étape vit à côté de « Add the Whisper model ». Contrôle final : `test -f <dir>/ffmpeg.exe && test -f <dir>/ShowTime.exe && test -f <dir>/THIRD-PARTY-NOTICES.md`.
 - [ ] **Step 2: Notes de release** — dans `publish`, `gh release create … --notes-file` : un fichier construit par l'étape avec la phrase « Contient ffmpeg 9.0.2 (GPL v3) ; code source : https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz. Voir THIRD-PARTY-NOTICES.md. », suivi des notes générées (`--generate-notes` reste).
-- [ ] **Step 3: Vérifier** — CI dispatchée comme en tâche 2. Expected: job `package-windows` vert ; l'artefact `LocalTake-windows` contient `LocalTake.exe`, `ffmpeg.exe`, `runtimes\win-x64`, `THIRD-PARTY-NOTICES.md`, `licenses\GPL-3.0.txt` (`gh run download <id> -n LocalTake-windows -D <scratchpad>` puis lister ; ne rien exécuter).
+- [ ] **Step 3: Vérifier** — CI dispatchée comme en tâche 2. Expected: job `package-windows` vert ; l'artefact `ShowTime-windows` contient `ShowTime.exe`, `ffmpeg.exe`, `runtimes\win-x64`, `THIRD-PARTY-NOTICES.md`, `licenses\GPL-3.0.txt` (`gh run download <id> -n ShowTime-windows -D <scratchpad>` puis lister ; ne rien exécuter).
 - [ ] **Step 4: Commit** — `git commit -m "Ship ffmpeg.exe and the licence notices in the Windows zip"`
 
 ---
@@ -129,16 +129,16 @@ public void Outside_a_bundle_the_assemblies_folder_is_searched(string assemblies
 
 **Interfaces:**
 - Consumes: `build/fetch-ffmpeg.sh macos <dir>` (tâche 2).
-- Produces: `build/package-macos.sh <LocalTake.app> <zip>` — lit les variables d'environnement optionnelles `MACOS_SIGNING_P12` et `MACOS_SIGNING_PASSWORD`.
+- Produces: `build/package-macos.sh <ShowTime.app> <zip>` — lit les variables d'environnement optionnelles `MACOS_SIGNING_P12` et `MACOS_SIGNING_PASSWORD`.
 
 - [ ] **Step 1: Écrire le script**, qui remplace l'étape « Sign ad hoc and zip » des deux workflows :
   1. `bash build/fetch-ffmpeg.sh macos <tmp>` puis copie en `"$app/Contents/MacOS/ffmpeg"` ; copie de `THIRD-PARTY-NOTICES.md` et `licenses/` dans `"$app/Contents/Resources/"`.
-  2. Identité : si `MACOS_SIGNING_P12` est non vide, trousseau temporaire (`security create-keychain`, `set-keychain-settings -lut 21600`, `unlock-keychain`, `import <p12> -P "$MACOS_SIGNING_PASSWORD" -T /usr/bin/codesign`, `set-key-partition-list -S apple-tool:,apple:,codesign: -k <pw>`, ajout à `list-keychains`) et `identity=LocalTake` ; sinon `identity=-` et une ligne `echo "No signing certificate: signed ad hoc"`.
+  2. Identité : si `MACOS_SIGNING_P12` est non vide, trousseau temporaire (`security create-keychain`, `set-keychain-settings -lut 21600`, `unlock-keychain`, `import <p12> -P "$MACOS_SIGNING_PASSWORD" -T /usr/bin/codesign`, `set-key-partition-list -S apple-tool:,apple:,codesign: -k <pw>`, ajout à `list-keychains`) et `identity=ShowTime` ; sinon `identity=-` et une ligne `echo "No signing certificate: signed ad hoc"`.
   3. `codesign --force --sign "$identity" "$app/Contents/MacOS/ffmpeg"` puis `codesign --force --deep --sign "$identity" "$app"` ; `codesign --verify --deep --strict --verbose=2 "$app"`.
-  4. Contrôles : `lipo -archs` de `Contents/MacOS/LocalTake` et de `Contents/MacOS/ffmpeg` contiennent `arm64` et `x86_64` ; avec certificat, `codesign -dvv "$app" 2>&1` contient `Authority=LocalTake`.
+  4. Contrôles : `lipo -archs` de `Contents/MacOS/ShowTime` et de `Contents/MacOS/ffmpeg` contiennent `arm64` et `x86_64` ; avec certificat, `codesign -dvv "$app" 2>&1` contient `Authority=LocalTake`.
   5. `ditto -c -k --keepParent "$app" "$zip"` ; trousseau temporaire supprimé dans un `trap … EXIT`.
 - [ ] **Step 2: Workflows** — `macos-app` et `macos` appellent `bash build/package-macos.sh "$app" dist/<nom>.zip` avec `env: MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}` et `MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}`. Le commentaire de `macos-app` passe de « signed ad hoc » à « signed with the LocalTake certificate when the secrets are set, ad hoc otherwise ».
-- [ ] **Step 3: Vérifier sans secret** (ils n'existent pas encore) — CI dispatchée. Expected: `macos-app` vert, journal « No signing certificate: signed ad hoc », artefact `LocalTake-macos` contenant `LocalTake.app/Contents/MacOS/ffmpeg` (télécharger et lister avec `unzip -l`, sans exécuter).
+- [ ] **Step 3: Vérifier sans secret** (ils n'existent pas encore) — CI dispatchée. Expected: `macos-app` vert, journal « No signing certificate: signed ad hoc », artefact `ShowTime-macos` contenant `ShowTime.app/Contents/MacOS/ffmpeg` (télécharger et lister avec `unzip -l`, sans exécuter).
 - [ ] **Step 4: Commit** — `git commit -m "Ship ffmpeg in the macOS app and sign it with a stable certificate when available"`
 
 ---
@@ -157,7 +157,7 @@ public void Outside_a_bundle_the_assemblies_folder_is_searched(string assemblies
 - [ ] **Step 2: Pause — l'utilisateur crée le certificat et les deux secrets.** Ne rien générer à sa place (la clé privée ne doit pas passer par la session).
 - [ ] **Step 3: Vérifier avec secret** — CI dispatchée. Expected: `macos-app` vert, journal contenant `Authority=LocalTake`.
 - [ ] **Step 4: Documentation**
-  - README : Windows « extraire le zip, lancer LocalTake.exe ; ffmpeg est inclus » ; macOS « glisser dans Applications ; ffmpeg est inclus ; première ouverture par clic droit > Ouvrir ; les mises à jour gardent les autorisations » ; supprimer `winget install Gyan.FFmpeg` et `brew install ffmpeg` (BlackHole reste jusqu'au plan du son) ; mention de `THIRD-PARTY-NOTICES.md`.
+  - README : Windows « extraire le zip, lancer ShowTime.exe ; ffmpeg est inclus » ; macOS « glisser dans Applications ; ffmpeg est inclus ; première ouverture par clic droit > Ouvrir ; les mises à jour gardent les autorisations » ; supprimer `winget install Gyan.FFmpeg` et `brew install ffmpeg` (BlackHole reste jusqu'au plan du son) ; mention de `THIRD-PARTY-NOTICES.md`.
   - CLAUDE.md : « ffmpeg ships with the app, pinned and checked in `build/fetch-ffmpeg.sh` (the app never downloads it) » ; recherche de ffmpeg (réglage, puis livré : à côté de l'exe ou `Contents/MacOS`, puis PATH, puis Homebrew) ; release : zips avec ffmpeg et notices, signature Mac par `build/package-macos.sh` et `docs/macos-signing.md`.
   - `docs/test-checklist.md` : Windows — sur un PC sans ffmpeg, le zip extrait enregistre une vidéo ; macOS — sur un Mac sans Homebrew, l'app enregistre ; après installation d'une nouvelle version signée, l'Enregistrement de l'écran et le Micro n'ont pas à être redonnés.
 - [ ] **Step 5: Commit** — `git commit -m "Document the macOS signing certificate and the self-contained install"`

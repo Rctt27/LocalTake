@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetches the Whisper model that LocalTake ships, at a pinned revision checked by SHA-256. LocalTake itself never
+# Fetches the Whisper model that ShowTime ships, at a pinned revision checked by SHA-256. ShowTime itself never
 # downloads anything: this runs in CI, when the Windows zip and the macOS app are built.
 #
 # Usage: fetch-whisper-model.sh <dest-dir>   writes <dest-dir>/ggml-small-q5_1.bin

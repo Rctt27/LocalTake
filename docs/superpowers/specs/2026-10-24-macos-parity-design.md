@@ -41,7 +41,7 @@ l'app. La comparaison écran par écran est résumée plus bas.
    signalements contraires) : un test sur le runner macOS de la CI vérifie dès la première tâche que `Option+Espace`
    s'enregistre. **S'il est refusé, le défaut macOS devient `Ctrl+Maj+Espace`** (décision de l'utilisateur), et le
    champ des réglages Mac refuse les combinaisons que macOS rejette, avec un message.
-3. **Son du Mac sans pilote** : LocalTake capte lui-même ce que joue le Mac (ScreenCaptureKit, son de l'écran
+3. **Son du Mac sans pilote** : ShowTime capte lui-même ce que joue le Mac (ScreenCaptureKit, son de l'écran
    enregistré) et le passe à ffmpeg par un tuyau (FIFO), comme `WasapiSystemAudio` sous Windows. Même exigence de
    synchronisation que Windows (son et image à ±0,1 s), même règle de mélange avec le micro (`amix`), même continuité
    (le flux garde sa durée quand rien ne joue). BlackHole n'est plus nécessaire ; s'il est installé, il reste écarté de
@@ -55,11 +55,11 @@ l'app. La comparaison écran par écran est résumée plus bas.
 5. **ffmpeg livré avec l'app, sur Mac et sur Windows.** L'utilisateur n'installe plus ffmpeg.
    - Mac : un ffmpeg universel (arm64 et x86_64) dans le bundle, signé avec l'app, trouvé en premier par
      `AppPaths.CreateFfmpegLocator`.
-   - Windows : `ffmpeg.exe` dans le zip, à côté de `LocalTake.exe` (le localisateur le cherche déjà là en premier).
+   - Windows : `ffmpeg.exe` dans le zip, à côté de `ShowTime.exe` (le localisateur le cherche déjà là en premier).
    - Le binaire vient d'une version épinglée, vérifiée par SHA-256 au build (CI et release), comme le modèle Whisper ;
-     l'app ne télécharge toujours rien. Il doit avoir ce dont LocalTake se sert : libx264, `avfoundation` (Mac),
+     l'app ne télécharge toujours rien. Il doit avoir ce dont ShowTime se sert : libx264, `avfoundation` (Mac),
      `gdigrab` et `dshow` (Windows), l'entrée PCM brute par tuyau, le WAV 16 kHz de la piste micro.
-   - Licence : ffmpeg avec x264 est sous GPL ; il est livré comme programme séparé, que LocalTake lance. Chaque
+   - Licence : ffmpeg avec x264 est sous GPL ; il est livré comme programme séparé, que ShowTime lance. Chaque
      release joint sa licence et l'adresse de son code source exact (version épinglée).
    - Le réglage « ffmpeg » des réglages reste : vide = celui livré avec l'app ; un chemin = un autre ffmpeg.
    - Les messages et le README qui disent d'installer ffmpeg (`InstallHint`, « ffmpeg est introuvable… ») changent en
@@ -97,8 +97,8 @@ l'app. La comparaison écran par écran est résumée plus bas.
   tourner librement.
 - Pas de Mac pour développer : l'app Mac ne se compile que sur la CI macOS (job `macos-app`), qui ne se lance sur la
   branche que via `gh workflow run CI --ref feature/macos-app` (ou une PR). L'app Mac n'a pas de tests automatisés :
-  la logique testable va dans le cœur ou dans `LocalTake.Platform.MacOS` (testé sur le runner macOS), et l'app se
-  vérifie à la main avec la partie macOS de `docs/test-checklist.md`, sur l'artefact `LocalTake-macos`.
+  la logique testable va dans le cœur ou dans `ShowTime.Platform.MacOS` (testé sur le runner macOS), et l'app se
+  vérifie à la main avec la partie macOS de `docs/test-checklist.md`, sur l'artefact `ShowTime-macos`.
 - Les runners macOS n'ont pas l'autorisation Enregistrement de l'écran : ScreenCaptureKit (images et son) ne s'y teste
   pas ; la synchronisation son/image sur Mac se vérifie à la main (procédure écrite dans la checklist).
 - macOS 14 minimum, app universelle (Apple silicon et Intel), trimmée (`TrimMode` partial, un avertissement de trim
@@ -113,7 +113,7 @@ l'app. La comparaison écran par écran est résumée plus bas.
 - Défaut du surlignage sur Mac : `Option+Espace` ; repli `Ctrl+Maj+Espace` si macOS refuse `Option+Espace`.
 - ffmpeg livré avec l'app sur Mac et sur Windows ; plus rien à installer à part.
 - Certificat auto-signé stable pour signer l'app Mac.
-- Son du Mac : capté par LocalTake (ScreenCaptureKit), plus de BlackHole.
+- Son du Mac : capté par ShowTime (ScreenCaptureKit), plus de BlackHole.
 - Sous-titres sur Mac avec Whisper (whisper.cpp), modèle livré dans l'app.
 
 ## Choix de l'implémentation (mes choix, à vérifier par l'utilisateur)
@@ -128,9 +128,9 @@ l'app. La comparaison écran par écran est résumée plus bas.
 - **Son du Mac** : la capture ScreenCaptureKit (`SCStream`, `capturesAudio`, sans vidéo utile) vit dans l'app Mac ;
   le tuyau FIFO, l'écriture du PCM, le comblement par du silence quand rien ne joue ou quand la capture s'arrête
   (`SilencePadding`) et l'ordre des entrées ffmpeg (micro, écran, puis tuyau : `CaptureInputs.TrailingAudioInputs`)
-  vont dans le cœur et `LocalTake.Platform.MacOS`, testés. `AvFoundation` implémente `CanRecordSystemAudio` et
+  vont dans le cœur et `ShowTime.Platform.MacOS`, testés. `AvFoundation` implémente `CanRecordSystemAudio` et
   `BuildInputs(…, PipedAudio?)` comme `DirectShowGdigrab`.
-- **Surlignage** : `MacHighlightInput` (`LocalTake.Platform.MacOS` pour ce qui est testable) : appui et relâchement par
+- **Surlignage** : `MacHighlightInput` (`ShowTime.Platform.MacOS` pour ce qui est testable) : appui et relâchement par
   Carbon (déjà en place dans `MacHotkeys`), état tenu touche et modificateurs compris, position de la souris convertie
   en pixels par `MacScreenSpace`, sans aucune autorisation (pas d'event tap). Overlay : une `NSWindow` sans bordure,
   transparente, qui ignore la souris, au-dessus des fenêtres, `sharingType` par défaut (capturée par ffmpeg), une par

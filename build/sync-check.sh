@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Measures the offset between sound and picture in a recording, by hand on a Mac, where the CI cannot record the screen
-# (Windows has SyncTests for it). Play the clip full screen, record it with LocalTake (the Mac's sound only), measure.
+# (Windows has SyncTests for it). Play the clip full screen, record it with ShowTime (the Mac's sound only), measure.
 #
 # Usage: sync-check.sh clip <out.mp4>         a 14 s clip, black, with a white flash and a 1 kHz beep together every 2 s
 #                                             from 2 s to 12 s (black before and after: going full screen or back to the
 #                                             desktop is not taken for a flash)
 #        sync-check.sh measure <recording>    for each flash, the offset of the nearest beep; fails past ±0.1 s
-# ffmpeg: $FFMPEG, else the one on the PATH (on a Mac: /Applications/LocalTake.app/Contents/MacOS/ffmpeg).
+# ffmpeg: $FFMPEG, else the one on the PATH (on a Mac: /Applications/ShowTime.app/Contents/MacOS/ffmpeg).
 set -euo pipefail
 
 ffmpeg=${FFMPEG:-ffmpeg}

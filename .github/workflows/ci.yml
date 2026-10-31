@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      # The ffmpeg LocalTake ships: the tests run against it.
+      # The ffmpeg ShowTime ships: the tests run against it.
       - name: Fetch the shipped ffmpeg
         shell: bash
         run: |
@@ -37,13 +37,13 @@ jobs:
           curl -sSfL -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/ggml-tiny.bin"
           echo "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin" > ggml-tiny.bin.sha256
           if command -v sha256sum > /dev/null; then sha256sum -c ggml-tiny.bin.sha256; else shasum -a 256 -c ggml-tiny.bin.sha256; fi
-          echo "LOCALTAKE_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
+          echo "SHOWTIME_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
       - name: Format
-        run: dotnet format LocalTake.slnx --verify-no-changes
+        run: dotnet format ShowTime.slnx --verify-no-changes
       - name: Build
-        run: dotnet build LocalTake.slnx -c Release
+        run: dotnet build ShowTime.slnx -c Release
       - name: Test
-        run: dotnet test --solution LocalTake.slnx -c Release --no-build
+        run: dotnet test --solution ShowTime.slnx -c Release --no-build
 
   # The portable projects (core, infrastructure, platform adapters) on Linux and macOS.
   portable:
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      # On macOS, the ffmpeg LocalTake ships, which the tests then run against; Linux has no LocalTake app.
+      # On macOS, the ffmpeg ShowTime ships, which the tests then run against; Linux has no ShowTime app.
       - name: Install ffmpeg
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
@@ -74,7 +74,7 @@ jobs:
           curl -sSfL -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/$WHISPER_MODELS_REVISION/ggml-tiny.bin"
           echo "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin" > ggml-tiny.bin.sha256
           if command -v sha256sum > /dev/null; then sha256sum -c ggml-tiny.bin.sha256; else shasum -a 256 -c ggml-tiny.bin.sha256; fi
-          echo "LOCALTAKE_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
+          echo "SHOWTIME_WHISPER_MODEL=$RUNNER_TEMP/ggml-tiny.bin" >> "$GITHUB_ENV"
       # The Mac's sync is measured by hand with this script: its clip, measured against itself, must be in sync.
       - name: Self-test of the sync check
         if: runner.os == 'macOS'
@@ -82,13 +82,13 @@ jobs:
           bash build/sync-check.sh clip "$RUNNER_TEMP/sync.mp4"
           bash build/sync-check.sh measure "$RUNNER_TEMP/sync.mp4"
       - name: Core tests with coverage
-        run: dotnet test --project tests/LocalTake.Core.Tests -c Release --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
+        run: dotnet test --project tests/ShowTime.Core.Tests -c Release --coverage --coverage-output-format cobertura --coverage-output core.cobertura.xml
       - name: Core coverage of at least 90 %
         run: python3 build/check-coverage.py TestResults/core.cobertura.xml 90
       - name: Integration tests
-        run: dotnet test --project tests/LocalTake.Infrastructure.IntegrationTests -c Release
+        run: dotnet test --project tests/ShowTime.Infrastructure.IntegrationTests -c Release
       - name: Platform tests
-        run: dotnet test --project tests/LocalTake.Platform.Tests -c Release
+        run: dotnet test --project tests/ShowTime.Platform.Tests -c Release
 
   # The macOS app, universal (Apple silicon and Intel), with ffmpeg, signed with the LocalTake certificate when the
   # secrets are set (ad hoc otherwise), to try out on a Mac.
@@ -111,14 +111,14 @@ jobs:
       - name: Install the macOS workload
         run: dotnet workload install macos --version "$MACOS_WORKLOAD_SET"
       - name: Build
-        run: dotnet build src/LocalTake.Mac -c Release
+        run: dotnet build src/ShowTime.Mac -c Release
       - name: Format
-        run: dotnet format LocalTake.Mac.slnx --verify-no-changes
+        run: dotnet format ShowTime.Mac.slnx --verify-no-changes
       - name: Add ffmpeg, sign and zip
         env:
           MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
           MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
-        run: bash build/package-macos.sh src/LocalTake.Mac/bin/Release/net10.0-macos/LocalTake.app dist/LocalTake-macos.zip
+        run: bash build/package-macos.sh src/ShowTime.Mac/bin/Release/net10.0-macos/ShowTime.app dist/ShowTime-macos.zip
       # The packaged app loads whisper.cpp and the model it ships, on both architectures when the runner has Rosetta.
       # The runner has no Screen Recording permission, so the report fails elsewhere: only its transcription line counts.
       - name: Check that the packaged app can transcribe
@@ -129,8 +129,8 @@ jobs:
             grep -F "[ok]   transcription:" <<< "$out" > /dev/null || { otool -L "$bin"; return 1; }
           }
           rm -rf "$RUNNER_TEMP/app" && mkdir "$RUNNER_TEMP/app"
-          ditto -x -k dist/LocalTake-macos.zip "$RUNNER_TEMP/app"
-          bin="$RUNNER_TEMP/app/LocalTake.app/Contents/MacOS/LocalTake"
+          ditto -x -k dist/ShowTime-macos.zip "$RUNNER_TEMP/app"
+          bin="$RUNNER_TEMP/app/ShowTime.app/Contents/MacOS/ShowTime"
           # macOS has no timeout command.
           check perl -e 'alarm shift; exec @ARGV' 300 "$bin" --diagnostics
           if arch -x86_64 /usr/bin/true 2> /dev/null; then
@@ -140,8 +140,8 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: LocalTake-macos
-          path: dist/LocalTake-macos.zip
+          name: ShowTime-macos
+          path: dist/ShowTime-macos.zip
 
   # The Windows build to try out.
   package-windows:
@@ -152,18 +152,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      # LocalTake.exe, Whisper's native libraries (runtimes\win-x64), ffmpeg.exe and the licence notices; without the
+      # ShowTime.exe, Whisper's native libraries (runtimes\win-x64), ffmpeg.exe and the licence notices; without the
       # model, which only releases ship.
-      - name: Publish LocalTake.exe
-        run: dotnet publish src/LocalTake.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+      - name: Publish ShowTime.exe
+        run: dotnet publish src/ShowTime.Windows -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
       - name: Add ffmpeg and the licence notices
         shell: bash
         run: |
           bash build/fetch-ffmpeg.sh windows dist
           cp THIRD-PARTY-NOTICES.md dist/
           cp -r licenses dist/
-          test -f dist/LocalTake.exe && test -f dist/ffmpeg.exe && test -f dist/licenses/GPL-3.0.txt
+          test -f dist/ShowTime.exe && test -f dist/ffmpeg.exe && test -f dist/licenses/GPL-3.0.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: LocalTake-windows
+          name: ShowTime-windows
           path: dist/

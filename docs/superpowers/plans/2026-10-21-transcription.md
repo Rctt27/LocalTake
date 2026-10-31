@@ -9,7 +9,7 @@ correspond à la position de lecture. Windows et macOS : tout ce qui n'est pas v
 l'infrastructure portable.
 
 Contraintes du projet qui pèsent : aucune donnée ne quitte la machine (transcription locale, aucun appel réseau dans
-l'app), règles testables dans `LocalTake.Core`, nouveaux noms de fichiers et réglages = interface publique.
+l'app), règles testables dans `ShowTime.Core`, nouveaux noms de fichiers et réglages = interface publique.
 
 Décisions prises avec l'utilisateur :
 - **Modèle livré avec la release** (la CI le télécharge au build, l'app ne fait toujours aucun appel réseau).
@@ -47,7 +47,7 @@ Copier ce plan dans `docs/superpowers/plans/2026-10-21-transcription.md` (en fra
   l'exe dans le zip.
 - Temps de transcription de 2 min de français sur CPU avec turbo-q5_0 et small-q5_1 → choix du modèle.
 
-### Tâche 2 — Modèle de sous-titres (core, `src/LocalTake.Core/Transcription/`)
+### Tâche 2 — Modèle de sous-titres (core, `src/ShowTime.Core/Transcription/`)
 - `SubtitleCue(TimeSpan Start, TimeSpan End, string Text)`.
 - `SrtFormat` : `Parse` tolérant (BOM, CRLF/LF, dernière ligne vide absente) et `Write` (culture invariante, `hh:mm:ss,fff`).
 - `Timecode` : `Format` pour l'édition (`mm:ss.fff`, heures si besoin) et `TryParse` tolérant (`1:02.3`, `62.3`, `00:01:02,345`).
@@ -118,7 +118,7 @@ Copier ce plan dans `docs/superpowers/plans/2026-10-21-transcription.md` (en fra
 
 ### Tâche 7 — Release et documentation
 - `release.yml` : télécharge le modèle (URL Hugging Face et SHA-256 épinglés dans le workflow, contrôle obligatoire),
-  publie `LocalTake-X.Y.Z-windows-x64.zip` (exe + `models/<modèle>.bin`) et l'exe seul (mise à jour sans
+  publie `ShowTime-X.Y.Z-windows-x64.zip` (exe + `models/<modèle>.bin`) et l'exe seul (mise à jour sans
   re-télécharger le modèle).
 - README : transcription, emplacement du modèle, `.srt` produit, aucune donnée envoyée. `CLAUDE.md` : section
   Transcription. `docs/test-checklist.md` : scénarios manuels. Plan macOS (tâche 5) : panneau AVKit sur le même core,
@@ -127,8 +127,8 @@ Copier ce plan dans `docs/superpowers/plans/2026-10-21-transcription.md` (en fra
 
 ## Fichiers principaux
 
-- Nouveaux : `src/LocalTake.Core/Transcription/*`, `src/LocalTake.Core/Ports/ITranscriber.cs`,
-  `src/LocalTake.Infrastructure/Transcription/WhisperTranscriber.cs`, `src/LocalTake.Windows/Recording/TranscriptPanel.xaml(.cs)`.
+- Nouveaux : `src/ShowTime.Core/Transcription/*`, `src/ShowTime.Core/Ports/ITranscriber.cs`,
+  `src/ShowTime.Infrastructure/Transcription/WhisperTranscriber.cs`, `src/ShowTime.Windows/Recording/TranscriptPanel.xaml(.cs)`.
 - Modifiés : `RecordingCommand.cs`, `CaptureInputs.cs` (doc), `VideoOptions.cs`, `RecordingSession.cs`,
   `IRecordingStatus.cs`, `FfmpegVideoRecorderFactory.cs`, `AppSettings.cs`, `SettingsEditor.cs`, `IAppPaths.cs`,
   `AppPaths.cs`, `DiagnosticsReport.cs`, `App.ConfigureServices`, `TrayController.cs`, `RecordingBar.xaml(.cs)`,
@@ -145,7 +145,7 @@ Copier ce plan dans `docs/superpowers/plans/2026-10-21-transcription.md` (en fra
   absent.
 - Windows (`Sta.Run`) : le panneau affiche blocs et intervalles, surligne l'entrée de la position donnée, une
   validation écrit le `.srt`, Espace dans un champ ne met pas en pause.
-- `dotnet build -c Release`, `dotnet test --solution LocalTake.slnx`, `dotnet format --verify-no-changes`.
+- `dotnet build -c Release`, `dotnet test --solution ShowTime.slnx`, `dotnet format --verify-no-changes`.
 - À la main : enregistrer 1 min en parlant avec la bascule « Transcrire », vérifier le panneau pendant la lecture
   (blocs et intervalles suivis, clic sur la barre), corriger un texte et un timecode, rouvrir le `.srt` dans VLC ;
   `ffmpeg -i` sur le MP4 inchangé ; exe publié en single-file transcrit bien.

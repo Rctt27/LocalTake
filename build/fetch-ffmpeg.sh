@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Fetches the ffmpeg that LocalTake ships, at a pinned version checked by SHA-256, and checks that it can do what
-# LocalTake asks of it. LocalTake itself never downloads anything: this runs in CI, when the zips are built and before
+# Fetches the ffmpeg that ShowTime ships, at a pinned version checked by SHA-256, and checks that it can do what
+# ShowTime asks of it. ShowTime itself never downloads anything: this runs in CI, when the zips are built and before
 # the tests, which run against the same binary.
 #
 # Usage: fetch-ffmpeg.sh windows|macos <dest-dir>
