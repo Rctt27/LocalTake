@@ -4,7 +4,7 @@ Outil de capture d'écran et d'enregistrement vidéo pour **Windows** et **macOS
 
 ## Installation
 
-Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt27/LocalTake/releases).
+Les versions se téléchargent depuis la page [Releases](https://github.com/Rctt27/ShowTime/releases).
 
 **Windows 10 (2004) ou 11** : `ShowTime-x.y.z-windows-x64.zip`, à extraire dans un dossier, puis lancer `ShowTime.exe`. Gardez ensemble ce qu'il contient : `ShowTime.exe`, `ffmpeg.exe` (l'encodeur vidéo), le dossier `runtimes` (la bibliothèque de transcription) et le dossier `models` (le modèle de transcription). Rien d'autre à installer. Il nécessite le [runtime .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) (« .NET Desktop Runtime »).
 
