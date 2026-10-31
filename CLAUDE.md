@@ -8,9 +8,13 @@ ShowTime is a tray (Windows) and menu bar (macOS) screen-capture and screen-reco
 
 UI strings are French; code and comments are English.
 
+ShowTime was named LocalTake up to v0.4: its settings are not carried over. The name stays on purpose in the macOS signing certificate (`identity=LocalTake` in `build/package-macos.sh`; renaming it means new secrets) and in `tests/fixtures/legacy`.
+
 ## Before starting work
 
 ShowTime is developed from several machines, so a local clone can be far behind GitHub. Before writing a plan, branching or changing code: `git fetch`, compare `main` with `origin/main` and pull if it is behind, then check that the SDK pinned in `global.json` is installed (`dotnet --list-sdks`). Work started on a stale `main` has to be redone on the new code.
+
+Branch from `main`, merge through a pull request with a merge commit (`gh pr merge --merge`) once CI is green, then delete the branch, locally and on GitHub.
 
 ## Commands
 
@@ -28,6 +32,8 @@ dotnet publish src/ShowTime.Windows -c Release -r win-x64 --self-contained false
 ```
 
 The macOS app builds on a Mac only, with Xcode and the `macos` workload; `ShowTime.Mac.slnx` holds it with the projects it uses. Each .NET for macOS requires one Xcode: CI pins workload set `10.0.401` (.NET for macOS 26.5) with Xcode 26.6, in `ci.yml` and `release.yml` alike; change both together. The app is trimmed (`TrimMode` partial): it keeps only what it uses of .NET's libraries and Apple's bindings, and links only the Apple frameworks those need. A trim warning fails its build, and the trim analyzer runs on the core, the infrastructure and `ShowTime.Platform.MacOS` on every OS, so reflection on .NET's types (JSON without generated metadata, for one) is caught on Windows too.
+
+On Windows, `dotnet format ShowTime.slnx` does not cover `src/ShowTime.Mac` (CI checks `ShowTime.Mac.slnx` on macOS): keep its style by hand, `using` directives with `System` first, then alphabetical.
 
 ```
 dotnet workload install macos --version 10.0.401
@@ -52,6 +58,7 @@ The UI on a real screen is verified by hand with `docs/test-checklist.md`. To ch
 - The macOS app has no automated tests (no reliable `net10.0-macos` test host in CI): logic worth a test goes to the core or `ShowTime.Platform.MacOS`, and the app is checked by hand with the macOS part of `docs/test-checklist.md`, using the CI artifact `ShowTime-macos`.
 - `tests/ShowTime.Windows.Tests` (Windows only): the WPF adapters and windows, off screen on one STA thread hosting `App` without starting it (`Sta.Run`); the editor's export is checked pixel by pixel. Tests that record the screen with ffmpeg share the non-parallel `ScreenRecordings` collection, so that one's windows do not end up in the other's video.
 - `tests/fixtures/legacy`: the behaviour of v0.1.0 (file names, shortcuts, ffmpeg command lines, settings files), recorded from the original code. Characterization tests compare against it; never regenerate it, and make a deliberate change in the test with a comment.
+- Run no test locally without the user's go: `ShowTime.Windows.Tests` shows coloured windows and `Platform.Tests` captures sound, which crashes other applications. Verify through CI: it runs on pull requests and on `main`; for a branch, `gh workflow run CI --ref <branch>`. `MacAudioPipeTests` (dispose under 1 s) can fail on a slow runner: `gh run rerun <id> --failed`.
 - New behaviour starts with a failing test.
 
 ## Versioning and releases
